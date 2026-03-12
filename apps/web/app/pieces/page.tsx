@@ -55,7 +55,7 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
   );
 }
 
-export default function PiecesPage() {
+function PiecesPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pieces, setPieces] = useState<Piece[]>([]);
@@ -203,5 +203,13 @@ export default function PiecesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PiecesPage() {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <PiecesPageInner />
+    </Suspense>
   );
 }
