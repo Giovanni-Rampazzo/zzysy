@@ -1,0 +1,170 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── MULTITENANCY ───────────────────────────────────────────────
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  campaigns     Campaign[]
+  subscriptions Subscription[]
+}
+
+// ─── USUÁRIOS ────────────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  plan      String   @default("FREE") // FREE | STARTER | PRO | AGENCY | ENTERPRISE
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  blocked              Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  accounts  Account[]
+  sessions  Session[]
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+// ─── NEXTAUTH ────────────────────────────────────────────────────
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── PLANOS E ASSINATURAS ────────────────────────────────────────
+model Plan {
+  id            String   @id @default(cuid())
+  name          String
+  priceMonthly  Float
+  priceYearly   Float
+  stripePriceId String?
+  maxUsers      Int
+  maxCampaigns  Int
+  features      Json
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  tenantId             String
+  planId               String
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeSubscriptionId String?
+  stripeCustomerId     String?
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan   Plan   @relation(fields: [planId], references: [id])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
+
+// ─── CAMPANHAS ───────────────────────────────────────────────────
+model Campaign {
+  id        String   @id @default(cuid())
+  name      String
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  matrix Matrix?
+  pieces Piece[]
+}
+
+// ─── MATRIZ ──────────────────────────────────────────────────────
+model Matrix {
+  id         String   @id @default(cuid())
+  campaignId String   @unique
+  data       Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+}
+
+// ─── PEÇAS ───────────────────────────────────────────────────────
+model Piece {
+  id         String      @id @default(cuid())
+  campaignId String
+  name       String
+  format     String
+  data       Json
+  status     PieceStatus @default(DRAFT)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+}
+
+enum PieceStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  EXPORTED
+}

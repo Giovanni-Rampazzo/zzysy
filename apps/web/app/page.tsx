@@ -1,0 +1,178 @@
+"use client";
+import Link from "next/link";
+import { colors, typography, spacing, borderRadius } from "@/lib/theme";
+
+const f = "'Inter', sans-serif";
+
+function Logo({ size = "1.4rem" }: { size?: string }) {
+  return (
+    <div style={{ display:"flex",alignItems:"center",gap:"1px",fontFamily:f,fontWeight:800,fontSize:size,letterSpacing:"-0.04em",color:colors.text }}>
+      ZZ
+      <span style={{ display:"inline-flex",alignItems:"center",justifyContent:"center",width:size,height:size,border:`2.5px solid ${colors.text}`,borderRadius:"50%",margin:"0 1px" }}>
+        <span style={{ display:"flex",gap:"1.5px" }}>
+          {["#F5C400","#34A853","#4285F4"].map(c=><span key={c} style={{ width:"4px",height:"4px",borderRadius:"50%",background:c }} />)}
+        </span>
+      </span>
+      SY
+    </div>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <div style={{ fontFamily:f,background:colors.background,color:colors.text,minHeight:"100vh" }}>
+
+      {/* NAV */}
+      <nav style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 48px",borderBottom:`1px solid ${colors.border}`,position:"sticky",top:0,background:"rgba(255,255,255,0.95)",backdropFilter:"blur(8px)",zIndex:100 }}>
+        <Logo />
+        <div style={{ display:"flex",alignItems:"center",gap:"32px" }}>
+          <Link href="/plans" style={{ fontSize:"0.875rem",color:colors.textMuted,textDecoration:"none",fontWeight:500 }}>Planos</Link>
+          <Link href="/login" style={{ fontSize:"0.875rem",color:colors.textMuted,textDecoration:"none",fontWeight:500 }}>Entrar</Link>
+          <Link href="/register" style={{ fontSize:"0.875rem",background:colors.text,color:"#fff",padding:"10px 20px",borderRadius:"8px",textDecoration:"none",fontWeight:700 }}>Começar grátis</Link>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <div style={{ maxWidth:"1100px",margin:"0 auto",padding:"100px 48px 80px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"80px",alignItems:"center" }}>
+        <div>
+          <div style={{ display:"inline-flex",alignItems:"center",gap:"8px",border:`1px solid ${colors.border}`,borderRadius:"999px",padding:"6px 14px",fontSize:"0.72rem",fontWeight:700,color:colors.textMuted,letterSpacing:"0.06em",textTransform:"uppercase" as const,marginBottom:"28px" }}>
+            <span style={{ width:"6px",height:"6px",borderRadius:"50%",background:colors.green }} />
+            Automação de layout para agências
+          </div>
+          <h1 style={{ fontSize:"3.6rem",fontWeight:700,letterSpacing:"-0.03em",lineHeight:1.1,marginBottom:"24px" }}>
+            Produza centenas de peças{" "}
+            <span style={{ color:colors.yellow }}>sem retrabalho.</span>
+          </h1>
+          <p style={{ fontSize:"1.05rem",color:colors.textMuted,lineHeight:1.7,marginBottom:"36px" }}>
+            Crie uma peça matriz, defina os formatos e o ZZYSY gera todas as versões automaticamente — em qualquer tamanho, para qualquer canal.
+          </p>
+          <div style={{ display:"flex",gap:"12px",flexWrap:"wrap" as const }}>
+            <Link href="/register" style={{ background:colors.text,color:"#fff",padding:"14px 28px",borderRadius:"10px",textDecoration:"none",fontWeight:700,fontSize:"0.95rem" }}>Começar grátis →</Link>
+            <Link href="/plans" style={{ background:colors.surface,color:colors.text,padding:"14px 28px",borderRadius:"10px",textDecoration:"none",fontWeight:600,fontSize:"0.95rem",border:`1.5px solid ${colors.border}` }}>Ver planos</Link>
+          </div>
+        </div>
+        <div style={{ background:colors.surface,borderRadius:"20px",border:`1px solid ${colors.border}`,padding:"28px",aspectRatio:"4/3",display:"flex",flexDirection:"column" as const,gap:"12px" }}>
+          <div style={{ display:"flex",gap:"8px",alignItems:"center",paddingBottom:"16px",borderBottom:`1px solid ${colors.border}` }}>
+            {["T","▭","⊙","🖼"].map(t=><div key={t} style={{ width:"32px",height:"32px",borderRadius:"8px",background:t==="T"?colors.text:"#fff",color:t==="T"?"#fff":colors.text,border:`1px solid ${colors.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.8rem" }}>{t}</div>)}
+            <div style={{ flex:1 }} />
+            <span style={{ fontSize:"0.75rem",color:colors.textMuted,fontWeight:600 }}>Campanha Verão</span>
+          </div>
+          <div style={{ flex:1,background:"#fff",borderRadius:"12px",border:`1px solid ${colors.border}`,display:"flex",alignItems:"center",justifyContent:"center" }}>
+            <div style={{ width:"60%",aspectRatio:"1",background:"linear-gradient(135deg,#F5C400,#f0b800)",borderRadius:"10px",padding:"20px",display:"flex",flexDirection:"column" as const,justifyContent:"flex-end",gap:"8px" }}>
+              <div style={{ height:"10px",background:"rgba(0,0,0,0.2)",borderRadius:"4px",width:"80%" }} />
+              <div style={{ height:"10px",background:"rgba(0,0,0,0.2)",borderRadius:"4px",width:"50%" }} />
+            </div>
+          </div>
+          <div style={{ display:"flex",gap:"8px" }}>
+            {[["Feed","32px","32px"],["Stories","20px","36px"],["Banner","40px","20px"],["OOH","36px","24px"]].map(([label,w,h])=>(
+              <div key={label} style={{ flex:1,background:"#fff",border:`1px solid ${colors.border}`,borderRadius:"8px",padding:"8px",display:"flex",flexDirection:"column" as const,alignItems:"center",gap:"4px" }}>
+                <div style={{ width:w,height:h,background:colors.yellow,borderRadius:"4px",opacity:0.7 }} />
+                <span style={{ fontSize:"0.65rem",color:colors.textMuted,fontWeight:600 }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* STATS */}
+      <div style={{ borderTop:`1px solid ${colors.border}`,borderBottom:`1px solid ${colors.border}`,padding:"40px 48px" }}>
+        <div style={{ maxWidth:"1100px",margin:"0 auto",display:"flex" }}>
+          {[["10x","mais rápido que o processo manual"],["500+","peças no plano gratuito"],["100%","no browser, sem instalar nada"],["5min","para sua primeira campanha"]].map(([n,l],i)=>(
+            <div key={n} style={{ flex:1,padding:"0 40px",borderRight:i<3?`1px solid ${colors.border}`:"none",paddingLeft:i===0?"0":"40px" }}>
+              <div style={{ fontSize:"2.4rem",fontWeight:800,letterSpacing:"-0.04em",marginBottom:"4px" }}>{n}</div>
+              <div style={{ fontSize:"0.85rem",color:colors.textMuted }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* FEATURES */}
+      <div style={{ padding:"100px 48px",maxWidth:"1100px",margin:"0 auto" }}>
+        <div style={{ fontSize:"0.72rem",fontWeight:700,color:colors.textMuted,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:"16px" }}>Produto</div>
+        <div style={{ fontSize:"2.6rem",fontWeight:700,letterSpacing:"-0.03em",lineHeight:1.1,marginBottom:"56px" }}>Tudo que sua agência<br/>precisa em um lugar só.</div>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"2px",background:colors.border,borderRadius:"16px",overflow:"hidden" }}>
+          {[
+            { icon:"🎨",title:"Editor visual",desc:"Monte sua peça matriz com texto, imagens e formas. Tudo no browser, sem instalar nada." },
+            { icon:"📐",title:"Múltiplos formatos",desc:"Feed, stories, banner, OOH — defina os formatos uma vez e gere todas as versões." },
+            { icon:"⚡",title:"Exportação em escala",desc:"Exporte PNG, JPG ou TIFF com layers em segundos, pronto para entrega." },
+            { icon:"👥",title:"Multiusuário",desc:"Convide seu time. Cada agência tem seu espaço isolado e seguro." },
+            { icon:"🔄",title:"Versionamento",desc:"Histórico de versões por peça. Volte para qualquer estado anterior." },
+            { icon:"💳",title:"Planos flexíveis",desc:"Do freelancer à grande agência — escolha o plano que cresce com você." },
+          ].map(({icon,title,desc})=>(
+            <div key={title} style={{ background:colors.background,padding:"36px 32px" }}>
+              <div style={{ fontSize:"1.6rem",marginBottom:"16px" }}>{icon}</div>
+              <div style={{ fontSize:"1rem",fontWeight:700,marginBottom:"8px" }}>{title}</div>
+              <div style={{ fontSize:"0.875rem",color:colors.textMuted,lineHeight:1.6 }}>{desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* COMO FUNCIONA */}
+      <div style={{ background:colors.surface,padding:"100px 48px" }}>
+        <div style={{ maxWidth:"1100px",margin:"0 auto" }}>
+          <div style={{ fontSize:"0.72rem",fontWeight:700,color:colors.textMuted,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:"16px" }}>Como funciona</div>
+          <div style={{ fontSize:"2.6rem",fontWeight:700,letterSpacing:"-0.03em",lineHeight:1.1,marginBottom:"56px" }}>Três passos para<br/>produzir em escala.</div>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"48px" }}>
+            {[
+              { n:"01",title:"Crie a peça matriz",desc:"Desenhe o layout principal no editor visual. Defina textos, imagens e elementos uma única vez." },
+              { n:"02",title:"Defina os formatos",desc:"Selecione os formatos que sua campanha precisa: feed, stories, banners, OOH e muito mais." },
+              { n:"03",title:"Exporte tudo",desc:"O ZZYSY adapta automaticamente cada elemento para cada formato e exporta todos os arquivos." },
+            ].map(({n,title,desc})=>(
+              <div key={n}>
+                <div style={{ fontSize:"0.72rem",fontWeight:700,color:colors.textMuted,letterSpacing:"0.06em",marginBottom:"16px" }}>{n} —</div>
+                <div style={{ fontSize:"1.2rem",fontWeight:700,marginBottom:"10px" }}>{title}</div>
+                <div style={{ fontSize:"0.875rem",color:colors.textMuted,lineHeight:1.6 }}>{desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* PLANOS */}
+      <div style={{ padding:"100px 48px",maxWidth:"1100px",margin:"0 auto" }}>
+        <div style={{ fontSize:"0.72rem",fontWeight:700,color:colors.textMuted,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:"16px" }}>Preços</div>
+        <div style={{ fontSize:"2.6rem",fontWeight:700,letterSpacing:"-0.03em",marginBottom:"56px" }}>Simples e transparente.</div>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"16px" }}>
+          {[
+            { name:"Free",price:"R$ 0",desc:"Para experimentar a plataforma.",features:["1 campanha","500 peças/mês","Exportação PNG/JPG"],featured:false },
+            { name:"Starter",price:"R$ 19",desc:"Para freelancers e pequenas equipes.",features:["4 campanhas","2.000 peças/mês","Exportação PNG/JPG/TIFF"],featured:false },
+            { name:"Pro",price:"R$ 89",desc:"Para agências em crescimento.",features:["10 campanhas","5.000 peças/mês","Exportação com layers","Histórico de versões"],featured:true },
+            { name:"Agency",price:"R$ 399",desc:"Para grandes operações criativas.",features:["Campanhas ilimitadas","Peças ilimitadas","Até 10 usuários","Suporte dedicado"],featured:false },
+          ].map(({name,price,desc,features,featured})=>(
+            <div key={name} style={{ border:`1.5px solid ${featured?colors.yellow:colors.border}`,borderRadius:"16px",padding:"28px",background:featured?"#FFFDF0":colors.background }}>
+              {featured&&<div style={{ fontSize:"0.68rem",fontWeight:700,color:colors.yellow,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:"12px" }}>Mais popular</div>}
+              <div style={{ fontSize:"1.1rem",fontWeight:700,marginBottom:"8px" }}>{name}</div>
+              <div style={{ fontSize:"2.2rem",fontWeight:800,letterSpacing:"-0.04em",marginBottom:"4px" }}>{price}<span style={{ fontSize:"0.8rem",fontWeight:400,opacity:0.5 }}>/mês</span></div>
+              <div style={{ fontSize:"0.82rem",color:colors.textMuted,margin:"12px 0 20px",lineHeight:1.5 }}>{desc}</div>
+              <div style={{ height:"1px",background:colors.border,margin:"20px 0" }} />
+              <div style={{ display:"flex",flexDirection:"column" as const,gap:"8px",marginBottom:"24px" }}>
+                {features.map(f=><div key={f} style={{ fontSize:"0.82rem",display:"flex",alignItems:"center",gap:"8px" }}><span style={{ color:colors.green,fontWeight:700 }}>✓</span>{f}</div>)}
+              </div>
+              <Link href="/register" style={{ display:"block",textAlign:"center" as const,padding:"12px",borderRadius:"8px",textDecoration:"none",fontWeight:700,fontSize:"0.875rem",background:featured?colors.text:colors.surface,color:featured?"#fff":colors.text,border:`1.5px solid ${featured?colors.text:colors.border}` }}>Começar</Link>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA FINAL */}
+      <div style={{ padding:"100px 48px",textAlign:"center" as const,borderTop:`1px solid ${colors.border}` }}>
+        <h2 style={{ fontSize:"3rem",fontWeight:700,letterSpacing:"-0.03em",marginBottom:"16px",lineHeight:1.1 }}>Pronto para produzir<br/>sem retrabalho?</h2>
+        <p style={{ color:colors.textMuted,fontSize:"1.05rem",marginBottom:"40px" }}>Crie sua conta gratuitamente. Sem cartão de crédito.</p>
+        <Link href="/register" style={{ display:"inline-block",background:colors.text,color:"#fff",padding:"16px 36px",borderRadius:"10px",textDecoration:"none",fontWeight:700,fontSize:"1rem" }}>Criar conta grátis →</Link>
+      </div>
+
+      {/* FOOTER */}
+      <footer style={{ borderTop:`1px solid ${colors.border}`,padding:"32px 48px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap" as const,gap:"16px" }}>
+        <Logo size="1.2rem" />
+        <div style={{ display:"flex",gap:"24px" }}>
+          {[["Planos","/plans"],["Entrar","/login"],["Cadastro","/register"]].map(([l,h])=>(
+            <Link key={l} href={h} style={{ fontSize:"0.85rem",color:colors.textMuted,textDecoration:"none" }}>{l}</Link>
+          ))}
+        </div>
+        <div style={{ fontSize:"0.8rem",color:colors.textMuted }}>© 2026 ZZYSY. Todos os direitos reservados.</div>
+      </footer>
+
+    </div>
+  );
+}
