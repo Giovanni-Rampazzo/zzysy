@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Canvas, IText, Rect, Circle, FabricImage } from "fabric";
 
@@ -69,7 +69,7 @@ function getCanvasJson(canvas: Canvas, w: number, h: number) {
 const btn = {padding:"6px 12px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"#FFF",fontSize:"0.8rem",fontWeight:600,cursor:"pointer",color:"#111"} as const;
 const sep = {width:"1px",height:"24px",background:"#E5E5E5"} as const;
 
-export default function EditorPage() {
+function EditorPageInner() {
   const searchParams = useSearchParams();
   const campaignId = searchParams.get("campaign");
   const pieceId = searchParams.get("pieceId");
@@ -437,5 +437,13 @@ export default function EditorPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function EditorPage() {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <EditorPageInner />
+    </Suspense>
   );
 }
