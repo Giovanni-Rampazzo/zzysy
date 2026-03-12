@@ -28,7 +28,7 @@ export default function LandingPage() {
         <div style={{ display:"flex",alignItems:"center",gap:"32px" }}>
           <Link href="/plans" style={{ fontSize:"0.875rem",color:colors.textMuted,textDecoration:"none",fontWeight:500 }}>Planos</Link>
           <Link href="/login" style={{ fontSize:"0.875rem",color:colors.textMuted,textDecoration:"none",fontWeight:500 }}>Entrar</Link>
-          <Link href="/register" style={{ fontSize:"0.875rem",background:colors.text,color:"#fff",padding:"10px 20px",borderRadius:"8px",textDecoration:"none",fontWeight:700 }}>Começar grátis</Link>
+          <Link href="/register" style={{ fontSize:"0.875rem",background:colors.text,color:"#fff",padding:"10px 20px",borderRadius:"8px",textDecoration:"none",fontWeight:700 }}>Comece grátis</Link>
         </div>
       </nav>
 
@@ -47,7 +47,7 @@ export default function LandingPage() {
             Crie uma peça matriz, defina os formatos e o ZZYSY gera todas as versões automaticamente — em qualquer tamanho, para qualquer canal.
           </p>
           <div style={{ display:"flex",gap:"12px",flexWrap:"wrap" as const }}>
-            <Link href="/register" style={{ background:colors.text,color:"#fff",padding:"14px 28px",borderRadius:"10px",textDecoration:"none",fontWeight:700,fontSize:"0.95rem" }}>Começar grátis →</Link>
+            <Link href="/register" style={{ background:colors.text,color:"#fff",padding:"14px 28px",borderRadius:"10px",textDecoration:"none",fontWeight:700,fontSize:"0.95rem" }}>Comece grátis →</Link>
             <Link href="/plans" style={{ background:colors.surface,color:colors.text,padding:"14px 28px",borderRadius:"10px",textDecoration:"none",fontWeight:600,fontSize:"0.95rem",border:`1.5px solid ${colors.border}` }}>Ver planos</Link>
           </div>
         </div>
@@ -136,8 +136,8 @@ export default function LandingPage() {
         <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"16px" }}>
           {[
             { name:"Free",price:"R$ 0",desc:"Para experimentar a plataforma.",features:["1 campanha","500 peças/mês","Exportação PNG/JPG"],featured:false },
-            { name:"Starter",price:"R$ 19",desc:"Para freelancers e pequenas equipes.",features:["4 campanhas","2.000 peças/mês","Exportação PNG/JPG/TIFF"],featured:false },
-            { name:"Pro",price:"R$ 89",desc:"Para agências em crescimento.",features:["10 campanhas","5.000 peças/mês","Exportação com layers","Histórico de versões"],featured:true },
+            { name:"Starter",price:"R$ 19",desc:"Para freelancers e pequenas equipes.",features:["4 campanhas","2.000 peças/mês","Exportação PNG/JPG/TIFF"],featured:true },
+            { name:"Pro",price:"R$ 89",desc:"Para agências em crescimento.",features:["10 campanhas","5.000 peças/mês","Exportação com layers","Histórico de versões"],featured:false },
             { name:"Agency",price:"R$ 399",desc:"Para grandes operações criativas.",features:["Campanhas ilimitadas","Peças ilimitadas","Até 10 usuários","Suporte dedicado"],featured:false },
           ].map(({name,price,desc,features,featured})=>(
             <div key={name} style={{ border:`1.5px solid ${featured?colors.yellow:colors.border}`,borderRadius:"16px",padding:"28px",background:featured?"#FFFDF0":colors.background }}>
