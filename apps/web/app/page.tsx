@@ -51,27 +51,7 @@ export default function LandingPage() {
             <Link href="/plans" style={{ background:colors.surface,color:colors.text,padding:"14px 28px",borderRadius:"10px",textDecoration:"none",fontWeight:600,fontSize:"0.95rem",border:`1.5px solid ${colors.border}` }}>Ver planos</Link>
           </div>
         </div>
-        <div style={{ background:colors.surface,borderRadius:"20px",border:`1px solid ${colors.border}`,padding:"28px",aspectRatio:"4/3",display:"flex",flexDirection:"column" as const,gap:"12px" }}>
-          <div style={{ display:"flex",gap:"8px",alignItems:"center",paddingBottom:"16px",borderBottom:`1px solid ${colors.border}` }}>
-            {["T","▭","⊙","🖼"].map(t=><div key={t} style={{ width:"32px",height:"32px",borderRadius:"8px",background:t==="T"?colors.text:"#fff",color:t==="T"?"#fff":colors.text,border:`1px solid ${colors.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.8rem" }}>{t}</div>)}
-            <div style={{ flex:1 }} />
-            <span style={{ fontSize:"0.75rem",color:colors.textMuted,fontWeight:600 }}>Campanha Verão</span>
-          </div>
-          <div style={{ flex:1,background:"#fff",borderRadius:"12px",border:`1px solid ${colors.border}`,display:"flex",alignItems:"center",justifyContent:"center" }}>
-            <div style={{ width:"60%",aspectRatio:"1",background:"linear-gradient(135deg,#F5C400,#f0b800)",borderRadius:"10px",padding:"20px",display:"flex",flexDirection:"column" as const,justifyContent:"flex-end",gap:"8px" }}>
-              <div style={{ height:"10px",background:"rgba(0,0,0,0.2)",borderRadius:"4px",width:"80%" }} />
-              <div style={{ height:"10px",background:"rgba(0,0,0,0.2)",borderRadius:"4px",width:"50%" }} />
-            </div>
-          </div>
-          <div style={{ display:"flex",gap:"8px" }}>
-            {[["Feed","32px","32px"],["Stories","20px","36px"],["Banner","40px","20px"],["OOH","36px","24px"]].map(([label,w,h])=>(
-              <div key={label} style={{ flex:1,background:"#fff",border:`1px solid ${colors.border}`,borderRadius:"8px",padding:"8px",display:"flex",flexDirection:"column" as const,alignItems:"center",gap:"4px" }}>
-                <div style={{ width:w,height:h,background:colors.yellow,borderRadius:"4px",opacity:0.7 }} />
-                <span style={{ fontSize:"0.65rem",color:colors.textMuted,fontWeight:600 }}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+
       </div>
 
       {/* STATS */}
