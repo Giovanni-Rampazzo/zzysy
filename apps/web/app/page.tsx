@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { PlanCard } from "@/components/PlanCard";
 import { colors, typography, spacing, borderRadius } from "@/lib/theme";
 
 const f = "'Inter', sans-serif";
@@ -120,17 +121,7 @@ export default function LandingPage() {
             { name:"Pro",price:"R$ 89",desc:"Para agências em crescimento.",features:["10 campanhas","5.000 peças/mês","Exportação com layers","Histórico de versões"],featured:false },
             { name:"Agency",price:"R$ 399",desc:"Para grandes operações criativas.",features:["Campanhas ilimitadas","Peças ilimitadas","Até 10 usuários","Suporte dedicado"],featured:false },
           ].map(({name,price,desc,features,featured})=>(
-            <div key={name} style={{ border:`1.5px solid ${featured?colors.yellow:colors.border}`,borderRadius:"16px",padding:"28px",background:featured?"#FFFDF0":colors.background }}>
-              {featured&&<div style={{ fontSize:"0.68rem",fontWeight:700,color:colors.yellow,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:"12px" }}>Mais popular</div>}
-              <div style={{ fontSize:"1.1rem",fontWeight:700,marginBottom:"8px" }}>{name}</div>
-              <div style={{ fontSize:"2.2rem",fontWeight:800,letterSpacing:"-0.04em",marginBottom:"4px" }}>{price}<span style={{ fontSize:"0.8rem",fontWeight:400,opacity:0.5 }}>/mês</span></div>
-              <div style={{ fontSize:"0.82rem",color:colors.textMuted,margin:"12px 0 20px",lineHeight:1.5 }}>{desc}</div>
-              <div style={{ height:"1px",background:colors.border,margin:"20px 0" }} />
-              <div style={{ display:"flex",flexDirection:"column" as const,gap:"8px",marginBottom:"24px" }}>
-                {features.map(f=><div key={f} style={{ fontSize:"0.82rem",display:"flex",alignItems:"center",gap:"8px" }}><span style={{ color:colors.green,fontWeight:700 }}>✓</span>{f}</div>)}
-              </div>
-              <Link href="/register" style={{ display:"block",textAlign:"center" as const,padding:"12px",borderRadius:"8px",textDecoration:"none",fontWeight:700,fontSize:"0.875rem",background:featured?colors.text:colors.surface,color:featured?"#fff":colors.text,border:`1.5px solid ${featured?colors.text:colors.border}` }}>Começar</Link>
-            </div>
+            <PlanCard key={name} name={name} price={price} desc={desc} features={features} featured={featured} />
           ))}
         </div>
       </div>
