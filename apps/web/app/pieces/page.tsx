@@ -87,6 +87,7 @@ function PiecesPageInner() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCampaign, setFilterCampaign] = useState(searchParams.get("campaignId") ?? "");
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'grid'|'list'>('grid');
 
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
   useEffect(() => {
@@ -129,7 +130,9 @@ function PiecesPageInner() {
               <p style={{ fontSize:"0.875rem", color:colors.textMuted, margin:0 }}>{filtered.length} peça{filtered.length!==1?"s":""}</p>
             </div>
           </div>
-          <div style={{ display:"flex", gap:"10px", paddingBottom:"20px", flexWrap:"wrap" }}>
+          <div style={{ display:"flex", gap:"10px", paddingBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
+            <button onClick={()=>setView('grid')} title="Grade" style={{ width:"32px",height:"32px",border:"1.5px solid "+((view==='grid')?"#111":"#E5E5E5"),borderRadius:"8px",background:(view==='grid')?"#111":"#FFF",color:(view==='grid')?"#FFF":"#888",cursor:"pointer",fontSize:"1rem",display:"flex",alignItems:"center",justifyContent:"center" }}>⊞</button>
+            <button onClick={()=>setView('list')} title="Lista" style={{ width:"32px",height:"32px",border:"1.5px solid "+((view==='list')?"#111":"#E5E5E5"),borderRadius:"8px",background:(view==='list')?"#111":"#FFF",color:(view==='list')?"#FFF":"#888",cursor:"pointer",fontSize:"1rem",display:"flex",alignItems:"center",justifyContent:"center" }}>☰</button>
             <input style={{ border:b, borderRadius:"8px", padding:"8px 14px", fontSize:"0.875rem", outline:"none", fontFamily:"'DM Sans', sans-serif", background:"#FFF", color:colors.text, width:"220px" }} placeholder="🔍 Buscar peças..." value={search} onChange={e=>setSearch(e.target.value)} />
             <select style={{ border:b, borderRadius:"8px", padding:"8px 12px", fontSize:"0.875rem", outline:"none", fontFamily:"'DM Sans', sans-serif", background:"#FFF", color:colors.text }} value={filterCampaign} onChange={e=>setFilterCampaign(e.target.value)}>
               <option value="">Todas as campanhas</option>
@@ -163,7 +166,32 @@ function PiecesPageInner() {
                       <button onClick={()=>router.push(`/editor?campaign=${cid}`)} style={{ fontSize:"0.78rem", color:"#4285F4", background:"none", border:"none", cursor:"pointer", fontWeight:600, padding:0 }}>✏️ Editar Matriz</button>
                     </div>
                   )}
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(240px, 1fr))", gap:"16px" }}>
+                  {view==='list'?(
+                  <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                    <thead><tr>
+                      {["Preview","Nome","Formato","Data","Status","Ações"].map(h=><th key={h} style={{ textAlign:"left",fontSize:"0.72rem",fontWeight:700,color:"#888",padding:"8px 12px",borderBottom:"1.5px solid #E5E5E5",textTransform:"uppercase",letterSpacing:"0.04em" }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {cpieces.map(piece=>(
+                        <tr key={piece.id} style={{ borderBottom:"1px solid #E5E5E5" }}>
+                          <td style={{ padding:"10px 12px",width:"60px" }}><div style={{ width:"48px",height:"36px",background:"#F7F7F7",borderRadius:"4px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1rem",cursor:"pointer" }} onClick={()=>router.push("/editor?pieceId="+piece.id)}>🎨</div></td>
+                          <td style={{ padding:"10px 12px",fontSize:"0.85rem",fontWeight:600,color:"#111",maxWidth:"200px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{piece.name}</td>
+                          <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{piece.format}</td>
+                          <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</td>
+                          <td style={{ padding:"10px 12px" }}><span style={{ padding:"2px 8px",borderRadius:"99px",fontSize:"0.7rem",fontWeight:700,background:STATUS_COLOR[piece.status]+"22",color:STATUS_COLOR[piece.status] }}>{STATUS_LABEL[piece.status]}</span></td>
+                          <td style={{ padding:"10px 12px" }}>
+                            <div style={{ display:"flex",gap:"4px" }}>
+                              <button onClick={()=>router.push("/editor?pieceId="+piece.id)} style={{ padding:"4px 10px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",fontWeight:600 }}>Editar</button>
+                              <button onClick={()=>duplicatePiece(piece)} style={{ padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer" }}>⧉</button>
+                              <button onClick={()=>deletePiece(piece.id)} style={{ padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",color:"#E53935" }}>🗑</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ):(
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:"12px" }}>
                     {cpieces.map(piece=>(
                       <PieceCard key={piece.id} piece={piece}
                         onEdit={()=>router.push("/editor?pieceId="+piece.id)}

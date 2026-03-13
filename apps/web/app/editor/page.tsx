@@ -314,7 +314,7 @@ function EditorPageInner() {
     } catch(e){alert("Erro ao salvar.");} finally{setSaving(false);}
   },[campaignId,activeCampaignId,pieceId,canvasSize]);
 
-  const handleClose = useCallback(()=>{ if (isDirty){setShowCloseConfirm(true);}else{window.location.href=pieceId?`/pieces?campaignId=${activeCampaignId}`:'/campaigns';} },[isDirty,pieceId,activeCampaignId]);
+  const handleClose = useCallback(()=>{ if (isDirty){setShowCloseConfirm(true);}else{window.location.href=pieceId?`/pieces?campaignId=${activeCampaignId??''}`:'/campaigns';} },[isDirty,pieceId,activeCampaignId]);
 
   const handleGenerate = useCallback(async(formats:string[])=>{
     const cid=activeCampaignId??campaignId; if (!cid||formats.length===0) return;
