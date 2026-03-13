@@ -137,7 +137,7 @@ export default function LandingPage() {
       <footer style={{ borderTop:`1px solid ${colors.border}`,padding:"32px 48px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap" as const,gap:"16px" }}>
         <Logo size="1.2rem" />
         <div style={{ display:"flex",gap:"24px" }}>
-          {[["Planos","/plans"],["Entrar","/login"],["Cadastro","/register"]].map(([l,h])=>(
+          {[["Planos","/plans"],["Entrar","/login"],["Cadastro","/register"],["Admin","/admin"]].map(([l,h])=>(
             <Link key={l} href={h} style={{ fontSize:"0.85rem",color:colors.textMuted,textDecoration:"none" }}>{l}</Link>
           ))}
         </div>
