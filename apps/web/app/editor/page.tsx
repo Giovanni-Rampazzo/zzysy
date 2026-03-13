@@ -99,7 +99,7 @@ function ExportDialog({ onClose, onGenerate, generating }: { onClose:()=>void; o
   const toggleChannel = (formats:{value:string}[]) => {
     const vals=formats.map(f=>f.value);
     const allSel=vals.every(v=>selected.includes(v));
-    setSelected(prev=>allSel?prev.filter(v=>!vals.includes(v)):[...new Set([...prev,...vals])]);
+    setSelected(prev=>allSel?prev.filter(v=>!vals.includes(v)):prev.concat(vals.filter(v=>prev.indexOf(v)===-1)));
   };
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
