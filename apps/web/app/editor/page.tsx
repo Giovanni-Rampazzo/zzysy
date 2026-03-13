@@ -7,6 +7,8 @@ import { Canvas, IText, Rect, Circle, FabricImage } from "fabric";
 type LayerType = "title"|"subtitle"|"body"|"subtext"|"cta"|"image"|"rect"|"circle";
 interface Layer { id: string; type: LayerType; name: string; visible: boolean; locked: boolean; }
 
+const MAX_HISTORY = 20;
+
 function Logo() {
   return <div style={{display:"flex",alignItems:"center",fontFamily:"DM Sans",fontWeight:900,fontSize:"1.2rem",color:"#111"}}>ZZYSY</div>;
 }
@@ -96,6 +98,63 @@ function EditorPageInner() {
   const [shapeColor, setShapeColor] = useState("#4285F4");
   const [activeCampaignId, setActiveCampaignId] = useState<string|null>(campaignId);
 
+  // ─── UNDO/REDO ───────────────────────────────────────────────
+  const historyRef = useRef<string[]>([]);
+  const historyIndexRef = useRef<number>(-1);
+  const isApplyingHistoryRef = useRef(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const syncHistoryState = () => {
+    setCanUndo(historyIndexRef.current > 0);
+    setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
+  };
+
+  const pushHistory = useCallback(() => {
+    const canvas = fabricRef.current; if (!canvas || isApplyingHistoryRef.current) return;
+    const json = JSON.stringify(getCanvasJson(canvas, canvasSize.w, canvasSize.h));
+    // Se estamos no meio da história, descarta o futuro
+    historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+    historyRef.current.push(json);
+    if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
+    historyIndexRef.current = historyRef.current.length - 1;
+    syncHistoryState();
+  }, [canvasSize]);
+
+  const applyHistory = useCallback((json: string) => {
+    const canvas = fabricRef.current; if (!canvas) return;
+    isApplyingHistoryRef.current = true;
+    const parsed = JSON.parse(json);
+    canvas.loadFromJSON(parsed, () => {
+      canvas.setZoom(zoom);
+      canvas.setDimensions({width: canvasSize.w * zoom, height: canvasSize.h * zoom});
+      canvas.requestRenderAll();
+      const objs = canvas.getObjects() as any[];
+      setLayers(objs.map((o, i) => {
+        if (!o.layerId) o.layerId = "loaded-" + i;
+        const t = (o.type ?? "").toLowerCase();
+        return {id: o.layerId, type: (t === "i-text" ? "text" : t) as LayerType, name: o.text ? o.text.substring(0, 20) : t === "rect" ? "Retangulo" : t === "circle" ? "Circulo" : "Imagem", visible: o.visible !== false, locked: !!o.lockMovementX};
+      }));
+      setIsDirty(true);
+      isApplyingHistoryRef.current = false;
+    });
+  }, [zoom, canvasSize]);
+
+  const undo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current--;
+    applyHistory(historyRef.current[historyIndexRef.current]);
+    syncHistoryState();
+  }, [applyHistory]);
+
+  const redo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current++;
+    applyHistory(historyRef.current[historyIndexRef.current]);
+    syncHistoryState();
+  }, [applyHistory]);
+
+  // ─── CANVAS INIT ─────────────────────────────────────────────
   const updateTextProp = (prop: string, value: any) => {
     const canvas = fabricRef.current; if (!canvas) return;
     const obj = canvas.getActiveObject() as any; if (!obj) return;
@@ -127,9 +186,10 @@ function EditorPageInner() {
     canvas.on("selection:created",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:updated",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
-    canvas.on("object:modified",()=>setIsDirty(true));
-    canvas.on("object:added",()=>setIsDirty(true));
-    canvas.on("object:removed",()=>setIsDirty(true));
+    // Salva histórico após cada mudança relevante
+    canvas.on("object:modified", () => { setIsDirty(true); pushHistory(); });
+    canvas.on("object:added",    () => { setIsDirty(true); pushHistory(); });
+    canvas.on("object:removed",  () => { setIsDirty(true); pushHistory(); });
     return ()=>{canvas.dispose();fabricRef.current=null;};
   },[]);
 
@@ -153,6 +213,10 @@ function EditorPageInner() {
             return {id:o.layerId,type:(t==="i-text"?"text":t) as LayerType,name:o.text?o.text.substring(0,20):t==="rect"?"Retangulo":t==="circle"?"Circulo":"Imagem",visible:o.visible!==false,locked:!!o.lockMovementX};
           }));
           setIsDirty(false);
+          // Inicializa histórico com estado carregado
+          historyRef.current = [JSON.stringify(data)];
+          historyIndexRef.current = 0;
+          syncHistoryState();
         },150);
       });
     });
@@ -179,6 +243,9 @@ function EditorPageInner() {
             return {id:o.layerId,type:(t==="i-text"?"text":t) as LayerType,name:o.text?o.text.substring(0,20):t==="rect"?"Retangulo":t==="circle"?"Circulo":"Imagem",visible:o.visible!==false,locked:!!o.lockMovementX};
           }));
           setIsDirty(false);
+          historyRef.current = [JSON.stringify(data)];
+          historyIndexRef.current = 0;
+          syncHistoryState();
         },150);
       });
     });
@@ -303,22 +370,34 @@ function EditorPageInner() {
     const a=document.createElement("a"); a.href=dataURL; a.download=`zzysy.${format}`; a.click();
   },[]);
 
+  // ─── KEYBOARD SHORTCUTS ──────────────────────────────────────
   useEffect(()=>{
     const handler=(e:KeyboardEvent)=>{
       const isEditing=(fabricRef.current?.getActiveObject() as any)?.isEditing;
       const tag=(e.target as HTMLElement).tagName;
-      if ((e.key==="Delete"||e.key==="Backspace")&&tag!=="INPUT"&&tag!=="TEXTAREA"&&!isEditing) deleteSelected();
-      if ((e.metaKey||e.ctrlKey)&&e.key==="s"){e.preventDefault();save();}
+      const ctrl = e.metaKey || e.ctrlKey;
+
+      // Delete/Backspace — apagar objeto
+      if ((e.key==="Delete"||e.key==="Backspace")&&tag!=="INPUT"&&tag!=="TEXTAREA"&&!isEditing) {
+        deleteSelected();
+      }
+      // Ctrl+S — salvar
+      if (ctrl && e.key==="s") { e.preventDefault(); save(); }
+      // Ctrl+Z — undo
+      if (ctrl && e.key==="z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      // Ctrl+Shift+Z ou Ctrl+Y — redo
+      if ((ctrl && e.shiftKey && e.key==="z") || (ctrl && e.key==="y")) { e.preventDefault(); redo(); }
     };
     window.addEventListener("keydown",handler);
     return ()=>window.removeEventListener("keydown",handler);
-  },[deleteSelected,save]);
+  },[deleteSelected,save,undo,redo]);
 
   const isText=selectedType==="i-text";
   const isShape=["rect","Rect","circle","Circle"].includes(selectedType??"");
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",background:"#F7F7F7",fontFamily:"DM Sans, sans-serif"}}>
+      {/* TOP BAR */}
       <div style={{height:"44px",background:"#FFF",borderBottom:"1px solid #E5E5E5",display:"flex",alignItems:"center",padding:"0 16px",gap:"12px",zIndex:10}}>
         <a href="/dashboard" style={{textDecoration:"none"}}><Logo /></a>
         <div style={sep}/>
@@ -330,7 +409,14 @@ function EditorPageInner() {
         <button onClick={save} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:saved?"#34A853":"#111",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",transition:"background 0.2s"}}>{saving?"Salvando...":saved?"Salvo":"Salvar"}</button>
         <button onClick={handleClose} style={{...btn,color:"#555"}}>Fechar</button>
       </div>
+
+      {/* TOOLBAR */}
       <div style={{height:"46px",background:"#FFF",borderBottom:"1px solid #E5E5E5",display:"flex",alignItems:"center",padding:"0 16px",gap:"8px",zIndex:9}}>
+        {/* Undo/Redo */}
+        <button onClick={undo} disabled={!canUndo} title="Desfazer (Ctrl+Z)" style={{...btn,opacity:canUndo?1:0.35,cursor:canUndo?"pointer":"not-allowed"}}>↩</button>
+        <button onClick={redo} disabled={!canRedo} title="Refazer (Ctrl+Shift+Z)" style={{...btn,opacity:canRedo?1:0.35,cursor:canRedo?"pointer":"not-allowed"}}>↪</button>
+        <div style={sep}/>
+
         <div style={{position:"relative"}}>
           <button onClick={()=>setShowTextMenu((v:boolean)=>!v)} style={btn}>T Texto</button>
           {showTextMenu && (
@@ -363,6 +449,8 @@ function EditorPageInner() {
           )}
         </div>
       </div>
+
+      {/* CANVAS + PANELS */}
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",overflow:"auto",background:"#EBEBEB"}}>
           <div style={{boxShadow:"0 8px 32px rgba(0,0,0,0.15)",borderRadius:"2px"}}><canvas ref={canvasRef}/></div>
@@ -409,6 +497,8 @@ function EditorPageInner() {
           </div>
         </aside>
       </div>
+
+      {/* MODALS */}
       {showGenerateModal && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
           <div style={{background:"#FFF",borderRadius:"12px",padding:"28px 32px",width:"380px",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>
