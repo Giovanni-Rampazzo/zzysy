@@ -1,7 +1,9 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { PlanCard } from "@/components/PlanCard";
-import { colors, typography, spacing, borderRadius } from "@/lib/theme";
+import { AdminPasswordDialog } from "@/components/AdminPasswordDialog";
+import { colors } from "@/lib/theme";
 
 const f = "'Inter', sans-serif";
 
@@ -20,6 +22,8 @@ function Logo({ size = "1.4rem" }: { size?: string }) {
 }
 
 export default function LandingPage() {
+  const [showAdmin, setShowAdmin] = useState(false);
+
   return (
     <div style={{ fontFamily:f,background:colors.background,color:colors.text,minHeight:"100vh" }}>
 
@@ -34,8 +38,8 @@ export default function LandingPage() {
       </nav>
 
       {/* HERO */}
-      <div style={{ maxWidth:"1100px",margin:"0 auto",padding:"100px 48px 80px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"80px",alignItems:"center" }}>
-        <div>
+      <div style={{ maxWidth:"1100px",margin:"0 auto",padding:"100px 48px 80px" }}>
+        <div style={{ maxWidth:"640px" }}>
           <div style={{ display:"inline-flex",alignItems:"center",gap:"8px",border:`1px solid ${colors.border}`,borderRadius:"999px",padding:"6px 14px",fontSize:"0.72rem",fontWeight:700,color:colors.textMuted,letterSpacing:"0.06em",textTransform:"uppercase" as const,marginBottom:"28px" }}>
             <span style={{ width:"6px",height:"6px",borderRadius:"50%",background:colors.green }} />
             Automação de layout para agências
@@ -52,7 +56,6 @@ export default function LandingPage() {
             <Link href="/plans" style={{ background:colors.surface,color:colors.text,padding:"14px 28px",borderRadius:"10px",textDecoration:"none",fontWeight:600,fontSize:"0.95rem",border:`1.5px solid ${colors.border}` }}>Ver planos</Link>
           </div>
         </div>
-
       </div>
 
       {/* STATS */}
@@ -136,14 +139,18 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer style={{ borderTop:`1px solid ${colors.border}`,padding:"32px 48px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap" as const,gap:"16px" }}>
         <Logo size="1.2rem" />
-        <div style={{ display:"flex",gap:"24px" }}>
-          {[["Planos","/plans"],["Entrar","/login"],["Cadastro","/register"],["Admin","/admin"]].map(([l,h])=>(
+        <div style={{ display:"flex",gap:"24px",alignItems:"center" }}>
+          {[["Planos","/plans"],["Entrar","/login"],["Cadastro","/register"]].map(([l,h])=>(
             <Link key={l} href={h} style={{ fontSize:"0.85rem",color:colors.textMuted,textDecoration:"none" }}>{l}</Link>
           ))}
+          <button onClick={()=>setShowAdmin(true)} style={{ fontSize:"0.85rem",color:colors.textMuted,background:"none",border:"none",cursor:"pointer",fontFamily:f,padding:0 }}>
+            Admin
+          </button>
         </div>
         <div style={{ fontSize:"0.8rem",color:colors.textMuted }}>© 2026 ZZYSY. Todos os direitos reservados.</div>
       </footer>
 
+      {showAdmin && <AdminPasswordDialog onClose={()=>setShowAdmin(false)} />}
     </div>
   );
 }
