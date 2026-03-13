@@ -180,7 +180,7 @@ function EditorPageInner() {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [textProps, setTextProps] = useState({fontSize:16,fontFamily:"DM Sans",fill:"#111111",fontWeight:"400"});
+  const [textProps, setTextProps] = useState({fontSize:16,fontFamily:"DM Sans",fill:"#111111",fontWeight:"400",textAlign:"left"});
   const [shapeColor, setShapeColor] = useState("#4285F4");
   const [activeCampaignId, setActiveCampaignId] = useState<string|null>(campaignId);
 
@@ -224,7 +224,7 @@ function EditorPageInner() {
     const canvas=new Canvas(canvasRef.current,{width:1080,height:1080,backgroundColor:"#FFFFFF"});
     canvas.setZoom(0.45); canvas.setDimensions({width:1080*0.45,height:1080*0.45});
     fabricRef.current=canvas; setCanvasReady(true);
-    const sync=(obj:any)=>{ if (!obj) return; setSelectedId(obj.layerId??null); setSelectedType(obj.type??null); if (obj.fontSize) setTextProps({fontSize:obj.fontSize,fontFamily:obj.fontFamily??"DM Sans",fill:obj.fill??"#111111",fontWeight:String(obj.fontWeight??"400")}); if (obj.fill&&typeof obj.fill==="string"&&!obj.fontSize) setShapeColor(obj.fill); };
+    const sync=(obj:any)=>{ if (!obj) return; setSelectedId(obj.layerId??null); setSelectedType(obj.type??null); if (obj.fontSize) setTextProps({fontSize:obj.fontSize,fontFamily:obj.fontFamily??"DM Sans",fill:obj.fill??"#111111",fontWeight:String(obj.fontWeight??"400"),textAlign:obj.textAlign??"left"}); if (obj.fill&&typeof obj.fill==="string"&&!obj.fontSize) setShapeColor(obj.fill); };
     canvas.on("selection:created",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:updated",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
@@ -266,7 +266,7 @@ function EditorPageInner() {
     const defaults:Record<string,string>={title:"Título da campanha",subtitle:"Subtítulo aqui",body:"Texto corrido",subtext:"Subtexto",cta:"SAIBA MAIS"};
     const padding=Math.max(6,Math.round(canvasSize.w*0.05));
     let fs=Math.max(10,Math.round(fontSize*Math.sqrt(canvasSize.w*canvasSize.h)/1080));
-    const text=new IText(defaults[type]??label,{left:padding,top:padding,fontSize:fs,fontWeight,fontFamily:"DM Sans, sans-serif",fill:"#111111"});
+    const text=new IText(defaults[type]??label,{left:padding,top:padding,fontSize:fs,fontWeight,fontFamily:"DM Sans, sans-serif",fill:"#111111",textAlign:"left",charSpacing:0});
     (text as any).layerId=id; canvas.add(text);
     for (let i=0;i<40;i++){canvas.renderAll();if(text.getBoundingRect().width<=canvasSize.w-padding*2)break;fs=Math.max(10,fs-1);text.set({fontSize:fs});if(fs<=10)break;}
     canvas.setActiveObject(text); canvas.renderAll();
@@ -314,7 +314,7 @@ function EditorPageInner() {
     } catch(e){alert("Erro ao salvar.");} finally{setSaving(false);}
   },[campaignId,activeCampaignId,pieceId,canvasSize]);
 
-  const handleClose = useCallback(()=>{ if (isDirty){setShowCloseConfirm(true);}else{window.location.href="/campaigns";} },[isDirty]);
+  const handleClose = useCallback(()=>{ if (isDirty){setShowCloseConfirm(true);}else{window.location.href=pieceId?`/pieces?campaignId=${activeCampaignId}`:'/campaigns';} },[isDirty,pieceId,activeCampaignId]);
 
   const handleGenerate = useCallback(async(formats:string[])=>{
     const cid=activeCampaignId??campaignId; if (!cid||formats.length===0) return;
@@ -433,6 +433,10 @@ function EditorPageInner() {
                 <div><label style={{fontSize:"0.72rem",color:"#888",display:"block",marginBottom:"3px"}}>Peso</label>
                   <div style={{display:"flex",gap:"4px"}}>
                     {["400","700","900"].map(w=>(<button key={w} onClick={()=>updateTextProp("fontWeight",w)} style={{flex:1,padding:"4px",border:"1px solid #E5E5E5",borderRadius:"6px",background:textProps.fontWeight===w?"#111":"#FFF",color:textProps.fontWeight===w?"#FFF":"#111",fontSize:"0.75rem",cursor:"pointer"}}>{w==="400"?"Normal":w==="700"?"Bold":"Black"}</button>))}
+                  </div>
+                <div><label style={{fontSize:"0.72rem",color:"#888",display:"block",marginBottom:"3px"}}>Alinhamento</label>
+                  <div style={{display:"flex",gap:"4px"}}>
+                    {(["left","center","right"] as const).map(a=>(<button key={a} onClick={()=>updateTextProp("textAlign",a)} style={{flex:1,padding:"5px 4px",border:"1px solid #E5E5E5",borderRadius:"6px",background:textProps.textAlign===a?"#111":"#FFF",color:textProps.textAlign===a?"#FFF":"#111",fontSize:"1rem",cursor:"pointer"}}>{a==="left"?"⬅":a==="center"?"↔":"➡"}</button>))}
                   </div>
                 </div>
               </div>
