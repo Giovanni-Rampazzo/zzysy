@@ -90,7 +90,7 @@ export default function CampaignsPage() {
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"16px" }}>
             {filtered.map(c=>(
               <div key={c.id} style={{ background:"#FFF",border:"1px solid #E5E5E5",borderRadius:"12px",padding:"20px",transition:"border-color 0.15s,box-shadow 0.15s",cursor:"pointer",position:"relative" }}
-                onClick={()=>router.push(`/pieces?campaignId=${c.id}`)}
+                onClick={()=>router.push(`/editor?campaign=${c.id}`)}
                 onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#111"; (e.currentTarget as HTMLElement).style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
                 onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#E5E5E5"; (e.currentTarget as HTMLElement).style.boxShadow="none"; }}>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px" }}>
@@ -103,7 +103,7 @@ export default function CampaignsPage() {
                   </button>
                 </div>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                  <span style={{ fontSize:"0.8rem",color:"#AAA" }}>Criada em {new Date(c.createdAt).toLocaleDateString("pt-BR")} · Editada em {new Date(c.updatedAt).toLocaleDateString("pt-BR")}</span>
+                  <span style={{ fontSize:"0.8rem",color:"#AAA" }}>Criada em {new Date(c.createdAt).toLocaleDateString("pt-BR")}</span>
                   <span style={{ fontSize:"0.75rem",fontWeight:600,color:"#888",background:"#F7F7F7",padding:"3px 8px",borderRadius:"99px" }}>{c._count.pieces} peça{c._count.pieces!==1?"s":""}</span>
                 </div>
               </div>
