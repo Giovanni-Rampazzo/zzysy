@@ -53,7 +53,7 @@ export const plans = [
     users: 1,
     campaigns: 10,
     pieces: 5000,
-    highlighted: true, // destaque na tela
+    highlighted: false,
     cta: "Assinar Pro",
     features: [
       "1 usuário",
@@ -88,28 +88,4 @@ export const plans = [
       "Relatórios de uso",
     ],
   },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    price: null, // sob consulta
-    priceLabel: "Sob consulta",
-    period: "",
-    description: "Para grandes empresas e redes",
-    users: "ilimitado",
-    campaigns: null,
-    pieces: null,
-    highlighted: false,
-    cta: "Falar com vendas",
-    features: [
-      "Usuários ilimitados",
-      "Campanhas ilimitadas",
-      "Peças ilimitadas",
-      "SLA garantido",
-      "Integração via API",
-      "Onboarding personalizado",
-      "Gerente de conta dedicado",
-    ],
-  },
-];
 
-export type Plan = typeof plans[0];

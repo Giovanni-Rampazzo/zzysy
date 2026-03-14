@@ -51,9 +51,9 @@ export default function PlansPage() {
       <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", justifyContent: "center", padding: "48px 24px 80px", maxWidth: "1200px", margin: "0 auto" }}>
         {plans.map((plan) => (
           <div key={plan.id} style={{
-            background: plan.highlighted ? "#111" : "#FFFFFF",
-            color: plan.highlighted ? "#FFF" : "#111",
-            border: plan.highlighted ? "none" : "1.5px solid #E5E5E5",
+            background: "#FFFFFF",
+            color: "#111",
+            border: plan.highlighted ? "2px solid #F5C400" : "1.5px solid #E5E5E5",
             borderRadius: "20px",
             padding: "32px 28px",
             width: "220px",
@@ -63,7 +63,7 @@ export default function PlansPage() {
             display: "flex",
             flexDirection: "column",
             position: "relative",
-            boxShadow: plan.highlighted ? "0 20px 60px rgba(0,0,0,0.15)" : "none",
+            boxShadow: plan.highlighted ? "0 8px 32px rgba(245,196,0,0.2)" : "none",
             transform: plan.highlighted ? "translateY(-8px)" : "none",
           }}>
 
@@ -81,7 +81,7 @@ export default function PlansPage() {
             <div style={{ fontSize: "0.82rem", opacity: 0.5, marginBottom: "8px" }}>{plan.period}</div>
             <div style={{ fontSize: "0.85rem", opacity: 0.65, marginBottom: "24px", lineHeight: 1.5 }}>{plan.description}</div>
 
-            <div style={{ height: "1px", background: plan.highlighted ? "rgba(255,255,255,0.15)" : "#F0F0F0", marginBottom: "20px" }} />
+            <div style={{ height: "1px", background: "#F0F0F0", marginBottom: "20px" }} />
 
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
               {[
@@ -99,7 +99,7 @@ export default function PlansPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "28px", flex: 1 }}>
               {plan.features.map((f: string) => (
                 <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: "8px", fontSize: "0.82rem" }}>
-                  <span style={{ color: plan.highlighted ? "#F5C400" : "#34A853", fontWeight: 700, marginTop: "1px", flexShrink: 0 }}>✓</span>
+                  <span style={{ color: "#34A853", fontWeight: 700, marginTop: "1px", flexShrink: 0 }}>✓</span>
                   <span style={{ opacity: 0.8, lineHeight: 1.4 }}>{f}</span>
                 </div>
               ))}
@@ -113,7 +113,7 @@ export default function PlansPage() {
                 border: plan.highlighted ? "none" : "1.5px solid #111",
                 borderRadius: "10px",
                 background: plan.highlighted ? "#F5C400" : "transparent",
-                color: "#111", fontSize: "0.88rem", fontWeight: 700,
+                color: plan.highlighted ? "#111" : "#111", fontSize: "0.88rem", fontWeight: 700,
                 cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
                 opacity: loading === plan.id ? 0.6 : 1,
               }}
