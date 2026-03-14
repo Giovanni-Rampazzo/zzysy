@@ -231,9 +231,9 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
 }
 
 // ─── PIECE CARD ──────────────────────────────────────────────────
-function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate }: {
+function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, onStatusChange }: {
   piece: Piece; selected: boolean; onSelect: () => void;
-  onEdit:()=>void; onDelete:()=>void; onDuplicate:()=>void;
+  onEdit:()=>void; onDelete:()=>void; onDuplicate:()=>void; onStatusChange:(s:string)=>void;
 }) {
   const [hover, setHover] = useState(false);
   return (
@@ -248,9 +248,10 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate }:
         <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name}>{piece.name}</div>
         <div style={{ fontSize:"0.72rem",color:colors.textMuted,marginBottom:"10px" }}>{piece.format} · {new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</div>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-          <span style={{ padding:"2px 8px",borderRadius:"99px",fontSize:"0.7rem",fontWeight:700,background:STATUS_COLOR[piece.status]+"22",color:STATUS_COLOR[piece.status] }}>
-            {STATUS_LABEL[piece.status]}
-          </span>
+          <select value={piece.status} onChange={e=>{e.stopPropagation();onStatusChange(e.target.value);}}
+            style={{ padding:"3px 8px",borderRadius:"6px",fontSize:"0.72rem",fontWeight:700,background:STATUS_COLOR[piece.status]+"22",color:STATUS_COLOR[piece.status],border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>
+            {Object.entries(STATUS_LABEL).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+          </select>
           <div style={{ display:"flex",gap:"4px" }}>
             <button onClick={onEdit} style={{ padding:"4px 10px",border:"1px solid "+colors.border,borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",fontWeight:600 }}>Editar</button>
             <button onClick={onDuplicate} style={{ padding:"4px 8px",border:"1px solid "+colors.border,borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer" }}>⧉</button>
@@ -290,6 +291,10 @@ function PiecesPageInner() {
     await fetch("/api/pieces/"+id, {method:"DELETE"});
     setPieces(p=>p.filter(x=>x.id!==id));
     setSelected(s=>s.filter(x=>x!==id));
+  }
+  async function changeStatus(id: string, status: string) {
+    await fetch("/api/pieces/"+id, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({status}) });
+    setPieces(p=>p.map(x=>x.id===id?{...x,status:status as Piece["status"]}:x));
   }
   async function duplicatePiece(piece: Piece) {
     const res = await fetch("/api/pieces", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({campaignId:piece.campaign.id, name:piece.name+" (cópia)", format:piece.format, data:piece.data??{}}) });
@@ -442,6 +447,7 @@ function PiecesPageInner() {
                             onEdit={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}
                             onDelete={()=>deletePiece(piece.id)}
                             onDuplicate={()=>duplicatePiece(piece)}
+                            onStatusChange={(s)=>changeStatus(piece.id,s)}
                           />
                         ))}
                       </div>
