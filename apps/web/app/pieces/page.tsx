@@ -215,7 +215,7 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
   const ratio=(parts2[1]||1080)/(parts2[0]||1080);
   const h=Math.max(80,Math.min(200,Math.round(240*ratio)));
   return (
-    <div onClick={onClick} style={{ background:"#E8E8E8",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",height:h+"px",borderBottom:"1px solid "+colors.border,flexShrink:0 }}>
+    <div onClick={onClick} style={{ background:"#E8E8E8",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",minHeight:"120px",flex:1,borderBottom:"1px solid "+colors.border }}>
       {!rendered && <div style={{ textAlign:"center",color:colors.textMuted }}><div style={{ fontSize:"1.8rem" }}>🎨</div><div style={{ fontSize:"0.7rem",marginTop:"4px" }}>{piece.format}</div></div>}
       <canvas ref={canvasRef} style={{ display:rendered?"block":"none",maxWidth:"100%",maxHeight:"100%" }} />
     </div>
@@ -230,13 +230,13 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
   const [hover, setHover] = useState(false);
   return (
     <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
-      style={{ border:`1.5px solid ${selected?"#111":hover?"#555":colors.border}`,borderRadius:"12px",overflow:"hidden",background:"#FFF",transition:"border-color 0.15s, box-shadow 0.15s",boxShadow:selected?"0 0 0 3px rgba(0,0,0,0.08)":hover?"0 4px 16px rgba(0,0,0,0.1)":"none",position:"relative" }}>
+      style={{ border:`1.5px solid ${selected?"#111":hover?"#555":colors.border}`,borderRadius:"12px",overflow:"hidden",background:"#FFF",transition:"border-color 0.15s, box-shadow 0.15s",boxShadow:selected?"0 0 0 3px rgba(0,0,0,0.08)":hover?"0 4px 16px rgba(0,0,0,0.1)":"none",position:"relative",display:"flex",flexDirection:"column",height:"100%" }}>
       {/* Checkbox de seleção */}
       <div onClick={e=>{e.stopPropagation();onSelect();}} style={{ position:"absolute",top:"8px",left:"8px",zIndex:2,width:"20px",height:"20px",borderRadius:"4px",border:`2px solid ${selected?"#111":"rgba(255,255,255,0.8)"}`,background:selected?"#111":"rgba(255,255,255,0.6)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)" }}>
         {selected && <span style={{ color:"#FFF",fontSize:"12px",lineHeight:1 }}>✓</span>}
       </div>
       <PiecePreview piece={piece} onClick={onEdit} />
-      <div style={{ padding:"12px 14px",minHeight:"90px",display:"flex",flexDirection:"column",justifyContent:"space-between" }}>
+      <div style={{ padding:"12px 14px",flexShrink:0 }}>
         <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name}>{piece.name}</div>
         <div style={{ fontSize:"0.72rem",color:colors.textMuted,marginBottom:"10px" }}>{piece.format} · {new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</div>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
