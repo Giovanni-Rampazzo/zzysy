@@ -190,7 +190,7 @@ function EditorPageInner() {
   };
   const [zoom, setZoom] = useState(0.45);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(true);
+  const [saved, setSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
   useEffect(() => { setZoom(calcZoom(canvasSize.w, canvasSize.h)); }, []);
@@ -266,9 +266,9 @@ function EditorPageInner() {
     canvas.on("selection:created",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:updated",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
-    canvas.on("object:modified",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);pushHistory();} });
-    canvas.on("object:added",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);pushHistory();} });
-    canvas.on("object:removed",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);pushHistory();} });
+    canvas.on("object:modified",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
+    canvas.on("object:added",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
+    canvas.on("object:removed",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
     return () => {canvas.dispose();fabricRef.current=null;};
   },[]);
 
@@ -314,10 +314,11 @@ function EditorPageInner() {
         }
       }
       if (!data||Object.keys(data).length===0){setIsDirty(false);return;}
+      isApplyingHistoryRef.current = true;
       setTimeout(() => {
         canvas.loadFromJSON(data, () => {
           canvas.requestRenderAll();
-          setTimeout(() => { canvas.requestRenderAll(); loadLayers(canvas); setIsDirty(false); historyRef.current=[JSON.stringify(data)]; historyIndexRef.current=0; syncHistory(); }, 150);
+          setTimeout(() => { canvas.requestRenderAll(); loadLayers(canvas); setIsDirty(false); historyRef.current=[JSON.stringify(data)]; historyIndexRef.current=0; syncHistory(); isApplyingHistoryRef.current=false; }, 150);
         });
       }, 100);
     });
@@ -388,7 +389,7 @@ function EditorPageInner() {
     try {
       if (pieceId) { const res=await fetch(`/api/pieces/${pieceId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:json})}); if(!res.ok)throw new Error(); }
       else if (cid) { const res=await fetch(`/api/campaigns/${cid}/matrix`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:json})}); if(!res.ok)throw new Error(); }
-      setSaved(true); setIsDirty(false); setTimeout(()=>setSaved(false),2000);
+      setSaved(true); setIsDirty(false);
     } catch(e){alert("Erro ao salvar.");} finally{setSaving(false);}
   },[campaignId,activeCampaignId,pieceId,canvasSize]);
 
@@ -484,7 +485,7 @@ function EditorPageInner() {
           </button>
         )}
         {isPiece && activeCampaignId && (
-          <button onClick={()=>{ window.location.href="/editor?campaign="+activeCampaignId; }} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
+          <button onClick={()=>{ window.location.href="/editor?campaign="+activeCampaignId+(pieceId?"&fromPiece="+pieceId:""); }} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
             ✏️ Editar Matriz
           </button>
         )}
