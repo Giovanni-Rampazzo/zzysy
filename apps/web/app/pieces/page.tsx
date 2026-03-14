@@ -199,9 +199,8 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
       const maxW = 280, maxH = 200;
       const scale = Math.min(maxW/srcW, maxH/srcH);
       const w = Math.round(srcW*scale), h = Math.round(srcH*scale);
-      fc = new Canvas(canvasRef.current, { width:srcW, height:srcH, backgroundColor:"#FFF", selection:false });
+      fc = new Canvas(canvasRef.current, { width:w, height:h, backgroundColor:"#FFF", selection:false });
       (canvasRef.current as any)._fabricCanvas = fc;
-      fc.setZoom(scale); fc.setDimensions({width:w,height:h});
       fc.loadFromJSON(piece.data, () => {
         fc.getObjects().forEach((o:any)=>{o.selectable=false;o.evented=false;});
         fc.requestRenderAll(); setRendered(true);
