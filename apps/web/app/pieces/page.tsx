@@ -449,7 +449,6 @@ function PiecesPageInner() {
                             onDuplicate={()=>duplicatePiece(piece)}
                             onStatusChange={(s)=>changeStatus(piece.id,s)}
                             onStatusChange={(s)=>changeStatus(piece.id,s)}
-                            onStatusChange={(s)=>changeStatus(piece.id,s)}
                           />
                         ))}
                       </div>
