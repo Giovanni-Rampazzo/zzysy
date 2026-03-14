@@ -435,7 +435,7 @@ function EditorPageInner() {
             Exportar →
           </button>
         )}
-        <button onClick={handleClose} style={{...btn,color:"#555"}}>Fechar</button>
+        <button onClick={handleClose} style={{padding:"6px 16px",border:"1.5px solid #E5E5E5",borderRadius:"8px",background:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",color:"#111"}}>← Voltar</button>
       </div>
 
       {/* TOOLBAR */}

@@ -385,7 +385,7 @@ function PiecesPageInner() {
                           {allSelected?"Desmarcar todos":"Selecionar todos"}
                         </button>
                       </div>
-                      <button onClick={()=>router.push("/editor?campaign="+cid)} style={{ fontSize:"0.78rem",color:"#888",background:"none",border:"none",cursor:"pointer",fontWeight:600,padding:0 }}>✏️ Editar Matriz</button>
+                      <button onClick={()=>router.push("/editor?campaign="+cid)} style={{ fontSize:"0.78rem",color:"#111",background:"#F5C400",border:"none",cursor:"pointer",fontWeight:700,padding:"5px 12px",borderRadius:"6px" }}>✏️ Editar Matriz</button>
                     </div>
 
                     {view==="list" ? (
