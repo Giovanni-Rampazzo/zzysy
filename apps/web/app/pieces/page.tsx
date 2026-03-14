@@ -67,13 +67,13 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
         const safeName = piece.name.replace(/[^a-zA-Z0-9\-_]/g,"_");
 
         for (const fmt of formats) {
+          try {
           if (fmt === "png") {
             const dataUrl = fc.toDataURL({ format:"png", multiplier:quality/100 });
             const base64 = dataUrl.replace(/^data:image\/png;base64,/,"");
             folder.file(`${safeName}.png`, base64, { base64:true });
           }
           if (fmt === "tiff") {
-            // TIFF via PNG com extensão .tif (compatível com produção gráfica)
             const dataUrl = fc.toDataURL({ format:"png", multiplier:1 });
             const base64 = dataUrl.replace(/^data:image\/png;base64,/,"");
             folder.file(`${safeName}.tif`, base64, { base64:true });
@@ -83,6 +83,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             const svg = fc.toSVG();
             folder.file(`${safeName}.svg`, svg);
           }
+          } catch(fmtErr) { console.error('Erro formato', fmt, fmtErr); }
         }
         fc.dispose();
       }
