@@ -203,7 +203,7 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
       const srcW = parts[0] || 1080; const srcH = parts[1] || 1080;
       const scale = Math.min(280/srcW, 200/srcH);
       const w = Math.round(srcW*scale); const h = Math.round(srcH*scale);
-      fc = new FabricCanvas(canvasRef.current, { width:w, height:h, backgroundColor:"#FFF", selection:false });
+      fc = new FabricCanvas(canvasRef.current, { width:w, height:h, backgroundColor:"#F0F0F0", selection:false });
       fc.setZoom(scale); fc.setDimensions({width:w, height:h});
       await new Promise<void>(res => { fc.loadFromJSON(piece.data, () => { fc.requestRenderAll(); res(); }); });
       if (!cancelled) { fc.getObjects().forEach((o: any) => {o.selectable=false;o.evented=false;}); setRendered(true); }
@@ -215,7 +215,7 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
   const ratio=(parts2[1]||1080)/(parts2[0]||1080);
   const h=Math.max(80,Math.min(200,Math.round(240*ratio)));
   return (
-    <div onClick={onClick} style={{ background:colors.surface,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",height:h+"px",borderBottom:"1px solid "+colors.border }}>
+    <div onClick={onClick} style={{ background:"#E8E8E8",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",height:h+"px",borderBottom:"1px solid "+colors.border,flexShrink:0 }}>
       {!rendered && <div style={{ textAlign:"center",color:colors.textMuted }}><div style={{ fontSize:"1.8rem" }}>🎨</div><div style={{ fontSize:"0.7rem",marginTop:"4px" }}>{piece.format}</div></div>}
       <canvas ref={canvasRef} style={{ display:rendered?"block":"none",maxWidth:"100%",maxHeight:"100%" }} />
     </div>
@@ -236,7 +236,7 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
         {selected && <span style={{ color:"#FFF",fontSize:"12px",lineHeight:1 }}>✓</span>}
       </div>
       <PiecePreview piece={piece} onClick={onEdit} />
-      <div style={{ padding:"12px 14px" }}>
+      <div style={{ padding:"12px 14px",minHeight:"90px",display:"flex",flexDirection:"column",justifyContent:"space-between" }}>
         <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name}>{piece.name}</div>
         <div style={{ fontSize:"0.72rem",color:colors.textMuted,marginBottom:"10px" }}>{piece.format} · {new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</div>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
