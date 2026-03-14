@@ -211,6 +211,9 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
     run().catch(console.error);
     return () => { cancelled = true; try { if(fc) fc.dispose(); } catch(e) {} };
   }, [piece.data, piece.format]);
+  const parts2=piece.format.split("x").map(Number);
+  const ratio=(parts2[1]||1080)/(parts2[0]||1080);
+  const h=Math.max(80,Math.min(200,Math.round(240*ratio)));
   return (
     <div onClick={onClick} style={{ background:colors.surface,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",height:h+"px",borderBottom:"1px solid "+colors.border }}>
       {!rendered && <div style={{ textAlign:"center",color:colors.textMuted }}><div style={{ fontSize:"1.8rem" }}>🎨</div><div style={{ fontSize:"0.7rem",marginTop:"4px" }}>{piece.format}</div></div>}
