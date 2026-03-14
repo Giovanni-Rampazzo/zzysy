@@ -251,9 +251,8 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
             {Object.entries(STATUS_LABEL).map(([k,v])=><option key={k} value={k}>{v}</option>)}
           </select>
           <div style={{ display:"flex",gap:"4px" }}>
-            <button onClick={onEdit} style={{ padding:"4px 10px",border:"1px solid "+colors.border,borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",fontWeight:600 }}>Editar</button>
-            <button onClick={onDuplicate} style={{ padding:"4px 8px",border:"1px solid "+colors.border,borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer" }}>⧉</button>
-            <button onClick={onDelete} style={{ padding:"4px 8px",border:"1px solid "+colors.border,borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",color:"#E53935" }}>🗑</button>
+            <button onClick={onDuplicate} title="Duplicar" style={{ padding:"4px 8px",border:"1px solid "+colors.border,borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer" }}>⧉</button>
+            <button onClick={onDelete} title="Deletar" style={{ padding:"4px 8px",border:"1px solid "+colors.border,borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",color:"#E53935" }}>🗑</button>
           </div>
         </div>
       </div>
