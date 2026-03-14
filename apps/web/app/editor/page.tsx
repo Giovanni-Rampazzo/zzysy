@@ -179,7 +179,7 @@ function EditorPageInner() {
   const [campaignName, setCampaignName] = useState("");
   const [selectedId, setSelectedId] = useState<string|null>(null);
   const [selectedType, setSelectedType] = useState<string|null>(null);
-  const [canvasSize] = useState({w:1080,h:1080});
+  const [canvasSize, setCanvasSize] = useState({w:1080,h:1080});
   const [zoom, setZoom] = useState(0.45);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -292,6 +292,7 @@ function EditorPageInner() {
     fetch(`/api/pieces/${pieceId}`).then(r=>r.ok?r.json():null).then(res=>{
       if (!res) return;
       setActiveCampaignId(res.campaignId); setCampaignName(res.campaign?.name??"");
+      if (res.format) { const [fw,fh]=res.format.split("x").map(Number); if(fw&&fh) setCanvasSize({w:fw,h:fh}); }
       const data = res.data; if (!data||Object.keys(data).length===0){setIsDirty(false);return;}
       canvas.loadFromJSON(data, () => {
         canvas.requestRenderAll();
