@@ -114,7 +114,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                         fillColor: { r, g, b, a: 1 },
                         bold: obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900',
                       },
-                      transform: { xx: 1, xy: 0, yx: 0, yy: 1, tx: obj.left || 0, ty: obj.top || 0 },
+                      transform: [1, 0, 0, 1, obj.left || 0, obj.top || 0] as any,
                     },
                     top: 0, left: 0, bottom: canvH, right: canvW,
                   });
