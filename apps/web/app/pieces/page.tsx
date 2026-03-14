@@ -96,7 +96,9 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               for (const obj of objects) {
                 objects.forEach((o:any) => { o.visible = false; });
                 obj.visible = true;
-                fc.requestRenderAll();
+                // Força renderização síncrona
+                fc.renderAll();
+                await new Promise<void>(r => requestAnimationFrame(() => { fc.renderAll(); r(); }));
                 // Canvas nativo do Fabric (lowerCanvasEl)
                 const nativeEl = (fc as any).lowerCanvasEl as HTMLCanvasElement;
                 const tmp = document.createElement('canvas');
