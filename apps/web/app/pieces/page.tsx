@@ -94,16 +94,20 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                 const el2 = document.createElement("canvas");
                 el2.width = canvW; el2.height = canvH;
                 const ctx2 = el2.getContext("2d")!;
-                // Esconde todos exceto este objeto
-                objects.forEach((o:any) => { o.visible = false; });
-                (obj as any).visible = true;
-                fc.requestRenderAll();
-                const dataUrl2 = fc.toDataURL({ format:"png", multiplier:1 });
-                ctx2.drawImage(await new Promise<HTMLImageElement>(res => { const img = new Image(); img.onload=()=>res(img); img.src=dataUrl2; }), 0, 0);
+                // Renderiza objeto isolado com fundo transparente
+                const tmpEl = document.createElement("canvas");
+                tmpEl.width = canvW; tmpEl.height = canvH;
+                const { Canvas: TmpCanvas } = await import("fabric");
+                const tmpFc2 = new TmpCanvas(tmpEl, { width:canvW, height:canvH, backgroundColor:"" });
+                const clone = await (obj as any).clone();
+                clone.set({ left:(obj as any).left, top:(obj as any).top, scaleX:(obj as any).scaleX, scaleY:(obj as any).scaleY });
+                tmpFc2.add(clone);
+                tmpFc2.requestRenderAll();
+                const tmpDataUrl = tmpEl.toDataURL("image/png");
+                ctx2.clearRect(0,0,canvW,canvH);
+                ctx2.drawImage(await new Promise<HTMLImageElement>(res => { const img = new Image(); img.onload=()=>res(img); img.src=tmpDataUrl; }), 0, 0);
                 const imgData2 = ctx2.getImageData(0, 0, canvW, canvH);
-                // Restaura visibilidade
-                objects.forEach((o:any) => { o.visible = true; });
-                fc.requestRenderAll();
+                tmpFc2.dispose();
                 const layerName = (obj as any).text || (obj as any).layerId || obj.type || "layer";
                 psdLayers.push({ name: layerName, imageData: imgData2, top: 0, left: 0, bottom: canvH, right: canvW });
               }
