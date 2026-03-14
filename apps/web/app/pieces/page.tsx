@@ -21,9 +21,7 @@ const STATUS_COLOR: Record<string,string> = { DRAFT:"#888", REVIEW:"#4285F4", AP
 const EXPORT_FORMATS = [
   { id:"png",  label:"PNG",  desc:"Web, social media — com transparência" },
   { id:"tiff", label:"TIFF", desc:"Impressão, OOH, produção gráfica" },
-  { id:"svg",  label:"SVG",  desc:"Vetorial, editável" },
-  { id:"psd",  label:"PSD",  desc:"Photoshop com layers" },
-  { id:"pdf",  label:"PDF",  desc:"PDF com layers" },
+{ id:"svg",  label:"SVG",  desc:"Vetorial, editável" },
 ];
 
 // ─── EXPORT DIALOG ───────────────────────────────────────────────
@@ -89,31 +87,21 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             try {
               const { writePsd } = await import("ag-psd");
               const objects = fc.getObjects();
-              const psdLayers = [];
-              const origBg = (fc as any).backgroundColor;
-              // Remove fundo para capturar transparencia
-              (fc as any).backgroundColor = '';
-              for (const obj of objects) {
-                // Renderiza objeto individualmente em canvas isolado
-                const tmp = document.createElement('canvas');
-                tmp.width = canvW; tmp.height = canvH;
-                const ctx2d = tmp.getContext('2d')!;
-                ctx2d.clearRect(0, 0, canvW, canvH);
-                // Usa o método render do próprio objeto Fabric
-                obj.render(ctx2d);
-                const imgData = ctx2d.getImageData(0, 0, canvW, canvH);
-                const name = typeof (obj as any).text === 'string'
-                  ? (obj as any).text.substring(0, 40)
-                  : ((obj as any).layerId || obj.type || 'layer');
-                psdLayers.unshift({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
-              }
-              // Restaura
-              objects.forEach((o:any) => { o.visible = true; });
-              (fc as any).backgroundColor = origBg;
-              fc.requestRenderAll();
-              const buffer = writePsd({ width: canvW, height: canvH, children: psdLayers });
+              const layers = await Promise.all(objects.map(async (obj: any) => {
+                const tmpCanvas = document.createElement("canvas");
+                tmpCanvas.width = canvW; tmpCanvas.height = canvH;
+                const tmpFc = new FabricCanvas(tmpCanvas, { width:canvW, height:canvH, backgroundColor:"transparent" });
+                tmpFc.add(obj.toObject ? await (async () => { const clone = await obj.clone(); return clone; })() : obj);
+                tmpFc.requestRenderAll();
+                const ctx = tmpCanvas.getContext("2d")!;
+                const imgData = ctx.getImageData(0, 0, canvW, canvH);
+                tmpFc.dispose();
+                return { name: (obj as any).layerId || obj.type || "layer", canvas: tmpCanvas, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW };
+              }));
+              const psd = { width: canvW, height: canvH, children: layers };
+              const buffer = writePsd(psd);
               folder.file(`${safeName}.psd`, buffer);
-            } catch(psdErr) { console.error('PSD error:', psdErr); }
+            } catch(psdErr) { console.error("PSD error:", psdErr); }
           }
           if (fmt === "pdf") {
             try {
@@ -419,11 +407,10 @@ function PiecesPageInner() {
             <div style={{ textAlign:"center",padding:"80px 0",color:colors.textMuted }}>
               <div style={{ fontSize:"2.5rem",marginBottom:"16px" }}>🎨</div>
               <div style={{ fontWeight:700,marginBottom:"8px" }}>Nenhuma peça encontrada</div>
-              <div style={{ fontSize:"0.875rem",marginBottom:"24px" }}>Esta campanha ainda não tem peças. Crie a matriz primeiro.</div>
-              <div style={{display:"flex",gap:"12px",justifyContent:"center"}}>
-                <button onClick={()=>router.push("/campaigns")} style={{ padding:"10px 24px",background:"#FFF",color:"#111",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontWeight:600,cursor:"pointer" }}>← Campanhas</button>
-                {filterCampaign && <button onClick={()=>router.push("/editor?campaign="+filterCampaign)} style={{ padding:"10px 24px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>✏️ Criar Matriz</button>}
-              </div>
+              <div style={{ fontSize:"0.875rem",marginBottom:"24px" }}>Abra uma campanha e clique em Exportar para gerar peças</div>
+              <button onClick={()=>router.push("/campaigns")} style={{ padding:"10px 24px",background:colors.text,color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+                Ir para Campanhas →
+              </button>
             </div>
           ) : (
             <div style={{ display:"flex",flexDirection:"column",gap:"40px" }}>
