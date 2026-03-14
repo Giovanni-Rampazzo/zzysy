@@ -51,8 +51,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   await Promise.all(pieces.map(piece => {
     const [fw, fh] = piece.format.split("x").map(Number);
-    const scaled = scaleJson(data, fw || 1080, fh || 1080);
-    return prisma.piece.update({ where: { id: piece.id }, data: { data: scaled } });
+    const newScaled = scaleJson(data, fw || 1080, fh || 1080);
+    const pieceData = piece.data as any;
+
+    // Merge seletivo: só atualiza o texto (conteudo), preserva tudo mais da peça
+    if (pieceData?.objects && newScaled?.objects) {
+      newScaled.objects = newScaled.objects.map((newObj: any) => {
+        const existing = pieceData.objects.find((o: any) => o.layerId === newObj.layerId);
+        if (!existing) return newObj; // objeto novo da matriz
+        if (newObj.type === 'i-text' || newObj.type === 'text') {
+          // Só atualiza o conteudo do texto, preserva estilo/cor/posicao da peça
+          return { ...existing, text: newObj.text };
+        }
+        // Shapes/imagens: preserva tudo da peça
+        return existing;
+      });
+      // Remove objetos deletados da matriz
+      const matrixLayerIds = newScaled.objects.map((o: any) => o.layerId).filter(Boolean);
+      newScaled.objects = newScaled.objects.filter((o: any) =>
+        !o.layerId || matrixLayerIds.includes(o.layerId)
+      );
+    }
+
+    return prisma.piece.update({ where: { id: piece.id }, data: { data: newScaled } });
   }));
 
   return NextResponse.json({ ok: true });
