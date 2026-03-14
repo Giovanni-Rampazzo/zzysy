@@ -422,7 +422,7 @@ function EditorPageInner() {
     if (isDirty) {
       await save();
     }
-    window.location.href = closeUrl;
+    window.location.href = closeUrl + (closeUrl.includes("?") ? "&" : "?") + "ts=" + Date.now();
   },[isDirty,closeUrl,save]);
 
   const handleGenerate = useCallback(async (formats: string[]) => {
