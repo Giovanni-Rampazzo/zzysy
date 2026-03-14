@@ -182,7 +182,12 @@ function EditorPageInner() {
   const formatParam = searchParams.get("format");
   const initSize = formatParam ? { w: parseInt(formatParam.split("x")[0])||1080, h: parseInt(formatParam.split("x")[1])||1080 } : {w:1080,h:1080};
   const [canvasSize, setCanvasSize] = useState(initSize);
-  const [zoom, setZoom] = useState(0.45);
+  const calcZoom = (w: number, h: number) => {
+    const availW = (typeof window !== 'undefined' ? window.innerWidth : 1200) - 280 - 80;
+    const availH = (typeof window !== 'undefined' ? window.innerHeight : 800) - 48 - 60 - 80;
+    return Math.min(availW/w, availH/h, 1) * 0.9;
+  };
+  const [zoom, setZoom] = useState(() => calcZoom(1080, 1080));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -294,7 +299,7 @@ function EditorPageInner() {
     fetch(`/api/pieces/${pieceId}`).then(r=>r.ok?r.json():null).then(res=>{
       if (!res) return;
       setActiveCampaignId(res.campaignId); setCampaignName(res.campaign?.name??"");
-      if (res.format) { const [fw,fh]=res.format.split("x").map(Number); if(fw&&fh) setCanvasSize({w:fw,h:fh}); }
+      if (res.format) { const [fw,fh]=res.format.split("x").map(Number); if(fw&&fh){ setCanvasSize({w:fw,h:fh}); setZoom(calcZoom(fw,fh)); } }
       const data = res.data; if (!data||Object.keys(data).length===0){setIsDirty(false);return;}
       canvas.loadFromJSON(data, () => {
         canvas.requestRenderAll();
