@@ -350,10 +350,10 @@ function PiecesPageInner() {
         <div style={{ padding:"28px 40px 0",borderBottom:b,flexShrink:0 }}>
           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"20px" }}>
             <div>
-              <h1 style={{ fontSize:"1.5rem",fontWeight:900,color:colors.text,margin:"0 0 4px",letterSpacing:"-0.03em" }}>Peças</h1>
+              <div style={{display:"flex",alignItems:"center",gap:"12px"}}><h1 style={{ fontSize:"1.5rem",fontWeight:900,color:colors.text,margin:0,letterSpacing:"-0.03em" }}>Peças</h1>{filterCampaign&&<button onClick={()=>router.push("/editor?campaign="+filterCampaign)} style={{padding:"5px 12px",background:"#F5C400",border:"none",borderRadius:"6px",fontSize:"0.78rem",fontWeight:700,cursor:"pointer"}}>✏️ Editar Matriz</button>}</div>
               <p style={{ fontSize:"0.875rem",color:colors.textMuted,margin:0 }}>{filtered.length} peça{filtered.length!==1?"s":""}{selected.length>0?` · ${selected.length} selecionada${selected.length!==1?"s":""}`:""}</p>
             </div>
-            <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}} style={{ padding:"10px 16px",background:selectMode?"#F0F0F0":"#FFF",color:"#111",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontWeight:600,cursor:"pointer" }}>{selectMode?"✕ Cancelar":"⬇ Exportar"}</button>
+            <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}} style={{ padding:"10px 16px",background:selectMode?"#FFF":"#111",color:selectMode?"#E53935":"#FFF",border:"1.5px solid "+(selectMode?"#E5E5E5":"#111"),borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>{selectMode?"✕ Cancelar":"⬇ Exportar"}</button>
             {selected.length>0 && (
               <button onClick={()=>setShowExport(true)}
                 style={{ padding:"10px 20px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:"8px" }}>
@@ -404,7 +404,7 @@ function PiecesPageInner() {
                           {allSelected?"Desmarcar todos":"Selecionar todos"}
                         </button>
                       </div>
-                      <button onClick={()=>router.push("/editor?campaign="+cid)} style={{ fontSize:"0.78rem",color:"#111",background:"#F5C400",border:"none",cursor:"pointer",fontWeight:700,padding:"5px 12px",borderRadius:"6px" }}>✏️ Editar Matriz</button>
+                      
                     </div>
 
                     {view==="list" ? (
