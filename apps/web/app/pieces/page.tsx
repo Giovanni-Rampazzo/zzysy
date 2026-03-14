@@ -223,8 +223,8 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
 }
 
 // ─── PIECE CARD ──────────────────────────────────────────────────
-function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, onStatusChange }: {
-  piece: Piece; selected: boolean; onSelect: () => void;
+function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, onStatusChange, selectMode }: {
+  piece: Piece; selected: boolean; onSelect: () => void; selectMode: boolean;
   onEdit:()=>void; onDelete:()=>void; onDuplicate:()=>void; onStatusChange:(s:string)=>void;
 }) {
   const [hover, setHover] = useState(false);
@@ -232,7 +232,7 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
     <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       style={{ border:`1.5px solid ${selected?"#111":hover?"#555":colors.border}`,borderRadius:"12px",overflow:"hidden",background:"#FFF",transition:"border-color 0.15s, box-shadow 0.15s",boxShadow:selected?"0 0 0 3px rgba(0,0,0,0.08)":hover?"0 4px 16px rgba(0,0,0,0.1)":"none",position:"relative",display:"flex",flexDirection:"column",height:"100%" }}>
       {/* Checkbox de seleção */}
-      <div onClick={e=>{e.stopPropagation();onSelect();}} style={{ position:"absolute",top:"8px",left:"8px",zIndex:2,width:"20px",height:"20px",borderRadius:"4px",border:`2px solid ${selected?"#111":"rgba(255,255,255,0.8)"}`,background:selected?"#111":"rgba(255,255,255,0.6)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)" }}>
+      <div onClick={e=>{e.stopPropagation();onSelect();}} style={{ position:"absolute",top:"8px",right:"8px",zIndex:2,width:"18px",height:"18px",borderRadius:"3px",border:`1.5px solid ${selected?"#111":"#CCC"}`,background:selected?"#111":"#FFF",cursor:"pointer",display:selectMode?"flex":"none",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
         {selected && <span style={{ color:"#FFF",fontSize:"12px",lineHeight:1 }}>✓</span>}
       </div>
       <PiecePreview piece={piece} onClick={onEdit} />
@@ -439,6 +439,7 @@ function PiecesPageInner() {
                             onDelete={()=>deletePiece(piece.id)}
                             onDuplicate={()=>duplicatePiece(piece)}
                             onStatusChange={(s)=>changeStatus(piece.id,s)}
+                            selectMode={selected.length>0}
                           />
                         ))}
                       </div>
