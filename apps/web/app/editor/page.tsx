@@ -180,6 +180,7 @@ function EditorPageInner() {
   const [selectedId, setSelectedId] = useState<string|null>(null);
   const [selectedType, setSelectedType] = useState<string|null>(null);
   const formatParam = searchParams.get("format");
+  const fromPiece = searchParams.get("fromPiece");
   const initSize = formatParam ? { w: parseInt(formatParam.split("x")[0])||1080, h: parseInt(formatParam.split("x")[1])||1080 } : {w:1080,h:1080};
   const [canvasSize, setCanvasSize] = useState(initSize);
   const calcZoom = (w: number, h: number) => {
@@ -416,7 +417,11 @@ function EditorPageInner() {
       return arr;
     });
   };
-  const closeUrl = pieceId ? (fromExports ? `/exports?campaignId=${activeCampaignId??""}` : `/pieces?campaignId=${activeCampaignId??""}`) : "/campaigns";
+  const closeUrl = fromPiece
+    ? `/editor?pieceId=${fromPiece}&format=${formatParam||"1080x1080"}`
+    : pieceId
+    ? `/pieces?campaignId=${activeCampaignId??""}`
+    : "/campaigns";
 
   const handleClose = useCallback(async () => {
     if (isDirty) {
