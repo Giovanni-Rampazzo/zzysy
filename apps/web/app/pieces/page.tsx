@@ -92,33 +92,34 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               const origVisible = objects.map((o:any) => o.visible);
               const origBg = (fc as any).backgroundColor;
               (fc as any).backgroundColor = '';
+
               for (let oi = 0; oi < objects.length; oi++) {
                 const obj = objects[oi] as any;
-                const isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText';
-                const name = typeof obj.text === 'string'
-                  ? obj.text.substring(0, 40)
-                  : (obj.layerId || obj.type || 'layer');
-                if (isText) {
-                  // Layer de texto editável
-                  const fontSize = Math.round((obj.fontSize || 24) * (obj.scaleX || 1));
-                  const color = obj.fill || '#000000';
-                  const hex = typeof color === 'string' && color.startsWith('#') ? color : '#000000';
-                  const r = parseInt(hex.slice(1,3),16)/255;
-                  const g = parseInt(hex.slice(3,5),16)/255;
-                  const b = parseInt(hex.slice(5,7),16)/255;
+                const name = obj.text?.substring(0, 40) || obj.layerId || obj.type || 'layer';
+
+                // Layer de texto editável
+                if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText') {
+                  const fill = obj.fill || '#000000';
+                  const hex = fill.replace('#','');
+                  const r = parseInt(hex.substring(0,2),16)/255;
+                  const g = parseInt(hex.substring(2,4),16)/255;
+                  const b = parseInt(hex.substring(4,6),16)/255;
                   psdLayers.unshift({
                     name,
-                    top: Math.round(obj.top || 0),
-                    left: Math.round(obj.left || 0),
-                    bottom: Math.round((obj.top || 0) + (obj.height || 50) * (obj.scaleY || 1)),
-                    right: Math.round((obj.left || 0) + (obj.width || 200) * (obj.scaleX || 1)),
                     text: {
                       text: obj.text || '',
-                      style: { fontSize, fillColor: { r, g, b, a: 1 }, fontName: obj.fontFamily || 'DM Sans' },
+                      style: {
+                        font: { name: obj.fontFamily || 'ArialMT', style: 'Regular' },
+                        fontSize: (obj.fontSize || 16) * (obj.scaleX || 1),
+                        fillColor: { r, g, b, a: 1 },
+                        bold: obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900',
+                      },
+                      transform: { xx: 1, xy: 0, yx: 0, yy: 1, tx: obj.left || 0, ty: obj.top || 0 },
                     },
+                    top: 0, left: 0, bottom: canvH, right: canvW,
                   });
                 } else {
-                  // Layer de pixel (imagem/shape)
+                  // Layer pixel para shapes/imagens
                   objects.forEach((o:any, idx:number) => { o.visible = idx === oi; });
                   fc.renderAll();
                   await new Promise<void>(r => setTimeout(r, 50));
@@ -131,6 +132,8 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   psdLayers.unshift({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
                 }
               }
+
+              // Restaura
               objects.forEach((o:any, idx:number) => { o.visible = origVisible[idx]; });
               (fc as any).backgroundColor = origBg;
               fc.renderAll();
