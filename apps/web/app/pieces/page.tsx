@@ -269,6 +269,7 @@ function PiecesPageInner() {
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
   const [selected, setSelected] = useState<string[]>([]);
   const [showExport, setShowExport] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
 
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
   useEffect(() => {
@@ -439,7 +440,7 @@ function PiecesPageInner() {
                             onDelete={()=>deletePiece(piece.id)}
                             onDuplicate={()=>duplicatePiece(piece)}
                             onStatusChange={(s)=>changeStatus(piece.id,s)}
-                            selectMode={selected.length>0}
+                            selectMode={selectMode}
                           />
                         ))}
                       </div>
