@@ -416,9 +416,12 @@ function EditorPageInner() {
   };
   const closeUrl = pieceId ? (fromExports ? `/exports?campaignId=${activeCampaignId??""}` : `/pieces?campaignId=${activeCampaignId??""}`) : "/campaigns";
 
-  const handleClose = useCallback(() => {
-    if (isDirty) { setShowCloseConfirm(true); } else { window.location.href = closeUrl; }
-  },[isDirty,closeUrl]);
+  const handleClose = useCallback(async () => {
+    if (isDirty) {
+      await save();
+    }
+    window.location.href = closeUrl;
+  },[isDirty,closeUrl,save]);
 
   const handleGenerate = useCallback(async (formats: string[]) => {
     const cid = activeCampaignId??campaignId; if (!cid||formats.length===0) return;
