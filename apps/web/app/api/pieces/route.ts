@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   const { campaignId, name, format, data } = body;
   const existing = await prisma.piece.findFirst({ where: { campaignId, format } });
   const piece = existing
-    ? await prisma.piece.update({ where: { id: existing.id }, data: { name, data: data ?? {} } })
+    ? await prisma.piece.update({ where: { id: existing.id }, data: { data: data ?? {} } })
     : await prisma.piece.create({ data: { campaignId, name, format, data: data ?? {} } });
   return NextResponse.json(piece);
 }
