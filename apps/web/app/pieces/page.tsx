@@ -233,7 +233,7 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
 // ─── PIECE CARD ──────────────────────────────────────────────────
 function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, onStatusChange }: {
   piece: Piece; selected: boolean; onSelect: () => void;
-  onEdit:()=>void; onDelete:()=>void; onDuplicate:()=>void; onStatusChange:(s:string)=>void;
+  onEdit:()=>void; onDelete:()=>void; onDuplicate:()=>void; onStatusChange:(s:string)=>void; onStatusChange:(s:string)=>void;
 }) {
   const [hover, setHover] = useState(false);
   return (
@@ -447,6 +447,7 @@ function PiecesPageInner() {
                             onEdit={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}
                             onDelete={()=>deletePiece(piece.id)}
                             onDuplicate={()=>duplicatePiece(piece)}
+                            onStatusChange={(s)=>changeStatus(piece.id,s)}
                             onStatusChange={(s)=>changeStatus(piece.id,s)}
                             onStatusChange={(s)=>changeStatus(piece.id,s)}
                           />
