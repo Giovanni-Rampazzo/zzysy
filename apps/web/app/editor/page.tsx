@@ -181,6 +181,7 @@ function EditorPageInner() {
   const [selectedType, setSelectedType] = useState<string|null>(null);
   const formatParam = searchParams.get("format");
   const fromPiece = searchParams.get("fromPiece");
+  const fromPieces = searchParams.get("fromPieces");
   const initSize = formatParam ? { w: parseInt(formatParam.split("x")[0])||1080, h: parseInt(formatParam.split("x")[1])||1080 } : {w:1080,h:1080};
   const [canvasSize, setCanvasSize] = useState(initSize);
   const calcZoom = (w: number, h: number) => {
@@ -419,6 +420,8 @@ function EditorPageInner() {
   };
   const closeUrl = fromPiece
     ? `/editor?pieceId=${fromPiece}&format=${formatParam||"1080x1080"}`
+    : fromPieces
+    ? `/pieces?campaignId=${fromPieces}`
     : pieceId
     ? `/pieces?campaignId=${activeCampaignId??""}`
     : "/campaigns";
