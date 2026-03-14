@@ -250,7 +250,7 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
       </div>
       <PiecePreview piece={piece} onClick={onEdit} />
       <div style={{ padding:"12px 14px",flexShrink:0 }}>
-        <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name}>{piece.name}</div>
+        <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name.includes(" — ") ? piece.name.split(" — ").slice(-2).join(" — ") : piece.name}>{piece.name}</div>
         <div style={{ fontSize:"0.72rem",color:colors.textMuted,marginBottom:"10px" }}>{piece.format} · {new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</div>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
           <select value={piece.status} onChange={e=>{e.stopPropagation();onStatusChange(e.target.value);}}
@@ -353,7 +353,7 @@ function PiecesPageInner() {
               <h1 style={{ fontSize:"1.5rem",fontWeight:900,color:colors.text,margin:"0 0 4px",letterSpacing:"-0.03em" }}>Peças</h1>
               <p style={{ fontSize:"0.875rem",color:colors.textMuted,margin:0 }}>{filtered.length} peça{filtered.length!==1?"s":""}{selected.length>0?` · ${selected.length} selecionada${selected.length!==1?"s":""}`:""}</p>
             </div>
-            <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}} style={{ padding:"10px 16px",background:selectMode?"#F0F0F0":"#FFF",color:"#111",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontWeight:600,cursor:"pointer" }}>{selectMode?"✕ Cancelar":"☑ Selecionar"}</button>
+            <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}} style={{ padding:"10px 16px",background:selectMode?"#F0F0F0":"#FFF",color:"#111",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontWeight:600,cursor:"pointer" }}>{selectMode?"✕ Cancelar":"⬇ Exportar"}</button>
             {selected.length>0 && (
               <button onClick={()=>setShowExport(true)}
                 style={{ padding:"10px 20px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:"8px" }}>
