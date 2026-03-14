@@ -56,7 +56,14 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
         const canvH = fh || 1080;
         const fc = new Canvas(el, { width:canvW, height:canvH, backgroundColor:"transparent" });
         if (piece.data && Object.keys(piece.data).length > 0) {
-          await new Promise<void>(res => fc.loadFromJSON(piece.data, () => { fc.requestRenderAll(); res(); }));
+          await new Promise<void>(res => {
+            fc.loadFromJSON(piece.data, () => {
+              fc.setZoom(1);
+              fc.setDimensions({width:canvW, height:canvH});
+              fc.requestRenderAll();
+              setTimeout(() => { fc.requestRenderAll(); res(); }, 300);
+            });
+          });
         }
         const safeName = piece.name.replace(/[^a-zA-Z0-9\-_]/g,"_");
 
