@@ -410,14 +410,14 @@ function PiecesPageInner() {
                               <td style={{ padding:"10px 12px" }}>
                                 <input type="checkbox" checked={selected.includes(piece.id)} onChange={()=>toggleSelect(piece.id)} style={{ cursor:"pointer",accentColor:"#111" }}/>
                               </td>
-                              <td style={{ padding:"10px 12px",width:"60px" }}><div style={{ width:"48px",height:"36px",background:"#F7F7F7",borderRadius:"4px",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }} onClick={()=>router.push("/editor?pieceId="+piece.id)}>🎨</div></td>
+                              <td style={{ padding:"10px 12px",width:"60px" }}><div style={{ width:"48px",height:"36px",background:"#F7F7F7",borderRadius:"4px",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }} onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}>🎨</div></td>
                               <td style={{ padding:"10px 12px",fontSize:"0.85rem",fontWeight:600,color:"#111",maxWidth:"200px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{piece.name}</td>
                               <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{piece.format}</td>
                               <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</td>
                               <td style={{ padding:"10px 12px" }}><span style={{ padding:"2px 8px",borderRadius:"99px",fontSize:"0.7rem",fontWeight:700,background:STATUS_COLOR[piece.status]+"22",color:STATUS_COLOR[piece.status] }}>{STATUS_LABEL[piece.status]}</span></td>
                               <td style={{ padding:"10px 12px" }}>
                                 <div style={{ display:"flex",gap:"4px" }}>
-                                  <button onClick={()=>router.push("/editor?pieceId="+piece.id)} style={{ padding:"4px 10px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",fontWeight:600 }}>Editar</button>
+                                  <button onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)} style={{ padding:"4px 10px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",fontWeight:600 }}>Editar</button>
                                   <button onClick={()=>duplicatePiece(piece)} style={{ padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer" }}>⧉</button>
                                   <button onClick={()=>deletePiece(piece.id)} style={{ padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",color:"#E53935" }}>🗑</button>
                                 </div>
@@ -432,7 +432,7 @@ function PiecesPageInner() {
                           <PieceCard key={piece.id} piece={piece}
                             selected={selected.includes(piece.id)}
                             onSelect={()=>toggleSelect(piece.id)}
-                            onEdit={()=>router.push("/editor?pieceId="+piece.id)}
+                            onEdit={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}
                             onDelete={()=>deletePiece(piece.id)}
                             onDuplicate={()=>duplicatePiece(piece)}
                           />
