@@ -77,7 +77,7 @@ function getCanvasJson(canvas: Canvas, w: number, h: number) {
   canvas.setZoom(1); canvas.setDimensions({width:w,height:h});
   const json = (canvas as any).toJSON(["layerId"]);
   canvas.setZoom(z); canvas.setDimensions({width:w*z,height:h*z});
-  return json;
+  return { ...json, width: w, height: h };
 }
 
 function scaleJsonToFormat(json: any, origW: number, origH: number, newW: number, newH: number) {
