@@ -373,6 +373,28 @@ function EditorPageInner() {
   },[campaignId,activeCampaignId,pieceId,canvasSize]);
 
   const fromExports = typeof window !== "undefined" && document.referrer.includes("/exports");
+  const reorderLayer = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const canvas = fabricRef.current; if (!canvas) return;
+    setLayers(prev => {
+      const arr = [...prev];
+      const fromIdx = arr.findIndex(l => l.id === fromId);
+      const toIdx = arr.findIndex(l => l.id === toId);
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      // Reordena objetos no canvas
+      const objs = canvas.getObjects();
+      const fromObj = objs.find((o:any) => o.layerId === fromId);
+      const toObj = objs.find((o:any) => o.layerId === toId);
+      if (fromObj && toObj) {
+        const fi = objs.indexOf(fromObj), ti = objs.indexOf(toObj);
+        canvas.moveObjectTo(fromObj, ti);
+        canvas.requestRenderAll();
+      }
+      pushHistory();
+      return arr;
+    });
+  };
   const closeUrl = pieceId ? (fromExports ? `/exports?campaignId=${activeCampaignId??""}` : `/pieces?campaignId=${activeCampaignId??""}`) : "/campaigns";
 
   const handleClose = useCallback(() => {
@@ -550,7 +572,12 @@ function EditorPageInner() {
           <div style={{flex:1,overflow:"auto",padding:"6px"}}>
             {layers.length===0 && <p style={{fontSize:"0.78rem",color:"#BBB",textAlign:"center",marginTop:"24px"}}>Nenhuma camada</p>}
             {[...layers].reverse().map(layer=>(
-              <LayerItem key={layer.id} layer={layer} selected={selectedId===layer.id}
+              <div key={layer.id} draggable
+                onDragStart={e=>e.dataTransfer.setData('layerId',layer.id)}
+                onDragOver={e=>e.preventDefault()}
+                onDrop={e=>{e.preventDefault();reorderLayer(e.dataTransfer.getData('layerId'),layer.id);}}
+                style={{cursor:'grab'}}>
+              <LayerItem layer={layer} selected={selectedId===layer.id}
                 onSelect={()=>{
                   setSelectedId(layer.id);
                   const canvas=fabricRef.current; if (!canvas) return;
