@@ -420,10 +420,11 @@ function PiecesPageInner() {
             <div style={{ textAlign:"center",padding:"80px 0",color:colors.textMuted }}>
               <div style={{ fontSize:"2.5rem",marginBottom:"16px" }}>🎨</div>
               <div style={{ fontWeight:700,marginBottom:"8px" }}>Nenhuma peça encontrada</div>
-              <div style={{ fontSize:"0.875rem",marginBottom:"24px" }}>Abra uma campanha e clique em Exportar para gerar peças</div>
-              <button onClick={()=>router.push("/campaigns")} style={{ padding:"10px 24px",background:colors.text,color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
-                Ir para Campanhas →
-              </button>
+              <div style={{ fontSize:"0.875rem",marginBottom:"24px" }}>Esta campanha ainda não tem peças. Crie a matriz primeiro.</div>
+              <div style={{display:"flex",gap:"12px",justifyContent:"center"}}>
+                <button onClick={()=>router.push("/campaigns")} style={{ padding:"10px 24px",background:"#FFF",color:"#111",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontWeight:600,cursor:"pointer" }}>← Campanhas</button>
+                {filterCampaign && <button onClick={()=>router.push("/editor?campaign="+filterCampaign)} style={{ padding:"10px 24px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>✏️ Criar Matriz</button>}
+              </div>
             </div>
           ) : (
             <div style={{ display:"flex",flexDirection:"column",gap:"40px" }}>
