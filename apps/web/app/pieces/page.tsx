@@ -264,6 +264,7 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
     if (!piece.data || Object.keys(piece.data).length === 0) return;
     let fc: any = null;
     let cancelled = false;
+    setRendered(false);
     const run = async () => {
       await new Promise<void>(r => setTimeout(r, 100));
       if (cancelled || !canvasRef.current) return;
@@ -273,9 +274,9 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
       const parts = piece.format.split("x").map(Number);
       const srcW = parts[0] || 1080; const srcH = parts[1] || 1080;
       const scale = Math.min(280/srcW, 200/srcH);
-      const w = Math.round(srcW*scale); const h = Math.round(srcH*scale);
-      fc = new FabricCanvas(canvasRef.current, { width:w, height:h, backgroundColor:"#F0F0F0", selection:false });
-      fc.setZoom(scale); fc.setDimensions({width:w, height:h});
+      const w = Math.round(srcW*scale); const h2 = Math.round(srcH*scale);
+      fc = new FabricCanvas(canvasRef.current, { width:w, height:h2, backgroundColor:"#FFF", selection:false });
+      fc.setZoom(scale); fc.setDimensions({width:w, height:h2});
       await new Promise<void>(res => { fc.loadFromJSON(piece.data, () => { fc.requestRenderAll(); res(); }); });
       if (!cancelled) { fc.getObjects().forEach((o: any) => {o.selectable=false;o.evented=false;}); setRendered(true); }
     };
