@@ -83,6 +83,39 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             const svg = fc.toSVG();
             folder.file(`${safeName}.svg`, svg);
           }
+          if (fmt === "psd") {
+            try {
+              const { writePsd } = await import("ag-psd");
+              const objects = fc.getObjects();
+              const psdLayers = [];
+              for (const obj of objects) {
+                const el2 = document.createElement("canvas");
+                el2.width = canvW; el2.height = canvH;
+                const ctx2 = el2.getContext("2d")!;
+                // Renderiza objeto isolado via dataURL nativo do Fabric
+                const objDataUrl: string = await new Promise(res => {
+                  const tmpEl = document.createElement("canvas");
+                  tmpEl.width = canvW; tmpEl.height = canvH;
+                  const tmpCtx = tmpEl.getContext("2d")!;
+                  tmpCtx.clearRect(0, 0, canvW, canvH);
+                  (obj as any).render(tmpCtx);
+                  res(tmpEl.toDataURL("image/png"));
+                });
+                const img = await new Promise<HTMLImageElement>(res => {
+                  const i = new Image(); i.onload = () => res(i); i.src = objDataUrl;
+                });
+                ctx2.clearRect(0, 0, canvW, canvH);
+                ctx2.drawImage(img, 0, 0);
+                const imgData = ctx2.getImageData(0, 0, canvW, canvH);
+                const name = typeof (obj as any).text === "string"
+                  ? (obj as any).text.substring(0, 40)
+                  : ((obj as any).layerId || obj.type || "layer");
+                psdLayers.unshift({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
+              }
+              const buffer = writePsd({ width: canvW, height: canvH, children: psdLayers });
+              folder.file(`${safeName}.psd`, buffer);
+            } catch(psdErr) { console.error("PSD error:", psdErr); }
+          }
           if (fmt === "pdf") {
             try {
               const { PDFDocument, rgb } = await import("pdf-lib");
@@ -248,7 +281,7 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
       <div onClick={e=>{e.stopPropagation();onSelect();}} style={{ position:"absolute",top:"8px",right:"8px",zIndex:2,width:"18px",height:"18px",borderRadius:"3px",border:`1.5px solid ${selected?"#111":"#CCC"}`,background:selected?"#111":"#FFF",cursor:"pointer",display:selectMode?"flex":"none",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
         {selected && <span style={{ color:"#FFF",fontSize:"12px",lineHeight:1 }}>✓</span>}
       </div>
-      <PiecePreview piece={piece} onClick={onEdit} />
+      <PiecePreview key={piece.id+"-"+(piece.updatedAt||"")} piece={piece} onClick={onEdit} />
       <div style={{ padding:"12px 14px",flexShrink:0 }}>
         <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name.includes(" — ") ? piece.name.split(" — ").slice(-2).join(" — ") : piece.name}>{piece.name}</div>
         <div style={{ fontSize:"0.72rem",color:colors.textMuted,marginBottom:"10px" }}>{piece.format} · {new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</div>
