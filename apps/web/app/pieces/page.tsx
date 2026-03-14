@@ -222,7 +222,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             <button onClick={onClose} style={{ padding:"9px 20px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"#FFF",color:"#555",fontSize:"0.85rem",fontWeight:600,cursor:"pointer" }}>Cancelar</button>
             <button onClick={handleExport} disabled={formats.length===0||exporting}
               style={{ padding:"9px 20px",border:"none",borderRadius:"8px",background:formats.length===0?"#CCC":"#111",color:"#FFF",fontSize:"0.85rem",fontWeight:700,cursor:formats.length===0?"not-allowed":"pointer",opacity:exporting?0.7:1 }}>
-              {exporting?"Gerando ZIP...":"⬇ Exportar ZIP"}
+              {exporting?"Gerando ZIP...":"⬆ Exportar ZIP"}
             </button>
           </div>
         </div>
