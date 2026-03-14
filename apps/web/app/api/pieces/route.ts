@@ -59,6 +59,9 @@ export async function POST(req: Request) {
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json();
   const { campaignId, name, format, data } = body;
-  const piece = await prisma.piece.create({ data: { campaignId, name, format, data: data ?? {} } });
+  const existing = await prisma.piece.findFirst({ where: { campaignId, format } });
+  const piece = existing
+    ? await prisma.piece.update({ where: { id: existing.id }, data: { name, data: data ?? {} } })
+    : await prisma.piece.create({ data: { campaignId, name, format, data: data ?? {} } });
   return NextResponse.json(piece);
 }

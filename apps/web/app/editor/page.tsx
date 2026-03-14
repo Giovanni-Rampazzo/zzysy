@@ -413,7 +413,7 @@ function EditorPageInner() {
       const [w,h] = fmt.split("x").map(Number);
       const scaled = scaleJsonToFormat(json,canvasSize.w,canvasSize.h,w,h);
       const label = ALL_FORMATS.find(f=>f.value===fmt)?.label??fmt;
-      return fetch("/api/pieces",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({campaignId:cid,name:`${campaignName} — ${label}`,format:fmt,data:scaled})});
+      return fetch("/api/pieces",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({campaignId:cid,name:`${campaignName} — ${label}`,format:fmt,data:scaled,upsert:true})});
     }));
     setGenerating(false); setShowExportDialog(false);
     router.push(`/pieces?campaignId=${cid}`);
