@@ -55,7 +55,7 @@ export default function CampaignsPage() {
   return (
     <div style={{ display:"flex",height:"100vh",background:"#FFF",fontFamily:"'DM Sans',sans-serif" }}>
       <Sidebar active="/campaigns" />
-      <main style={{ marginLeft:"220px",flex:1,padding:"40px 48px",overflowY:"auto" }}>
+      <main style={{ marginLeft:"var(--sidebar-w, 220px)",flex:1,padding:"40px 48px",overflowY:"auto" }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"32px" }}>
           <div>
             <h1 style={{ fontSize:"1.5rem",fontWeight:900,color:"#111",margin:"0 0 4px",letterSpacing:"-0.03em" }}>Campanhas</h1>

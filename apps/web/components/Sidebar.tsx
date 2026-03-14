@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signOut } from "next-auth/react";
 
 function Logo({ collapsed }: { collapsed: boolean }) {
   if (collapsed) return (
-    <div style={{ display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif",fontWeight:900,fontSize:"1.2rem",letterSpacing:"-0.04em",color:"#111" }}>
+    <div style={{ display:"flex",alignItems:"center",justifyContent:"center" }}>
       <span style={{ display:"inline-flex",alignItems:"center",justifyContent:"center",width:"1.5rem",height:"1.5rem",border:"2.5px solid #111",borderRadius:"50%" }}>
         <span style={{ display:"flex",gap:"1.5px" }}>
           {["#F5C400","#34A853","#4285F4"].map(c=><span key={c} style={{ width:"4px",height:"4px",borderRadius:"50%",background:c }} />)}
@@ -27,7 +27,6 @@ function Logo({ collapsed }: { collapsed: boolean }) {
 
 const navItems = [
   { label:"Campanhas",   href:"/campaigns",         icon:"📁" },
-  { label:"Editor",      href:"/editor",            icon:"✏️" },
   { label:"Peças",       href:"/pieces",            icon:"🖼" },
   { label:"Exportações", href:"/exports",           icon:"📦" },
   { label:"Planos",      href:"/plans",             icon:"💳" },
@@ -38,16 +37,19 @@ export function Sidebar({ active }: { active: string }) {
   const [collapsed, setCollapsed] = useState(false);
   const w = collapsed ? "60px" : "220px";
 
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sidebar-w", w);
+  }, [w]);
+
   return (
     <aside style={{ width:w,height:"100vh",background:"#F7F7F7",borderRight:"1px solid #E5E5E5",display:"flex",flexDirection:"column",padding:"24px 0",position:"fixed",top:0,left:0,boxSizing:"border-box",overflowY:"auto",transition:"width 0.2s ease",zIndex:50 }}>
-      <div style={{ padding:"0 12px 32px",display:"flex",alignItems:"center",justifyContent:collapsed?"center":"space-between" }}>
-        {!collapsed
-          ? <a href="/campaigns" style={{ textDecoration:"none" }}><Logo collapsed={false} /></a>
-          : <a href="/campaigns" style={{ textDecoration:"none" }}><Logo collapsed={true} /></a>
-        }
-        <button onClick={()=>setCollapsed(v=>!v)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:"0.85rem",color:"#888",padding:"4px",borderRadius:"6px",lineHeight:1,flexShrink:0 }} title={collapsed?"Expandir":"Recolher"}>
-          {collapsed?"→":"←"}
-        </button>
+      <div style={{ padding:"0 12px 32px",display:"flex",alignItems:"flex-start",flexDirection:"column",gap:"24px" }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%" }}>
+          <a href="/campaigns" style={{ textDecoration:"none" }}><Logo collapsed={collapsed} /></a>
+          <button onClick={()=>setCollapsed(v=>!v)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:"0.85rem",color:"#888",padding:"4px",borderRadius:"6px",lineHeight:1,flexShrink:0 }} title={collapsed?"Expandir":"Recolher"}>
+            {collapsed?"→":"←"}
+          </button>
+        </div>
       </div>
       <nav style={{ flex:1,display:"flex",flexDirection:"column",gap:"2px",padding:"0 8px" }}>
         {navItems.map(item=>(

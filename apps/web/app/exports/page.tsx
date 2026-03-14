@@ -280,7 +280,7 @@ function ExportsPageInner() {
   return (
     <div style={{ display:"flex", height:"100vh", background:"#FFF", fontFamily:"'DM Sans', sans-serif" }}>
       <Sidebar active="/exports" />
-      <div style={{ marginLeft:"220px", flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ marginLeft:"var(--sidebar-w, 220px)", flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
         {/* HEADER */}
         <div style={{ padding:"28px 40px 0", borderBottom:b, flexShrink:0 }}>
