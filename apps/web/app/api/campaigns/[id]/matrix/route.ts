@@ -28,12 +28,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   await Promise.all(pieces.map(piece => {
     const [fw, fh] = piece.format.split("x").map(Number);
     const pieceObjs = (piece.data as any)?.objects ?? [];
+    const factor = Math.min((fw||1080)/origW, (fh||1080)/origH);
+    const offsetX = ((fw||1080) - origW*factor)/2;
+    const offsetY = ((fh||1080) - origH*factor)/2;
     const mergedObjects = (matrixJson.objects ?? []).map((newObj: any, idx: number) => {
       const existing = pieceObjs[idx];
-      if (!existing) return newObj;
-      if (newObj.type === "i-text" || newObj.type === "text") {
-        return { ...existing, text: newObj.text };
-      }
+      const scaledObj = { ...newObj, left: (newObj.left??0)*factor+offsetX, top: (newObj.top??0)*factor+offsetY, scaleX: (newObj.scaleX??1)*factor, scaleY: (newObj.scaleY??1)*factor, fontSize: newObj.fontSize ? Math.round(newObj.fontSize*factor) : undefined };
+      if (!existing) return scaledObj;
+      if (newObj.type === "i-text" || newObj.type === "text") { return { ...existing, text: newObj.text }; }
       return existing;
     });
     const scaledData = { ...matrixJson, width: fw||1080, height: fh||1080, objects: mergedObjects };
