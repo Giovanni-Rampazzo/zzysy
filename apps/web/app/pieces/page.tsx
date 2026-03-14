@@ -194,10 +194,12 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
     import("fabric").then(({ Canvas }) => {
       if (!canvasRef.current || (canvasRef.current as any)._fabricCanvas) return;
       const [fw, fh] = piece.format.split("x").map(Number);
+      const srcW = fw || 1080;
+      const srcH = fh || 1080;
       const maxW = 280, maxH = 200;
-      const scale = Math.min(maxW/(fw||1080), maxH/(fh||1080));
-      const w = Math.round((fw||1080)*scale), h = Math.round((fh||1080)*scale);
-      fc = new Canvas(canvasRef.current, { width:w, height:h, backgroundColor:"#FFF", selection:false });
+      const scale = Math.min(maxW/srcW, maxH/srcH);
+      const w = Math.round(srcW*scale), h = Math.round(srcH*scale);
+      fc = new Canvas(canvasRef.current, { width:srcW, height:srcH, backgroundColor:"#FFF", selection:false });
       (canvasRef.current as any)._fabricCanvas = fc;
       fc.setZoom(scale); fc.setDimensions({width:w,height:h});
       fc.loadFromJSON(piece.data, () => {
