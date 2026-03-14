@@ -380,15 +380,19 @@ function EditorPageInner() {
     setGenerating(true);
     const canvas = fabricRef.current; if (!canvas) return;
     const json = getCanvasJson(canvas,canvasSize.w,canvasSize.h);
+    // Salva matriz
     await fetch(`/api/campaigns/${cid}/matrix`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:json})});
-    await Promise.all(formats.map(async(fmt) => {
+    // Monta payload de formatos com dados escalados
+    const formatsPayload = formats.map(fmt => {
       const [w,h] = fmt.split("x").map(Number);
       const scaled = scaleJsonToFormat(json,canvasSize.w,canvasSize.h,w,h);
       const label = ALL_FORMATS.find(f=>f.value===fmt)?.label??fmt;
-      return fetch("/api/pieces",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({campaignId:cid,name:`${campaignName} — ${label}`,format:fmt,data:scaled})});
-    }));
+      return { value: fmt, label, data: scaled };
+    });
+    // Cria entrega com todas as peças vinculadas
+    await fetch("/api/deliveries",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({campaignId:cid,formats:formatsPayload,matrixData:json,campaignName})});
     setGenerating(false); setShowExportDialog(false);
-    router.push(`/pieces?campaignId=${cid}`);
+    router.push(`/exports?campaignId=${cid}`);
   },[campaignId,activeCampaignId,campaignName,canvasSize]);
 
   useEffect(() => {
