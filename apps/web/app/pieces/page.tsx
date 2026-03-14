@@ -343,6 +343,15 @@ function PiecesPageInner() {
   const [selectMode, setSelectMode] = useState(false);
 
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
+  // Re-fetch quando volta de outra página
+  useEffect(() => {
+    const onFocus = () => {
+      const qs = filterCampaign ? "?campaignId="+filterCampaign : "";
+      fetch("/api/pieces"+qs).then(r=>r.json()).then(data=>{ setPieces(Array.isArray(data)?data:[]); });
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [filterCampaign]);
   useEffect(() => {
     setLoading(true);
     const qs = filterCampaign ? "?campaignId="+filterCampaign : "";
