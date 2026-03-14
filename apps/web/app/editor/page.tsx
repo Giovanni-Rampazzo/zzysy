@@ -301,12 +301,24 @@ function EditorPageInner() {
     fetch(`/api/pieces/${pieceId}`).then(r=>r.ok?r.json():null).then(res=>{
       if (!res) return;
       setActiveCampaignId(res.campaignId); setCampaignName(res.campaign?.name??"");
-      if (res.format) { const [fw,fh]=res.format.split("x").map(Number); if(fw&&fh){ setCanvasSize({w:fw,h:fh}); setZoom(calcZoom(fw,fh)); } }
-      const data = res.data; if (!data||Object.keys(data).length===0){setIsDirty(false);return;}
-      canvas.loadFromJSON(data, () => {
-        canvas.requestRenderAll();
-        setTimeout(() => { canvas.requestRenderAll(); loadLayers(canvas); setIsDirty(false); historyRef.current=[JSON.stringify(data)]; historyIndexRef.current=0; syncHistory(); }, 150);
-      });
+      const data = res.data;
+      if (res.format) {
+        const [fw,fh]=res.format.split("x").map(Number);
+        if(fw&&fh){
+          const z = calcZoom(fw,fh);
+          setCanvasSize({w:fw,h:fh});
+          setZoom(z);
+          canvas.setZoom(z);
+          canvas.setDimensions({width:fw*z,height:fh*z});
+        }
+      }
+      if (!data||Object.keys(data).length===0){setIsDirty(false);return;}
+      setTimeout(() => {
+        canvas.loadFromJSON(data, () => {
+          canvas.requestRenderAll();
+          setTimeout(() => { canvas.requestRenderAll(); loadLayers(canvas); setIsDirty(false); historyRef.current=[JSON.stringify(data)]; historyIndexRef.current=0; syncHistory(); }, 150);
+        });
+      }, 100);
     });
   },[pieceId,canvasReady]);
 
