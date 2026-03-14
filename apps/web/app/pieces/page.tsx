@@ -273,7 +273,7 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
       if (cancelled || !canvasRef.current) return;
       const parts = piece.format.split("x").map(Number);
       const srcW = parts[0] || 1080; const srcH = parts[1] || 1080;
-      const scale = Math.min(280/srcW, 200/srcH);
+      const scale = Math.min(256/srcW, 176/srcH); // 280-24 e 200-24 para 12px margem cada lado
       const w = Math.round(srcW*scale); const h2 = Math.round(srcH*scale);
       fc = new FabricCanvas(canvasRef.current, { width:w, height:h2, backgroundColor:"#FFF", selection:false });
       fc.setZoom(scale); fc.setDimensions({width:w, height:h2});
