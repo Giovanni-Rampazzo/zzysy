@@ -200,7 +200,6 @@ function EditorPageInner() {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [showExportPiece, setShowExportPiece] = useState(false);
   const [textProps, setTextProps] = useState({fontSize:16,fontFamily:"DM Sans",fill:"#111111",fontWeight:"400",textAlign:"left"});
   const [shapeColor, setShapeColor] = useState("#4285F4");
   const [activeCampaignId, setActiveCampaignId] = useState<string|null>(campaignId);
@@ -499,7 +498,7 @@ function EditorPageInner() {
           </button>
         )}
         {isPiece && (
-          <button onClick={()=>setShowExportPiece(true)} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#111",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
+          <button onClick={()=>{ window.location.href="/pieces?campaignId="+(activeCampaignId??"")+"&export="+pieceId; }} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#111",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
             ⬆ Exportar
           </button>
         )}
@@ -639,15 +638,7 @@ function EditorPageInner() {
       </div>
 
       {/* MODAIS */}
-      {showExportDialog && <ExportDialog onClose={()=>setShowExportDialog(false)} onGenerate={handleGenerate} generating={generating}/>}
-
-      {showExportPiece && pieceId && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
-          <div style={{background:"#FFF",borderRadius:"16px",width:"400px",padding:"28px",fontFamily:"DM Sans,sans-serif",boxShadow:"0 16px 48px rgba(0,0,0,0.2)"}}>
-            <h2 style={{fontSize:"1.1rem",fontWeight:700,margin:"0 0 16px"}}>Exportar Peça</h2>
-            <p style={{fontSize:"0.85rem",color:"#888",margin:"0 0 24px"}}>Esta peça será exportada individualmente.</p>
-            <div style={{display:"flex",gap:"8px",justifyContent:"flex-end"}}>
-              <button onClick={()=>setShowExportPiece(false)} style={{padding:"9px 20px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"#FFF",fontSize:"0.85rem",cursor:"pointer"}}>Cancelar</button>
+      {showExportDialog && <ExportDialog onClose={()=>setShowExportDialog(false)} onGenerate={handleGenerate} generating={generating}/>} style={{padding:"9px 20px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"#FFF",fontSize:"0.85rem",cursor:"pointer"}}>Cancelar</button>
               <button onClick={()=>{ window.location.href="/pieces?campaignId="+(activeCampaignId??""); }} style={{padding:"9px 20px",border:"none",borderRadius:"8px",background:"#111",color:"#FFF",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>Ir para Exportação</button>
             </div>
           </div>
