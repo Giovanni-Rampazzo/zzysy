@@ -88,6 +88,8 @@ function PiecesPageInner() {
   const [filterCampaign, setFilterCampaign] = useState(searchParams.get("campaignId") ?? "");
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"grid"|"list">("grid");
+  const [sortField, setSortField] = useState<"name"|"format"|"updatedAt"|"status">("updatedAt");
+  const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
 
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
   useEffect(() => {
@@ -107,10 +109,22 @@ function PiecesPageInner() {
     setPieces(p=>[created, ...p]);
   }
 
+  const toggleSort = (field: "name"|"format"|"updatedAt"|"status") => {
+    if (sortField===field) setSortDir(d=>d==="asc"?"desc":"asc");
+    else { setSortField(field); setSortDir("asc"); }
+  };
+  const sortIcon = (field: string) => sortField===field ? (sortDir==="asc"?"↑":"↓") : "⇅";
+
   const filtered = pieces.filter(p =>
     (p.name.toLowerCase().includes(search.toLowerCase()) || p.format.toLowerCase().includes(search.toLowerCase())) &&
     (filterStatus ? p.status===filterStatus : true)
-  );
+  ).sort((a,b) => {
+    const dir = sortDir==="asc" ? 1 : -1;
+    if (sortField==="name") return a.name.localeCompare(b.name)*dir;
+    if (sortField==="format") return a.format.localeCompare(b.format)*dir;
+    if (sortField==="status") return a.status.localeCompare(b.status)*dir;
+    return (new Date(a.updatedAt).getTime()-new Date(b.updatedAt).getTime())*dir;
+  });
 
   const grouped = filterCampaign
     ? { [filterCampaign]: filtered }
@@ -169,7 +183,19 @@ function PiecesPageInner() {
                   {view==="list" ? (
                     <table style={{ width:"100%", borderCollapse:"collapse" }}>
                       <thead><tr>
-                        {["Preview","Nome","Formato","Data","Status","Ações"].map(h=><th key={h} style={{ textAlign:"left",fontSize:"0.72rem",fontWeight:700,color:"#888",padding:"8px 12px",borderBottom:"1.5px solid #E5E5E5",textTransform:"uppercase",letterSpacing:"0.04em" }}>{h}</th>)}
+                        {[
+                        {label:"Preview",field:null},
+                        {label:"Nome",field:"name"},
+                        {label:"Formato",field:"format"},
+                        {label:"Data",field:"updatedAt"},
+                        {label:"Status",field:"status"},
+                        {label:"Ações",field:null}
+                      ].map(({label,field})=>(
+                        <th key={label} onClick={field?(()=>toggleSort(field as any)):undefined}
+                          style={{ textAlign:"left",fontSize:"0.72rem",fontWeight:700,color:"#888",padding:"8px 12px",borderBottom:"1.5px solid #E5E5E5",textTransform:"uppercase",letterSpacing:"0.04em",cursor:field?"pointer":"default",userSelect:"none",whiteSpace:"nowrap" }}>
+                          {label}{field?" "+sortIcon(field):""}
+                        </th>
+                      ))}
                       </tr></thead>
                       <tbody>
                         {cpieces.map(piece=>(
