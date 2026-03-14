@@ -56,21 +56,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // Merge seletivo: só atualiza o texto (conteudo), preserva tudo mais da peça
     if (pieceData?.objects && newScaled?.objects) {
-      newScaled.objects = newScaled.objects.map((newObj: any) => {
-        const existing = pieceData.objects.find((o: any) => o.layerId === newObj.layerId);
-        if (!existing) return newObj; // objeto novo da matriz
+      newScaled.objects = newScaled.objects.map((newObj: any, idx: number) => {
+        // Tenta encontrar por layerId, senão usa index como fallback
+        const existing = pieceData.objects.find((o: any) => 
+          (newObj.layerId && o.layerId === newObj.layerId) ||
+          (!newObj.layerId && pieceData.objects.indexOf(o) === idx)
+        );
+        if (!existing) return newObj;
         if (newObj.type === 'i-text' || newObj.type === 'text') {
-          // Só atualiza o conteudo do texto, preserva estilo/cor/posicao da peça
           return { ...existing, text: newObj.text };
         }
-        // Shapes/imagens: preserva tudo da peça
         return existing;
       });
-      // Remove objetos deletados da matriz
-      const matrixLayerIds = newScaled.objects.map((o: any) => o.layerId).filter(Boolean);
-      newScaled.objects = newScaled.objects.filter((o: any) =>
-        !o.layerId || matrixLayerIds.includes(o.layerId)
-      );
     }
 
     return prisma.piece.update({ where: { id: piece.id }, data: { data: newScaled } });
