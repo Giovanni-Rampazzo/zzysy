@@ -21,8 +21,7 @@ const STATUS_COLOR: Record<string,string> = { DRAFT:"#888", REVIEW:"#4285F4", AP
 const EXPORT_FORMATS = [
   { id:"png",  label:"PNG",  desc:"Web, social media — com transparência" },
   { id:"tiff", label:"TIFF", desc:"Impressão, OOH, produção gráfica" },
-  { id:"pdf",  label:"PDF",  desc:"Apresentação, impressão" },
-  { id:"svg",  label:"SVG",  desc:"Vetorial, editável" },
+{ id:"svg",  label:"SVG",  desc:"Vetorial, editável" },
 ];
 
 // ─── EXPORT DIALOG ───────────────────────────────────────────────
@@ -79,14 +78,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             const base64 = dataUrl.replace(/^data:image\/png;base64,/,"");
             folder.file(`${safeName}.tif`, base64, { base64:true });
           }
-          if (fmt === "pdf") {
-            const { jsPDF } = await import("jspdf");
-            const pdf = new jsPDF({ orientation: fw>fh?"landscape":"portrait", unit:"px", format:[fw||1080, fh||1080] });
-            const dataUrl = fc.toDataURL({ format:"png", multiplier:1 });
-            pdf.addImage(dataUrl,"PNG",0,0,fw||1080,fh||1080);
-            const pdfBase64 = pdf.output("datauristring").replace(/^data:application\/pdf;base64,/,"");
-            folder.file(`${safeName}.pdf`, pdfBase64, { base64:true });
-          }
+
           if (fmt === "svg") {
             const svg = fc.toSVG();
             folder.file(`${safeName}.svg`, svg);
