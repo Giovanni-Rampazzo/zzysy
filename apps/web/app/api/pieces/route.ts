@@ -39,8 +39,11 @@ export async function GET(req: Request) {
   const matrices = await prisma.matrix.findMany({ where: { campaignId: { in: campaignIds } } });
   const matrixMap = Object.fromEntries(matrices.map(m => [m.campaignId, m.data]));
 
-  // Injeta data da matriz escalado para o formato de cada peça
+  // Injeta data da matriz APENAS se a peça não tiver data próprio
   const piecesWithData = pieces.map(piece => {
+    const pieceData = piece.data as any;
+    const hasPieceData = pieceData && typeof pieceData === 'object' && Object.keys(pieceData).length > 0;
+    if (hasPieceData) return piece;
     const matrixData = matrixMap[piece.campaignId];
     if (!matrixData) return piece;
     const [fw, fh] = piece.format.split("x").map(Number);
