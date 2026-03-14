@@ -35,7 +35,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const existing = pieceObjs[idx];
       const scaledObj = { ...newObj, left: (newObj.left??0)*factor+offsetX, top: (newObj.top??0)*factor+offsetY, scaleX: (newObj.scaleX??1)*factor, scaleY: (newObj.scaleY??1)*factor, fontSize: newObj.fontSize ? Math.round(newObj.fontSize*factor) : undefined };
       if (!existing) return scaledObj;
-      if (newObj.type === "i-text" || newObj.type === "text") { return { ...existing, text: newObj.text }; }
+      const t = (newObj.type||"").toLowerCase(); if (t === "i-text" || t === "text") { return { ...existing, text: newObj.text }; }
       return existing;
     });
     const scaledData = { ...matrixJson, width: fw||1080, height: fh||1080, objects: mergedObjects };
