@@ -93,20 +93,13 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                 const el2 = document.createElement("canvas");
                 el2.width = canvW; el2.height = canvH;
                 const ctx2 = el2.getContext("2d")!;
-                // Renderiza objeto isolado via dataURL nativo do Fabric
-                const objDataUrl: string = await new Promise(res => {
-                  const tmpEl = document.createElement("canvas");
-                  tmpEl.width = canvW; tmpEl.height = canvH;
-                  const tmpCtx = tmpEl.getContext("2d")!;
-                  tmpCtx.clearRect(0, 0, canvW, canvH);
-                  (obj as any).render(tmpCtx);
-                  res(tmpEl.toDataURL("image/png"));
-                });
-                const img = await new Promise<HTMLImageElement>(res => {
-                  const i = new Image(); i.onload = () => res(i); i.src = objDataUrl;
-                });
                 ctx2.clearRect(0, 0, canvW, canvH);
-                ctx2.drawImage(img, 0, 0);
+                // Aplica matrix de transformação do objeto
+                const matrix = (obj as any).calcTransformMatrix();
+                ctx2.save();
+                ctx2.transform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
+                (obj as any)._render(ctx2);
+                ctx2.restore();
                 const imgData = ctx2.getImageData(0, 0, canvW, canvH);
                 const name = typeof (obj as any).text === "string"
                   ? (obj as any).text.substring(0, 40)
