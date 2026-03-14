@@ -90,31 +90,31 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               const { writePsd } = await import("ag-psd");
               const objects = fc.getObjects();
               const psdLayers = [];
+              const origBg = (fc as any).backgroundColor;
+              // Remove fundo para capturar transparencia
+              (fc as any).backgroundColor = '';
               for (const obj of objects) {
-                const el2 = document.createElement("canvas");
-                el2.width = canvW; el2.height = canvH;
-                const ctx2 = el2.getContext("2d")!;
-                // Renderiza objeto isolado com fundo transparente
-                const tmpEl = document.createElement("canvas");
-                tmpEl.width = canvW; tmpEl.height = canvH;
-                const { Canvas: TmpCanvas } = await import("fabric");
-                const tmpFc2 = new TmpCanvas(tmpEl, { width:canvW, height:canvH, backgroundColor:"" });
-                const clone = await (obj as any).clone();
-                clone.set({ left:(obj as any).left, top:(obj as any).top, scaleX:(obj as any).scaleX, scaleY:(obj as any).scaleY });
-                tmpFc2.add(clone);
-                tmpFc2.requestRenderAll();
-                const tmpDataUrl = tmpEl.toDataURL("image/png");
-                ctx2.clearRect(0,0,canvW,canvH);
-                ctx2.drawImage(await new Promise<HTMLImageElement>(res => { const img = new Image(); img.onload=()=>res(img); img.src=tmpDataUrl; }), 0, 0);
-                const imgData2 = ctx2.getImageData(0, 0, canvW, canvH);
-                tmpFc2.dispose();
-                const layerName = (obj as any).text || (obj as any).layerId || obj.type || "layer";
-                psdLayers.push({ name: layerName, imageData: imgData2, top: 0, left: 0, bottom: canvH, right: canvW });
+                objects.forEach((o:any) => { o.visible = false; });
+                obj.visible = true;
+                fc.requestRenderAll();
+                // Canvas nativo do Fabric (lowerCanvasEl)
+                const nativeEl = (fc as any).lowerCanvasEl as HTMLCanvasElement;
+                const tmp = document.createElement('canvas');
+                tmp.width = canvW; tmp.height = canvH;
+                tmp.getContext('2d')!.drawImage(nativeEl, 0, 0);
+                const imgData = tmp.getContext('2d')!.getImageData(0, 0, canvW, canvH);
+                const name = typeof (obj as any).text === 'string'
+                  ? (obj as any).text.substring(0, 40)
+                  : ((obj as any).layerId || obj.type || 'layer');
+                psdLayers.unshift({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
               }
-              const psd = { width: canvW, height: canvH, children: psdLayers };
-              const buffer = writePsd(psd);
+              // Restaura
+              objects.forEach((o:any) => { o.visible = true; });
+              (fc as any).backgroundColor = origBg;
+              fc.requestRenderAll();
+              const buffer = writePsd({ width: canvW, height: canvH, children: psdLayers });
               folder.file(`${safeName}.psd`, buffer);
-            } catch(psdErr) { console.error("PSD error:", psdErr); }
+            } catch(psdErr) { console.error('PSD error:', psdErr); }
           }
           if (fmt === "pdf") {
             try {
