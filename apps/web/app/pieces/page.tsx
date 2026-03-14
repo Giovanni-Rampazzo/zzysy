@@ -89,26 +89,36 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               const { writePsd } = await import("ag-psd");
               const objects = fc.getObjects();
               const psdLayers = [];
-              for (const obj of objects) {
-                const el2 = document.createElement("canvas");
-                el2.width = canvW; el2.height = canvH;
-                const ctx2 = el2.getContext("2d")!;
-                ctx2.clearRect(0, 0, canvW, canvH);
-                // Aplica matrix de transformação do objeto
-                const matrix = (obj as any).calcTransformMatrix();
-                ctx2.save();
-                ctx2.transform(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]);
-                (obj as any)._render(ctx2);
-                ctx2.restore();
-                const imgData = ctx2.getImageData(0, 0, canvW, canvH);
-                const name = typeof (obj as any).text === "string"
+              // Salva visibilidade e fundo originais
+              const origVisible = objects.map((o:any) => o.visible);
+              const origBg = (fc as any).backgroundColor;
+              (fc as any).backgroundColor = '';
+              for (let oi = 0; oi < objects.length; oi++) {
+                const obj = objects[oi];
+                // Mostra só este objeto
+                objects.forEach((o:any, idx:number) => { o.visible = idx === oi; });
+                fc.renderAll();
+                // Aguarda frame
+                await new Promise<void>(r => setTimeout(r, 50));
+                fc.renderAll();
+                // Captura canvas nativo
+                const nativeEl = (fc as any).lowerCanvasEl as HTMLCanvasElement;
+                const tmp = document.createElement('canvas');
+                tmp.width = canvW; tmp.height = canvH;
+                tmp.getContext('2d')!.drawImage(nativeEl, 0, 0);
+                const imgData = tmp.getContext('2d')!.getImageData(0, 0, canvW, canvH);
+                const name = typeof (obj as any).text === 'string'
                   ? (obj as any).text.substring(0, 40)
-                  : ((obj as any).layerId || obj.type || "layer");
+                  : ((obj as any).layerId || obj.type || 'layer');
                 psdLayers.unshift({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
               }
+              // Restaura
+              objects.forEach((o:any, idx:number) => { o.visible = origVisible[idx]; });
+              (fc as any).backgroundColor = origBg;
+              fc.renderAll();
               const buffer = writePsd({ width: canvW, height: canvH, children: psdLayers });
               folder.file(`${safeName}.psd`, buffer);
-            } catch(psdErr) { console.error("PSD error:", psdErr); }
+            } catch(psdErr) { console.error('PSD error:', psdErr); }
           }
           if (fmt === "pdf") {
             try {
