@@ -44,7 +44,10 @@ export async function GET(req: Request) {
     const matrixData = matrixMap[piece.campaignId];
     if (!matrixData) return piece;
     const [fw, fh] = piece.format.split("x").map(Number);
-    const scaledData = scaleJsonToFormat(matrixData, 1080, 1080, fw || 1080, fh || 1080);
+    const matrixJson = matrixData as any;
+    const origW = matrixJson.width || 1080;
+    const origH = matrixJson.height || 1080;
+    const scaledData = scaleJsonToFormat(matrixData, origW, origH, fw || 1080, fh || 1080);
     return { ...piece, data: scaledData };
   });
 
