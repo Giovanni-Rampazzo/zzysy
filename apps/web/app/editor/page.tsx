@@ -190,7 +190,7 @@ function EditorPageInner() {
   };
   const [zoom, setZoom] = useState(0.45);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
   useEffect(() => { setZoom(calcZoom(canvasSize.w, canvasSize.h)); }, []);
@@ -266,9 +266,9 @@ function EditorPageInner() {
     canvas.on("selection:created",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:updated",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
-    canvas.on("object:modified",()=>{setIsDirty(true);pushHistory();});
-    canvas.on("object:added",()=>{setIsDirty(true);pushHistory();});
-    canvas.on("object:removed",()=>{setIsDirty(true);pushHistory();});
+    canvas.on("object:modified",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);pushHistory();} });
+    canvas.on("object:added",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);pushHistory();} });
+    canvas.on("object:removed",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);pushHistory();} });
     return () => {canvas.dispose();fabricRef.current=null;};
   },[]);
 
@@ -289,9 +289,10 @@ function EditorPageInner() {
     });
     fetch(`/api/campaigns/${campaignId}/matrix`).then(r=>r.ok?r.json():null).then(res=>{
       const data = res?.data; if (!data) return;
+      isApplyingHistoryRef.current = true;
       canvas.loadFromJSON(data, () => {
         canvas.requestRenderAll();
-        setTimeout(() => { canvas.requestRenderAll(); loadLayers(canvas); setIsDirty(false); historyRef.current=[JSON.stringify(data)]; historyIndexRef.current=0; syncHistory(); }, 150);
+        setTimeout(() => { canvas.requestRenderAll(); loadLayers(canvas); setIsDirty(false); historyRef.current=[JSON.stringify(data)]; historyIndexRef.current=0; syncHistory(); isApplyingHistoryRef.current=false; }, 150);
       });
     });
   },[campaignId,canvasReady,pieceId]);
