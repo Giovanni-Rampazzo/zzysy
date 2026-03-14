@@ -342,6 +342,13 @@ function PiecesPageInner() {
   const [sortDir, setSortDir] = useState<"asc"|"desc">("desc");
   const [selected, setSelected] = useState<string[]>([]);
   const [showExport, setShowExport] = useState(false);
+  const exportParam = searchParams.get("export");
+  useEffect(() => {
+    if (exportParam && pieces.length > 0) {
+      setSelected([exportParam]);
+      setShowExport(true);
+    }
+  }, [exportParam, pieces.length]);
   const [selectMode, setSelectMode] = useState(false);
 
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
