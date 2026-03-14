@@ -587,6 +587,7 @@ function EditorPageInner() {
                 onToggleVisible={()=>toggleVisible(layer.id)}
                 onToggleLock={()=>toggleLock(layer.id)}
               />
+              </div>
             ))}
           </div>
 
