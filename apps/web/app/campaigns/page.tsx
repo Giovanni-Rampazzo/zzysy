@@ -48,8 +48,7 @@ export default function CampaignsPage() {
     if (!confirm("Deletar esta campanha?")) return;
     setDeletingId(id);
     await fetch(`/api/campaigns/${id}`,{method:"DELETE"});
-    setCampaigns(campaigns.filter(c=>c.id!==id));
-    router.refresh();
+    setCampaigns(prev=>prev.filter(c=>c.id!==id));
     setDeletingId(null);
   };
 

@@ -183,15 +183,17 @@ function EditorPageInner() {
   const initSize = formatParam ? { w: parseInt(formatParam.split("x")[0])||1080, h: parseInt(formatParam.split("x")[1])||1080 } : {w:1080,h:1080};
   const [canvasSize, setCanvasSize] = useState(initSize);
   const calcZoom = (w: number, h: number) => {
-    const availW = (typeof window !== 'undefined' ? window.innerWidth : 1200) - 280 - 80;
-    const availH = (typeof window !== 'undefined' ? window.innerHeight : 800) - 48 - 60 - 80;
+    if (typeof window === 'undefined') return 0.45;
+    const availW = window.innerWidth - 280 - 80;
+    const availH = window.innerHeight - 48 - 60 - 80;
     return Math.min(availW/w, availH/h, 1) * 0.9;
   };
-  const [zoom, setZoom] = useState(() => calcZoom(1080, 1080));
+  const [zoom, setZoom] = useState(0.45);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [canvasReady, setCanvasReady] = useState(false);
+  useEffect(() => { setZoom(calcZoom(canvasSize.w, canvasSize.h)); }, []);
   const [showTextMenu, setShowTextMenu] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
