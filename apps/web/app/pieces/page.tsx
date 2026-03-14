@@ -113,8 +113,8 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                         fontSize: (obj.fontSize || 16) * (obj.scaleX || 1),
                         fillColor: { r, g, b, a: 1 },
                         bold: obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900',
+                        color: { r, g, b, a: 1 },
                       },
-                      transform: [1, 0, 0, 1, obj.left || 0, obj.top || 0] as any,
                     },
                     top: 0, left: 0, bottom: canvH, right: canvW,
                   });
