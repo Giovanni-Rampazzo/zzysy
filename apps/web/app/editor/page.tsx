@@ -369,7 +369,8 @@ function EditorPageInner() {
     } catch(e){alert("Erro ao salvar.");} finally{setSaving(false);}
   },[campaignId,activeCampaignId,pieceId,canvasSize]);
 
-  const closeUrl = pieceId ? `/pieces?campaignId=${activeCampaignId??""}` : "/campaigns";
+  const fromExports = typeof window !== "undefined" && document.referrer.includes("/exports");
+  const closeUrl = pieceId ? (fromExports ? `/exports?campaignId=${activeCampaignId??""}` : `/pieces?campaignId=${activeCampaignId??""}`) : "/campaigns";
 
   const handleClose = useCallback(() => {
     if (isDirty) { setShowCloseConfirm(true); } else { window.location.href = closeUrl; }

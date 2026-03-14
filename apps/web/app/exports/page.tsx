@@ -1,6 +1,6 @@
 "use client";
 import { Suspense } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { colors } from "@/lib/theme";
@@ -28,6 +28,44 @@ const STATUS_COLOR: Record<string,string> = {
   APPROVED: "#34A853",
   SENT: "#F5C400",
 };
+
+// ─── PIECE PREVIEW ───────────────────────────────────────────────
+function PiecePreview({ piece }: { piece: Piece }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [rendered, setRendered] = useState(false);
+
+  useEffect(() => {
+    if (!canvasRef.current || !piece.data || Object.keys(piece.data).length === 0) return;
+    if ((canvasRef.current as any)._fc) return;
+    let fc: any = null;
+    import("fabric").then(({ Canvas }) => {
+      if (!canvasRef.current || (canvasRef.current as any)._fc) return;
+      const [fw, fh] = piece.format.split("x").map(Number);
+      const maxW = 160, maxH = 100;
+      const scale = Math.min(maxW/(fw||1080), maxH/(fh||1080));
+      const w = Math.round((fw||1080)*scale), h = Math.round((fh||1080)*scale);
+      fc = new Canvas(canvasRef.current, { width:w, height:h, backgroundColor:"#FFF", selection:false });
+      (canvasRef.current as any)._fc = fc;
+      fc.setZoom(scale); fc.setDimensions({width:w,height:h});
+      fc.loadFromJSON(piece.data, () => {
+        fc.getObjects().forEach((o:any)=>{o.selectable=false;o.evented=false;});
+        fc.requestRenderAll(); setRendered(true);
+      });
+    });
+    return () => { try { fc?.dispose(); } catch(e) {} };
+  }, [piece.data, piece.format]);
+
+  const [fw, fh] = piece.format.split("x").map(Number);
+  const ratio = (fh||1080)/(fw||1080);
+  const h = Math.max(40, Math.min(100, Math.round(160*ratio)));
+
+  return (
+    <div style={{ background:colors.surface, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", height:h+"px", width:"100%", borderRadius:"6px", border:"1px solid "+colors.border }}>
+      {!rendered && <span style={{ fontSize:"1.2rem" }}>🎨</span>}
+      <canvas ref={canvasRef} style={{ display:rendered?"block":"none", maxWidth:"100%", maxHeight:"100%" }} />
+    </div>
+  );
+}
 
 // ─── ZIP DOWNLOAD ────────────────────────────────────────────────
 async function downloadDeliveryZip(delivery: Delivery) {
@@ -177,12 +215,12 @@ function DeliveryCard({ delivery, onStatusChange, onDelete, view }: {
       {/* Peças expandidas */}
       {expanded && (
         <div style={{ padding:"12px 18px", borderTop:"1px solid "+colors.border, background:colors.surface }}>
-          <div style={{ fontSize:"0.72rem", fontWeight:700, color:colors.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>Formatos incluídos</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
+          <div style={{ fontSize:"0.72rem", fontWeight:700, color:colors.textMuted, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"12px" }}>Formatos incluídos</div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(120px, 1fr))", gap:"10px" }}>
             {delivery.pieces.map(p=>(
-              <div key={p.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 10px", background:"#FFF", borderRadius:"6px", border:"1px solid "+colors.border }}>
-                <span style={{ fontSize:"0.8rem", color:colors.text, fontWeight:500 }}>{p.name}</span>
-                <span style={{ fontSize:"0.72rem", color:colors.textMuted }}>{p.format}</span>
+              <div key={p.id} style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+                <PiecePreview piece={p} />
+                <div style={{ fontSize:"0.7rem", color:colors.text, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.format}</div>
               </div>
             ))}
           </div>
