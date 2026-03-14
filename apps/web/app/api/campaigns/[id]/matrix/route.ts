@@ -25,5 +25,35 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     update: { data },
     create: { campaignId: id, data },
   });
+
+  // Re-escala e atualiza todas as peças da campanha
+  const pieces = await prisma.piece.findMany({ where: { campaignId: id } });
+  const matrixJson = data as any;
+  const origW = matrixJson.width || 1080;
+  const origH = matrixJson.height || 1080;
+
+  function scaleJson(json: any, newW: number, newH: number) {
+    const factor = Math.min(newW/origW, newH/origH);
+    const offsetX = (newW - origW*factor)/2;
+    const offsetY = (newH - origH*factor)/2;
+    const scaled = JSON.parse(JSON.stringify(json));
+    scaled.width = newW; scaled.height = newH;
+    scaled.objects = (scaled.objects ?? []).map((obj: any) => ({
+      ...obj,
+      left: (obj.left ?? 0)*factor + offsetX,
+      top: (obj.top ?? 0)*factor + offsetY,
+      scaleX: (obj.scaleX ?? 1)*factor,
+      scaleY: (obj.scaleY ?? 1)*factor,
+      fontSize: obj.fontSize ? Math.round(obj.fontSize*factor) : undefined,
+    }));
+    return scaled;
+  }
+
+  await Promise.all(pieces.map(piece => {
+    const [fw, fh] = piece.format.split("x").map(Number);
+    const scaled = scaleJson(data, fw || 1080, fh || 1080);
+    return prisma.piece.update({ where: { id: piece.id }, data: { data: scaled } });
+  }));
+
   return NextResponse.json({ ok: true });
 }
