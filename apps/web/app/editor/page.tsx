@@ -502,6 +502,11 @@ function EditorPageInner() {
             ⬆ Exportar
           </button>
         )}
+        {isPiece && (
+          <button onClick={()=>{ window.location.href="/pieces?campaignId="+(activeCampaignId??"")+"&export=1"; }} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#111",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
+            ⬆ Exportar
+          </button>
+        )}
         <button onClick={handleClose} style={{padding:"6px 16px",border:"1.5px solid #E5E5E5",borderRadius:"8px",background:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",color:"#111"}}>← Voltar</button>
       </div>
 
