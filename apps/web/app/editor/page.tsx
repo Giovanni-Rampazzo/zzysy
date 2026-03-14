@@ -638,12 +638,7 @@ function EditorPageInner() {
       </div>
 
       {/* MODAIS */}
-      {showExportDialog && <ExportDialog onClose={()=>setShowExportDialog(false)} onGenerate={handleGenerate} generating={generating}/>} style={{padding:"9px 20px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"#FFF",fontSize:"0.85rem",cursor:"pointer"}}>Cancelar</button>
-              <button onClick={()=>{ window.location.href="/pieces?campaignId="+(activeCampaignId??""); }} style={{padding:"9px 20px",border:"none",borderRadius:"8px",background:"#111",color:"#FFF",fontSize:"0.85rem",fontWeight:700,cursor:"pointer"}}>Ir para Exportação</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showExportDialog && <ExportDialog onClose={()=>setShowExportDialog(false)} onGenerate={handleGenerate} generating={generating}/>}
       {showCloseConfirm && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
           <div style={{background:"#FFF",borderRadius:"12px",padding:"28px 32px",width:"340px",boxShadow:"0 8px 32px rgba(0,0,0,0.18)"}}>
