@@ -89,30 +89,48 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               const { writePsd } = await import("ag-psd");
               const objects = fc.getObjects();
               const psdLayers = [];
-              // Salva visibilidade e fundo originais
               const origVisible = objects.map((o:any) => o.visible);
               const origBg = (fc as any).backgroundColor;
               (fc as any).backgroundColor = '';
               for (let oi = 0; oi < objects.length; oi++) {
-                const obj = objects[oi];
-                // Mostra só este objeto
-                objects.forEach((o:any, idx:number) => { o.visible = idx === oi; });
-                fc.renderAll();
-                // Aguarda frame
-                await new Promise<void>(r => setTimeout(r, 50));
-                fc.renderAll();
-                // Captura canvas nativo
-                const nativeEl = (fc as any).lowerCanvasEl as HTMLCanvasElement;
-                const tmp = document.createElement('canvas');
-                tmp.width = canvW; tmp.height = canvH;
-                tmp.getContext('2d')!.drawImage(nativeEl, 0, 0);
-                const imgData = tmp.getContext('2d')!.getImageData(0, 0, canvW, canvH);
-                const name = typeof (obj as any).text === 'string'
-                  ? (obj as any).text.substring(0, 40)
-                  : ((obj as any).layerId || obj.type || 'layer');
-                psdLayers.unshift({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
+                const obj = objects[oi] as any;
+                const isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText';
+                const name = typeof obj.text === 'string'
+                  ? obj.text.substring(0, 40)
+                  : (obj.layerId || obj.type || 'layer');
+                if (isText) {
+                  // Layer de texto editável
+                  const fontSize = Math.round((obj.fontSize || 24) * (obj.scaleX || 1));
+                  const color = obj.fill || '#000000';
+                  const hex = typeof color === 'string' && color.startsWith('#') ? color : '#000000';
+                  const r = parseInt(hex.slice(1,3),16)/255;
+                  const g = parseInt(hex.slice(3,5),16)/255;
+                  const b = parseInt(hex.slice(5,7),16)/255;
+                  psdLayers.unshift({
+                    name,
+                    top: Math.round(obj.top || 0),
+                    left: Math.round(obj.left || 0),
+                    bottom: Math.round((obj.top || 0) + (obj.height || 50) * (obj.scaleY || 1)),
+                    right: Math.round((obj.left || 0) + (obj.width || 200) * (obj.scaleX || 1)),
+                    text: {
+                      text: obj.text || '',
+                      style: { fontSize, fillColor: { r, g, b, a: 1 }, fontName: obj.fontFamily || 'DM Sans' },
+                    },
+                  });
+                } else {
+                  // Layer de pixel (imagem/shape)
+                  objects.forEach((o:any, idx:number) => { o.visible = idx === oi; });
+                  fc.renderAll();
+                  await new Promise<void>(r => setTimeout(r, 50));
+                  fc.renderAll();
+                  const nativeEl = (fc as any).lowerCanvasEl as HTMLCanvasElement;
+                  const tmp = document.createElement('canvas');
+                  tmp.width = canvW; tmp.height = canvH;
+                  tmp.getContext('2d')!.drawImage(nativeEl, 0, 0);
+                  const imgData = tmp.getContext('2d')!.getImageData(0, 0, canvW, canvH);
+                  psdLayers.unshift({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
+                }
               }
-              // Restaura
               objects.forEach((o:any, idx:number) => { o.visible = origVisible[idx]; });
               (fc as any).backgroundColor = origBg;
               fc.renderAll();
