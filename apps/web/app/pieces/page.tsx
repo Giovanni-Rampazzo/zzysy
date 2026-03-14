@@ -90,7 +90,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               const layers = await Promise.all(objects.map(async (obj: any) => {
                 const tmpCanvas = document.createElement("canvas");
                 tmpCanvas.width = canvW; tmpCanvas.height = canvH;
-                const tmpFc = new FabricCanvas(tmpCanvas, { width:canvW, height:canvH, backgroundColor:"transparent" });
+                const { Canvas: FabricCanvas2 } = await import("fabric"); const tmpFc = new FabricCanvas2(tmpCanvas, { width:canvW, height:canvH, backgroundColor:"transparent" });
                 tmpFc.add(obj.toObject ? await (async () => { const clone = await obj.clone(); return clone; })() : obj);
                 tmpFc.requestRenderAll();
                 const ctx = tmpCanvas.getContext("2d")!;
