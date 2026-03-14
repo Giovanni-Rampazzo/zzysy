@@ -306,7 +306,7 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
       <div onClick={e=>{e.stopPropagation();onSelect();}} style={{ position:"absolute",top:"8px",right:"8px",zIndex:2,width:"18px",height:"18px",borderRadius:"3px",border:`1.5px solid ${selected?"#111":"#CCC"}`,background:selected?"#111":"#FFF",cursor:"pointer",display:selectMode?"flex":"none",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
         {selected && <span style={{ color:"#FFF",fontSize:"12px",lineHeight:1 }}>✓</span>}
       </div>
-      <PiecePreview key={piece.id+"-"+refreshKey} piece={piece} onClick={onEdit} />
+      <PiecePreview key={piece.id+"-"+(piece.updatedAt||"0")} piece={piece} onClick={onEdit} />
       <div style={{ padding:"12px 14px",flexShrink:0 }}>
         <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name.includes(" — ") ? piece.name.substring(piece.name.indexOf(" — ") + 3) : piece.name}>{piece.name.includes(" — ") ? piece.name.substring(piece.name.indexOf(" — ") + 3) : piece.name}</div>
         <div style={{ fontSize:"0.72rem",color:colors.textMuted,marginBottom:"10px" }}>{piece.format} · {new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</div>
