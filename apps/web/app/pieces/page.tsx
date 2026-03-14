@@ -21,7 +21,8 @@ const STATUS_COLOR: Record<string,string> = { DRAFT:"#888", REVIEW:"#4285F4", AP
 const EXPORT_FORMATS = [
   { id:"png",  label:"PNG",  desc:"Web, social media — com transparência" },
   { id:"tiff", label:"TIFF", desc:"Impressão, OOH, produção gráfica" },
-{ id:"svg",  label:"SVG",  desc:"Vetorial, editável" },
+  { id:"svg",  label:"SVG",  desc:"Vetorial, editável" },
+  { id:"psd",  label:"PSD",  desc:"Photoshop com layers" },
 ];
 
 // ─── EXPORT DIALOG ───────────────────────────────────────────────
