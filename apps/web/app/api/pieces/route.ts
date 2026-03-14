@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   });
 
   // Busca matrizes de todas as campanhas envolvidas
-  const campaignIds = [...new Set(pieces.map(p => p.campaignId))];
+  const campaignIds = pieces.map(p => p.campaignId).filter((id, i, arr) => arr.indexOf(id) === i);
   const matrices = await prisma.matrix.findMany({ where: { campaignId: { in: campaignIds } } });
   const matrixMap = Object.fromEntries(matrices.map(m => [m.campaignId, m.data]));
 
