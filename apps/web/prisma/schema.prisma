@@ -28,7 +28,7 @@ model User {
   email     String   @unique
   password  String
   role      Role     @default(USER)
-  plan      String   @default("FREE") // FREE | STARTER | PRO | AGENCY | ENTERPRISE
+  plan      String   @default("FREE")
   stripeCustomerId     String?
   stripeSubscriptionId String?
   blocked              Boolean  @default(false)
@@ -132,9 +132,10 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant  @relation(fields: [tenantId], references: [id])
-  matrix Matrix?
-  pieces Piece[]
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  matrix     Matrix?
+  pieces     Piece[]
+  deliveries Delivery[]
 }
 
 // ─── MATRIZ ──────────────────────────────────────────────────────
@@ -152,6 +153,7 @@ model Matrix {
 model Piece {
   id         String      @id @default(cuid())
   campaignId String
+  deliveryId String?
   name       String
   format     String
   data       Json
@@ -159,7 +161,8 @@ model Piece {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
-  campaign Campaign @relation(fields: [campaignId], references: [id])
+  campaign Campaign  @relation(fields: [campaignId], references: [id])
+  delivery Delivery? @relation(fields: [deliveryId], references: [id])
 }
 
 enum PieceStatus {
@@ -167,4 +170,24 @@ enum PieceStatus {
   REVIEW
   APPROVED
   EXPORTED
+}
+
+// ─── ENTREGAS ────────────────────────────────────────────────────
+model Delivery {
+  id         String         @id @default(cuid())
+  campaignId String
+  number     Int
+  status     DeliveryStatus @default(DRAFT)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  pieces   Piece[]
+}
+
+enum DeliveryStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  SENT
 }

@@ -21,7 +21,8 @@ function Logo({ small = false }: { small?: boolean }) {
 const navItems = [
   { label:"Campanhas", href:"/campaigns", icon:"📁" },
   { label:"Editor",    href:"/editor",    icon:"✏️" },
-  { label:"Peças",     href:"/pieces",    icon:"🖼" },
+  { label:"Peças",       href:"/pieces",    icon:"🖼" },
+  { label:"Exportações", href:"/exports",   icon:"📦" },
   { label:"Planos",    href:"/plans",     icon:"💳" },
   { label:"Assinatura",href:"/dashboard/billing", icon:"💎" },
 ];
