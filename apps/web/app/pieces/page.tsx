@@ -101,9 +101,9 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                 if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText') {
                   const fill = obj.fill || '#000000';
                   const hex = fill.replace('#','');
-                  const r = parseInt(hex.substring(0,2),16)/255;
-                  const g = parseInt(hex.substring(2,4),16)/255;
-                  const b = parseInt(hex.substring(4,6),16)/255;
+                  const r = parseInt(hex.substring(0,2),16);
+                  const g = parseInt(hex.substring(2,4),16);
+                  const b = parseInt(hex.substring(4,6),16);
                   psdLayers.unshift({
                     name,
                     text: {
