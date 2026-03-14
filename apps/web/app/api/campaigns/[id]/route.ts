@@ -11,8 +11,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
 
-  await prisma.matrix.deleteMany({ where: { campaignId: id } });
+  // Deleta em ordem para evitar foreign key errors
+  await prisma.piece.deleteMany({ where: { deliveryId: { not: null }, delivery: { campaignId: id } } });
+  await prisma.delivery.deleteMany({ where: { campaignId: id } });
   await prisma.piece.deleteMany({ where: { campaignId: id } });
+  await prisma.matrix.deleteMany({ where: { campaignId: id } });
   await prisma.campaign.deleteMany({ where: { id, tenantId: user.tenantId } });
 
   return NextResponse.json({ success: true });
