@@ -340,6 +340,7 @@ function PiecesPageInner() {
               <h1 style={{ fontSize:"1.5rem",fontWeight:900,color:colors.text,margin:"0 0 4px",letterSpacing:"-0.03em" }}>Peças</h1>
               <p style={{ fontSize:"0.875rem",color:colors.textMuted,margin:0 }}>{filtered.length} peça{filtered.length!==1?"s":""}{selected.length>0?` · ${selected.length} selecionada${selected.length!==1?"s":""}`:""}</p>
             </div>
+            <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}} style={{ padding:"10px 16px",background:selectMode?"#F0F0F0":"#FFF",color:"#111",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontWeight:600,cursor:"pointer" }}>{selectMode?"✕ Cancelar":"☑ Selecionar"}</button>
             {selected.length>0 && (
               <button onClick={()=>setShowExport(true)}
                 style={{ padding:"10px 20px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:"8px" }}>
