@@ -343,14 +343,16 @@ function PiecesPageInner() {
   const [selectMode, setSelectMode] = useState(false);
 
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
-  // Re-fetch quando volta de outra página
+  // Re-fetch quando volta para a página
   useEffect(() => {
-    const onFocus = () => {
-      const qs = filterCampaign ? "?campaignId="+filterCampaign : "";
-      fetch("/api/pieces"+qs).then(r=>r.json()).then(data=>{ setPieces(Array.isArray(data)?data:[]); });
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        const qs = filterCampaign ? "?campaignId="+filterCampaign : "";
+        fetch("/api/pieces"+qs).then(r=>r.json()).then(data=>{ setPieces(Array.isArray(data)?data:[]); });
+      }
     };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [filterCampaign]);
   useEffect(() => {
     setLoading(true);
