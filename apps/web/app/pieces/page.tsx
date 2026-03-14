@@ -83,6 +83,39 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             const svg = fc.toSVG();
             folder.file(`${safeName}.svg`, svg);
           }
+          if (fmt === "psd") {
+            try {
+              const { writePsd } = await import("ag-psd");
+              const objects = fc.getObjects();
+              const layers = await Promise.all(objects.map(async (obj: any) => {
+                const tmpCanvas = document.createElement("canvas");
+                tmpCanvas.width = canvW; tmpCanvas.height = canvH;
+                const tmpFc = new FabricCanvas(tmpCanvas, { width:canvW, height:canvH, backgroundColor:"transparent" });
+                tmpFc.add(obj.toObject ? await (async () => { const clone = await obj.clone(); return clone; })() : obj);
+                tmpFc.requestRenderAll();
+                const ctx = tmpCanvas.getContext("2d")!;
+                const imgData = ctx.getImageData(0, 0, canvW, canvH);
+                tmpFc.dispose();
+                return { name: (obj as any).layerId || obj.type || "layer", canvas: tmpCanvas, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW };
+              }));
+              const psd = { width: canvW, height: canvH, children: layers };
+              const buffer = writePsd(psd);
+              folder.file(`${safeName}.psd`, buffer);
+            } catch(psdErr) { console.error("PSD error:", psdErr); }
+          }
+          if (fmt === "pdf") {
+            try {
+              const { PDFDocument, rgb } = await import("pdf-lib");
+              const pdfDoc = await PDFDocument.create();
+              const page = pdfDoc.addPage([canvW, canvH]);
+              const dataUrl = fc.toDataURL({ format:"png", multiplier:1 });
+              const pngData = dataUrl.replace(/^data:image\/png;base64,/, "");
+              const pngImage = await pdfDoc.embedPng(Uint8Array.from(atob(pngData), c => c.charCodeAt(0)));
+              page.drawImage(pngImage, { x:0, y:0, width:canvW, height:canvH });
+              const pdfBytes = await pdfDoc.save();
+              folder.file(`${safeName}.pdf`, pdfBytes);
+            } catch(pdfErr) { console.error("PDF error:", pdfErr); }
+          }
           } catch(fmtErr) { console.error('Erro formato', fmt, fmtErr); }
         }
         fc.dispose();
