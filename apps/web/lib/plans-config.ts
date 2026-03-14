@@ -1,6 +1,4 @@
 // ─── ZZYSY PLANOS ────────────────────────────────────────────────
-// Edite aqui para alterar planos, preços e limites em todo o sistema.
-
 export const plans = [
   {
     id: "free",
@@ -19,7 +17,7 @@ export const plans = [
       "1 campanha ativa",
       "500 peças/mês",
       "Formatos padrão",
-      "Exportar PNG e JPG",
+      "Exportar PNG e TIFF",
     ],
   },
   {
@@ -39,7 +37,7 @@ export const plans = [
       "4 campanhas ativas",
       "2.000 peças/mês",
       "Todos os formatos",
-      "Exportar PNG, JPG e TIFF",
+      "Exportar PNG e TIFF",
       "Suporte por e-mail",
     ],
   },
@@ -53,14 +51,14 @@ export const plans = [
     users: 1,
     campaigns: 10,
     pieces: 5000,
-    highlighted: false,
+    highlighted: true,
     cta: "Assinar Pro",
     features: [
       "1 usuário",
       "10 campanhas ativas",
       "5.000 peças/mês",
       "Todos os formatos",
-      "Exportar PNG, JPG e TIFF (layers)",
+      "Exportar PNG e TIFF (layers)",
       "Suporte prioritário",
       "Histórico de versões",
     ],
@@ -73,8 +71,8 @@ export const plans = [
     period: "por mês",
     description: "Para agências com múltiplos clientes",
     users: "5–10",
-    campaigns: null, // ilimitado
-    pieces: null,    // ilimitado
+    campaigns: null,
+    pieces: null,
     highlighted: false,
     cta: "Assinar Agency",
     features: [
@@ -82,10 +80,12 @@ export const plans = [
       "Campanhas ilimitadas",
       "Peças ilimitadas",
       "Todos os formatos",
-      "Exportar PNG, JPG e TIFF (layers)",
+      "Exportar PNG e TIFF (layers)",
       "Suporte dedicado",
       "Histórico de versões",
       "Relatórios de uso",
     ],
   },
+];
 
+export type Plan = typeof plans[0];
