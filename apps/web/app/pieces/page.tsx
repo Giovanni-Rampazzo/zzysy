@@ -296,7 +296,7 @@ function PiecesPageInner() {
   const toggleSelect = (id: string) => setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
   const toggleSelectAll = (ids: string[]) => {
     const allSelected = ids.every(id=>selected.includes(id));
-    setSelected(prev=>allSelected?prev.filter(id=>!ids.includes(id)):[...new Set([...prev,...ids])]);
+    setSelected(prev=>allSelected?prev.filter(id=>!ids.includes(id)):prev.concat(ids.filter(id=>prev.indexOf(id)===-1)));
   };
 
   const filtered = pieces.filter(p =>
