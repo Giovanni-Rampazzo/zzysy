@@ -191,25 +191,25 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
 
   useEffect(() => {
     if (!piece.data || Object.keys(piece.data).length === 0) return;
-    let fc = null;
+    let fc: any = null;
     let cancelled = false;
     const run = async () => {
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise<void>(r => setTimeout(r, 100));
       if (cancelled || !canvasRef.current) return;
       const mod = await import("fabric");
-      const Canvas = mod.Canvas;
+      const FabricCanvas = mod.Canvas;
       if (cancelled || !canvasRef.current) return;
       const parts = piece.format.split("x").map(Number);
       const srcW = parts[0] || 1080; const srcH = parts[1] || 1080;
       const scale = Math.min(280/srcW, 200/srcH);
-      const w = Math.round(srcW*scale), h = Math.round(srcH*scale);
-      fc = new Canvas(canvasRef.current, { width:w, height:h, backgroundColor:"#FFF", selection:false });
+      const w = Math.round(srcW*scale); const h = Math.round(srcH*scale);
+      fc = new FabricCanvas(canvasRef.current, { width:w, height:h, backgroundColor:"#FFF", selection:false });
       fc.setZoom(scale); fc.setDimensions({width:w, height:h});
-      await new Promise(function(res) { fc.loadFromJSON(piece.data, function() { fc.requestRenderAll(); res(); }); });
-      if (!cancelled) { fc.getObjects().forEach(function(o){o.selectable=false;o.evented=false;}); setRendered(true); }
+      await new Promise<void>(res => { fc.loadFromJSON(piece.data, () => { fc.requestRenderAll(); res(); }); });
+      if (!cancelled) { fc.getObjects().forEach((o: any) => {o.selectable=false;o.evented=false;}); setRendered(true); }
     };
     run().catch(console.error);
-    return function() { cancelled = true; try { if(fc) fc.dispose(); } catch(e) {} };
+    return () => { cancelled = true; try { if(fc) fc.dispose(); } catch(e) {} };
   }, [piece.data, piece.format]);
   return (
     <div onClick={onClick} style={{ background:colors.surface,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",height:h+"px",borderBottom:"1px solid "+colors.border }}>
