@@ -52,9 +52,8 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
       for (const piece of pieces) {
         const [fw, fh] = piece.format.split("x").map(Number);
         const el = document.createElement("canvas");
-        const matrixData = piece.data as any;
-        const canvW = matrixData?.width || fw || 1080;
-        const canvH = matrixData?.height || fh || 1080;
+        const canvW = fw || 1080;
+        const canvH = fh || 1080;
         const fc = new Canvas(el, { width:canvW, height:canvH, backgroundColor:"transparent" });
         if (piece.data && Object.keys(piece.data).length > 0) {
           await new Promise<void>(res => fc.loadFromJSON(piece.data, () => { fc.requestRenderAll(); res(); }));
