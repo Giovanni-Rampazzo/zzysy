@@ -89,18 +89,25 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             try {
               const { writePsd } = await import("ag-psd");
               const objects = fc.getObjects();
-              const layers = await Promise.all(objects.map(async (obj: any) => {
-                const tmpCanvas = document.createElement("canvas");
-                tmpCanvas.width = canvW; tmpCanvas.height = canvH;
-                const { Canvas: FabricCanvas2 } = await import("fabric"); const tmpFc = new FabricCanvas2(tmpCanvas, { width:canvW, height:canvH, backgroundColor:"transparent" });
-                tmpFc.add(obj.toObject ? await (async () => { const clone = await obj.clone(); return clone; })() : obj);
-                tmpFc.requestRenderAll();
-                const ctx = tmpCanvas.getContext("2d")!;
-                const imgData = ctx.getImageData(0, 0, canvW, canvH);
-                tmpFc.dispose();
-                return { name: (obj as any).layerId || obj.type || "layer", canvas: tmpCanvas, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW };
-              }));
-              const psd = { width: canvW, height: canvH, children: layers };
+              const psdLayers = [];
+              for (const obj of objects) {
+                const el2 = document.createElement("canvas");
+                el2.width = canvW; el2.height = canvH;
+                const ctx2 = el2.getContext("2d")!;
+                // Esconde todos exceto este objeto
+                objects.forEach((o:any) => { o.visible = false; });
+                (obj as any).visible = true;
+                fc.requestRenderAll();
+                const dataUrl2 = fc.toDataURL({ format:"png", multiplier:1 });
+                ctx2.drawImage(await new Promise<HTMLImageElement>(res => { const img = new Image(); img.onload=()=>res(img); img.src=dataUrl2; }), 0, 0);
+                const imgData2 = ctx2.getImageData(0, 0, canvW, canvH);
+                // Restaura visibilidade
+                objects.forEach((o:any) => { o.visible = true; });
+                fc.requestRenderAll();
+                const layerName = (obj as any).text || (obj as any).layerId || obj.type || "layer";
+                psdLayers.push({ name: layerName, imageData: imgData2, top: 0, left: 0, bottom: canvH, right: canvW });
+              }
+              const psd = { width: canvW, height: canvH, children: psdLayers };
               const buffer = writePsd(psd);
               folder.file(`${safeName}.psd`, buffer);
             } catch(psdErr) { console.error("PSD error:", psdErr); }
