@@ -457,7 +457,7 @@ function EditorPageInner() {
         </button>
         {!isPiece && (
           <button onClick={()=>setShowExportDialog(true)} style={{padding:"6px 20px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
-            Exportar →
+            Gerar Peças →
           </button>
         )}
         <button onClick={handleClose} style={{padding:"6px 16px",border:"1.5px solid #E5E5E5",borderRadius:"8px",background:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",color:"#111"}}>← Voltar</button>
