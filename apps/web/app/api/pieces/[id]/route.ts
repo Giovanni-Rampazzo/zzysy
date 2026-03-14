@@ -9,9 +9,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { id } = await params;
   const piece = await prisma.piece.findUnique({ where: { id }, include: { campaign: { include: { matrix: true, _count: { select: { pieces: true } } } } } });
   if (!piece) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  // Injeta data da matriz escalada para o formato da peça
+  // Injeta data da matriz escalada APENAS se a peça não tiver data próprio
+  const pieceData = piece.data as any;
+  const hasPieceData = pieceData && typeof pieceData === 'object' && Object.keys(pieceData).length > 0;
   const matrixData = (piece.campaign as any)?.matrix?.data as any;
-  if (matrixData && Object.keys(matrixData).length > 0) {
+  if (!hasPieceData && matrixData && Object.keys(matrixData).length > 0) {
     const [fw, fh] = piece.format.split("x").map(Number);
     const origW = matrixData.width || 1080;
     const origH = matrixData.height || 1080;
