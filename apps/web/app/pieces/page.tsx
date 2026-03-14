@@ -284,7 +284,7 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
       </div>
       <PiecePreview key={piece.id+"-"+(piece.updatedAt||"")} piece={piece} onClick={onEdit} />
       <div style={{ padding:"12px 14px",flexShrink:0 }}>
-        <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name.includes(" — ") ? piece.name.split(" — ").slice(-2).join(" — ") : piece.name}>{piece.name}</div>
+        <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name.includes(" — ") ? piece.name.substring(piece.name.indexOf(" — ") + 3) : piece.name}>{piece.name.includes(" — ") ? piece.name.substring(piece.name.indexOf(" — ") + 3) : piece.name}</div>
         <div style={{ fontSize:"0.72rem",color:colors.textMuted,marginBottom:"10px" }}>{piece.format} · {new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</div>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
           <select value={piece.status} onChange={e=>{e.stopPropagation();onStatusChange(e.target.value);}}
