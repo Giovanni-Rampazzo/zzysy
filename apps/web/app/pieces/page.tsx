@@ -190,36 +190,27 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
   const [rendered, setRendered] = useState(false);
 
   useEffect(() => {
-    (async () => {
-    if (!canvasRef.current || !piece.data || Object.keys(piece.data).length === 0) return;
-    if ((canvasRef.current as any)._fabricCanvas) return;
-    // Aguarda o elemento estar no DOM
-    await new Promise<void>(r => setTimeout(r, 50));
-    if (!canvasRef.current) return;
-    let fc: any = null;
-    import("fabric").then(({ Canvas }) => {
-      if (!canvasRef.current || (canvasRef.current as any)._fabricCanvas) return;
-      const [fw, fh] = piece.format.split("x").map(Number);
-      const srcW = fw || 1080;
-      const srcH = fh || 1080;
-      const maxW = 280, maxH = 200;
-      const scale = Math.min(maxW/srcW, maxH/srcH);
+    if (!piece.data || Object.keys(piece.data).length === 0) return;
+    let fc = null;
+    let cancelled = false;
+    const run = async () => {
+      await new Promise(r => setTimeout(r, 100));
+      if (cancelled || !canvasRef.current) return;
+      const mod = await import("fabric");
+      const Canvas = mod.Canvas;
+      if (cancelled || !canvasRef.current) return;
+      const parts = piece.format.split("x").map(Number);
+      const srcW = parts[0] || 1080; const srcH = parts[1] || 1080;
+      const scale = Math.min(280/srcW, 200/srcH);
       const w = Math.round(srcW*scale), h = Math.round(srcH*scale);
       fc = new Canvas(canvasRef.current, { width:w, height:h, backgroundColor:"#FFF", selection:false });
-      (canvasRef.current as any)._fabricCanvas = fc;
-      fc.loadFromJSON(piece.data, () => {
-        fc.getObjects().forEach((o:any)=>{o.selectable=false;o.evented=false;});
-        fc.requestRenderAll(); setRendered(true);
-      });
-    });
-    })();
-    return () => { try { fc?.dispose(); } catch(e) {} };
+      fc.setZoom(scale); fc.setDimensions({width:w, height:h});
+      await new Promise(function(res) { fc.loadFromJSON(piece.data, function() { fc.requestRenderAll(); res(); }); });
+      if (!cancelled) { fc.getObjects().forEach(function(o){o.selectable=false;o.evented=false;}); setRendered(true); }
+    };
+    run().catch(console.error);
+    return function() { cancelled = true; try { if(fc) fc.dispose(); } catch(e) {} };
   }, [piece.data, piece.format]);
-
-  const [fw, fh] = piece.format.split("x").map(Number);
-  const ratio = (fh||1080)/(fw||1080);
-  const h = Math.max(80, Math.min(200, Math.round(240*ratio)));
-
   return (
     <div onClick={onClick} style={{ background:colors.surface,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",height:h+"px",borderBottom:"1px solid "+colors.border }}>
       {!rendered && <div style={{ textAlign:"center",color:colors.textMuted }}><div style={{ fontSize:"1.8rem" }}>🎨</div><div style={{ fontSize:"0.7rem",marginTop:"4px" }}>{piece.format}</div></div>}
