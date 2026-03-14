@@ -179,7 +179,9 @@ function EditorPageInner() {
   const [campaignName, setCampaignName] = useState("");
   const [selectedId, setSelectedId] = useState<string|null>(null);
   const [selectedType, setSelectedType] = useState<string|null>(null);
-  const [canvasSize, setCanvasSize] = useState({w:1080,h:1080});
+  const formatParam = searchParams.get("format");
+  const initSize = formatParam ? { w: parseInt(formatParam.split("x")[0])||1080, h: parseInt(formatParam.split("x")[1])||1080 } : {w:1080,h:1080};
+  const [canvasSize, setCanvasSize] = useState(initSize);
   const [zoom, setZoom] = useState(0.45);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
