@@ -483,7 +483,7 @@ function EditorPageInner() {
           </button>
         )}
         {isPiece && activeCampaignId && (
-          <button onClick={()=>router.push("/editor?campaign="+activeCampaignId)} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
+          <button onClick={()=>{ window.location.href="/editor?campaign="+activeCampaignId; }} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
             ✏️ Editar Matriz
           </button>
         )}
