@@ -94,17 +94,14 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               // Remove fundo para capturar transparencia
               (fc as any).backgroundColor = '';
               for (const obj of objects) {
-                objects.forEach((o:any) => { o.visible = false; });
-                obj.visible = true;
-                // Força renderização síncrona
-                fc.renderAll();
-                await new Promise<void>(r => requestAnimationFrame(() => { fc.renderAll(); r(); }));
-                // Canvas nativo do Fabric (lowerCanvasEl)
-                const nativeEl = (fc as any).lowerCanvasEl as HTMLCanvasElement;
+                // Renderiza objeto individualmente em canvas isolado
                 const tmp = document.createElement('canvas');
                 tmp.width = canvW; tmp.height = canvH;
-                tmp.getContext('2d')!.drawImage(nativeEl, 0, 0);
-                const imgData = tmp.getContext('2d')!.getImageData(0, 0, canvW, canvH);
+                const ctx2d = tmp.getContext('2d')!;
+                ctx2d.clearRect(0, 0, canvW, canvH);
+                // Usa o método render do próprio objeto Fabric
+                obj.render(ctx2d);
+                const imgData = ctx2d.getImageData(0, 0, canvW, canvH);
                 const name = typeof (obj as any).text === 'string'
                   ? (obj as any).text.substring(0, 40)
                   : ((obj as any).layerId || obj.type || 'layer');
