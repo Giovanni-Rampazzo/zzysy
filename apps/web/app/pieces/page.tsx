@@ -494,8 +494,8 @@ function PiecesPageInner() {
                         <tbody>
                           {cpieces.map(piece=>(
                             <tr key={piece.id} style={{ borderBottom:"1px solid #E5E5E5",background:selected.includes(piece.id)?"#FAFAFA":"transparent" }}>
-                              <td style={{ padding:"10px 12px" }}>
-                                <input type="checkbox" checked={selected.includes(piece.id)} onChange={()=>toggleSelect(piece.id)} style={{ cursor:"pointer",accentColor:"#111" }}/>
+                              <td style={{ padding:"10px 12px",verticalAlign:"middle" }}>
+                                <input type="checkbox" checked={selected.includes(piece.id)} onChange={()=>toggleSelect(piece.id)} style={{ cursor:"pointer",accentColor:"#111",width:"16px",height:"16px",display:"block" }}/>
                               </td>
                               <td style={{ padding:"10px 12px",width:"60px" }}><div style={{ width:"48px",height:"36px",background:"#F7F7F7",borderRadius:"4px",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }} onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}>🎨</div></td>
                               <td style={{ padding:"10px 12px",fontSize:"0.85rem",fontWeight:600,color:"#111",maxWidth:"200px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{piece.name}</td>
