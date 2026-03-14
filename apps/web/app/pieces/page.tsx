@@ -190,10 +190,11 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
   const [rendered, setRendered] = useState(false);
 
   useEffect(() => {
+    (async () => {
     if (!canvasRef.current || !piece.data || Object.keys(piece.data).length === 0) return;
     if ((canvasRef.current as any)._fabricCanvas) return;
     // Aguarda o elemento estar no DOM
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise<void>(r => setTimeout(r, 50));
     if (!canvasRef.current) return;
     let fc: any = null;
     import("fabric").then(({ Canvas }) => {
@@ -211,6 +212,7 @@ function PiecePreview({ piece, onClick }: { piece: Piece; onClick: () => void })
         fc.requestRenderAll(); setRendered(true);
       });
     });
+    })();
     return () => { try { fc?.dispose(); } catch(e) {} };
   }, [piece.data, piece.format]);
 
