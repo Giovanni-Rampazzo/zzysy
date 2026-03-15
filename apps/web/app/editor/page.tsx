@@ -72,6 +72,25 @@ const CHANNELS = [
 
 const ALL_FORMATS = CHANNELS.flatMap(c=>c.formats);
 
+const FONTS = [
+  "DM Sans","Inter","Roboto","Open Sans","Lato","Montserrat","Oswald","Raleway",
+  "Playfair Display","Merriweather","Nunito","Poppins","Source Sans Pro","Ubuntu",
+  "PT Sans","Bebas Neue","Anton","Barlow","Mulish","Work Sans",
+  "Arial","Georgia","Times New Roman","Courier New","Verdana","Helvetica"
+];
+
+async function loadGoogleFont(family: string) {
+  if (["Arial","Georgia","Times New Roman","Courier New","Verdana","Helvetica"].includes(family)) return;
+  const existing = document.querySelector(`link[data-font="${family}"]`);
+  if (existing) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g,"+")}:wght@400;700&display=swap`;
+  link.setAttribute("data-font", family);
+  document.head.appendChild(link);
+  await new Promise(r => setTimeout(r, 500));
+}
+
 function getCanvasJson(canvas: Canvas, w: number, h: number) {
   const z = canvas.getZoom();
   canvas.setZoom(1); canvas.setDimensions({width:w,height:h});
@@ -562,8 +581,20 @@ function EditorPageInner() {
                 <div>
                   <label style={{fontSize:"0.72rem",color:"#888",display:"block",marginBottom:"3px"}}>Fonte</label>
                   <select value={textProps.fontFamily} onChange={e=>updateTextProp("fontFamily",e.target.value)} style={{width:"100%",padding:"5px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",fontSize:"0.8rem",color:"#111"}}>
-                    {["DM Sans","Arial","Georgia","Times New Roman","Courier New","Helvetica","Verdana"].map(f=><option key={f} value={f}>{f}</option>)}
+                    {FONTS.map(f=><option key={f} value={f} style={{fontFamily:f}}>{f}</option>)}
                   </select>
+                  <label style={{display:"block",marginTop:"6px",fontSize:"0.72rem",color:"#4285F4",cursor:"pointer"}}>
+                    + Upload fonte (.ttf/.otf)
+                    <input type="file" accept=".ttf,.otf,.woff,.woff2" style={{display:"none"}} onChange={async(e)=>{
+                      const file=e.target.files?.[0]; if(!file) return;
+                      const name=file.name.replace(/\.[^.]+$/,"");
+                      const url=URL.createObjectURL(file);
+                      const font=new FontFace(name,`url(${url})`);
+                      await font.load();
+                      (document.fonts as any).add(font);
+                      updateTextProp("fontFamily",name);
+                    }}/>
+                  </label>
                 </div>
 
                 <div style={{display:"flex",gap:"8px"}}>
