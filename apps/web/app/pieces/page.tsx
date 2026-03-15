@@ -119,8 +119,8 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const b = parseInt(hex.substring(4,6),16) / 255;
 
                   // ── posição: left/top já são coordenadas absolutas no Fabric ──
-                  const objLeft  = Math.round((obj.aCoords?.tl?.x ?? obj.left) || 0);
-                  const objTop   = Math.round((obj.aCoords?.tl?.y ?? obj.top)  || 0);
+                  const objLeft  = Math.round(obj.left || 0);
+                  const objTop   = Math.round(obj.top  || 0);
                   const objW     = Math.round((obj.width  || 200) * (obj.scaleX || 1));
                   const objH     = Math.round((obj.height || 50)  * (obj.scaleY || 1));
                   const fontSize = Math.round((obj.fontSize || 16) * (obj.scaleX || 1));
@@ -157,11 +157,12 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   // fontSize: nunca multiplicar por scaleX — Fabric já aplica scale no bounding box
                   const safeFontSize = Math.max(1, Math.round((obj.fontSize || 16) * (obj.scaleX || 1)));
 
+                  const textContent = (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
                   psdLayers.push({
                     name,
                     top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
                     text: {
-                      text: (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n'),
+                      text: textContent,
                       transform: [1, 0, 0, 1, objLeft, objTop],
                       style: {
                         font: { name: psName },
@@ -170,6 +171,16 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                         fauxBold:   isBold,
                         fauxItalic: isItalic,
                       },
+                      styleRuns: [{
+                        length: textContent.length,
+                        style: {
+                          font: { name: psName },
+                          fontSize: safeFontSize,
+                          fillColor: { r, g, b },
+                          fauxBold:   isBold,
+                          fauxItalic: isItalic,
+                        },
+                      }],
                       paragraphStyle: {
                         justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left',
                       },
