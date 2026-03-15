@@ -31,12 +31,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const factor = Math.min((fw||1080)/origW, (fh||1080)/origH);
     const offsetX = ((fw||1080) - origW*factor)/2;
     const offsetY = ((fh||1080) - origH*factor)/2;
+    // Separa textos e shapes da matriz e da peca para merge correto
+    const matrixTexts = (matrixJson.objects ?? []).filter((o: any) => ["i-text","text","itext"].includes((o.type||"").toLowerCase()));
+    const pieceTexts = pieceObjs.filter((o: any) => ["i-text","text","itext","IText"].includes(o.type||""));
+    
     const mergedObjects = (matrixJson.objects ?? []).map((newObj: any, idx: number) => {
-      const existing = pieceObjs[idx];
       const scaledObj = { ...newObj, left: (newObj.left??0)*factor+offsetX, top: (newObj.top??0)*factor+offsetY, scaleX: (newObj.scaleX??1)*factor, scaleY: (newObj.scaleY??1)*factor, fontSize: newObj.fontSize ? Math.round(newObj.fontSize*factor) : undefined };
-      if (!existing) return scaledObj;
-      const t = (newObj.type||"").toLowerCase(); if (t === "i-text" || t === "text") { return { ...existing, text: newObj.text }; }
-      return existing;
+      const t = (newObj.type||"").toLowerCase();
+      const isText = t === "i-text" || t === "text" || t === "itext";
+      if (isText) {
+        // Encontra o texto correspondente na peca pelo indice entre os textos
+        const textIdx = matrixTexts.indexOf(newObj);
+        const existingText = pieceTexts[textIdx];
+        if (existingText) return { ...existingText, text: newObj.text };
+        return scaledObj;
+      }
+      // Shape: preserva da peca pelo indice geral
+      const existing = pieceObjs[idx];
+      return existing || scaledObj;
     });
     const scaledData = { ...matrixJson, width: fw||1080, height: fh||1080, objects: mergedObjects };
     return prisma.piece.update({ where: { id: piece.id }, data: { data: scaledData } });
