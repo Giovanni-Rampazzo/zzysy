@@ -158,9 +158,11 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const safeFontSize = Math.max(1, Math.round((obj.fontSize || 16) * (obj.scaleX || 1)));
 
                   const textContent = (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+                  const txtCanvas = document.createElement('canvas'); txtCanvas.width = objW||1; txtCanvas.height = objH||1;
                   psdLayers.push({
                     name,
                     top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
+                    canvas: txtCanvas,
                     text: {
                       text: textContent,
                       transform: [1, 0, 0, 1, objLeft, objTop],
