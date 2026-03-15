@@ -126,21 +126,27 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const rawFamily = (obj.fontFamily || 'Arial').replace(/,.*$/, '').trim();
                   const isBold    = obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900' || Number(obj.fontWeight) >= 700;
                   const isItalic  = obj.fontStyle === 'italic';
-                  const fontStyle = isBold && isItalic ? 'Bold Italic' : isBold ? 'Bold' : isItalic ? 'Italic' : 'Regular';
+                  // Nome PostScript correto para Photoshop
+                  const psName = isBold && isItalic ? rawFamily.replace(/ /g,'-') + '-BoldItalicMT'
+                               : isBold             ? rawFamily.replace(/ /g,'-') + '-BoldMT'
+                               : isItalic           ? rawFamily.replace(/ /g,'-') + '-ItalicMT'
+                               :                     rawFamily.replace(/ /g,'-') + 'MT';
+                  // fontSize: nunca multiplicar por scaleX — Fabric já aplica scale no bounding box
+                  const safeFontSize = Math.max(1, Math.round(obj.fontSize || 16));
 
                   psdLayers.push({
                     name,
                     text: {
                       text: (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n'),
                       style: {
-                        font: { name: rawFamily, style: fontStyle },
-                        fontSize,
+                        font: { name: psName, style: isBold ? 'Bold' : 'Regular' },
+                        fontSize: safeFontSize,
                         fillColor: { r, g, b },
                         color:     { r, g, b },
                         bold:   isBold,
                         italic: isItalic,
                       },
-                      transform: { xx: 1, xy: 0, yx: 0, yy: 1, tx: objLeft, ty: objTop },
+                      transform: { xx: obj.scaleX || 1, xy: 0, yx: 0, yy: obj.scaleY || 1, tx: objLeft, ty: objTop },
                     },
                     top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
                   });
