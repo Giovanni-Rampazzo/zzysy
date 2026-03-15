@@ -108,27 +108,36 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                 const isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText';
 
                 if (isText) {
-                  // ── parse cor ──────────────────────────────────
+                  // ── cor ──────────────────────────────────────
                   const rawFill = (obj.fill && typeof obj.fill === 'string') ? obj.fill.trim() : '#000000';
-                  let fill = '#000000';
-                  if (rawFill.startsWith('#')) { fill = rawFill; }
-                  else if (rawFill.startsWith('rgb')) { const m=rawFill.match(/\d+/g); if(m&&m.length>=3) fill='#'+[m[0],m[1],m[2]].map(n=>parseInt(n).toString(16).padStart(2,'0')).join(''); }
-                  const hex = fill.replace('#','').padEnd(6,'0');
-                  const r = parseInt(hex.substring(0,2),16) / 255;
-                  const g = parseInt(hex.substring(2,4),16) / 255;
-                  const b = parseInt(hex.substring(4,6),16) / 255;
+                  let hexFill = '000000';
+                  if (rawFill.startsWith('#')) {
+                    hexFill = rawFill.replace('#','').padEnd(6,'0');
+                  } else if (rawFill.startsWith('rgb')) {
+                    const m = rawFill.match(/[0-9]+/g);
+                    if (m && m.length >= 3) hexFill = [m[0],m[1],m[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join('');
+                  }
+                  const r = parseInt(hexFill.substring(0,2),16) / 255;
+                  const g = parseInt(hexFill.substring(2,4),16) / 255;
+                  const b = parseInt(hexFill.substring(4,6),16) / 255;
 
-                  // ── posição: left/top já são coordenadas absolutas no Fabric ──
-                  const objLeft  = Math.round(obj.left || 0);
-                  const objTop   = Math.round(obj.top  || 0);
-                  const objW     = Math.round((obj.width  || 200) * (obj.scaleX || 1));
-                  const objH     = Math.round((obj.height || 50)  * (obj.scaleY || 1));
-                  const fontSize = Math.round((obj.fontSize || 16) * (obj.scaleX || 1));
+                  // ── posição real (considera originX/Y) ────────
+                  const scX = obj.scaleX || 1;
+                  const scY = obj.scaleY || 1;
+                  const objW = Math.round((obj.width  || 100) * scX);
+                  const objH = Math.round((obj.height || 30)  * scY);
+                  const cx = obj.left || 0;
+                  const cy = obj.top  || 0;
+                  const originX = obj.originX || 'left';
+                  const originY = obj.originY || 'top';
+                  const objLeft = Math.round(originX === 'center' ? cx - objW/2 : originX === 'right' ? cx - objW : cx);
+                  const objTop  = Math.round(originY === 'center' ? cy - objH/2 : originY === 'bottom' ? cy - objH : cy);
 
-                  // ── fonte ──────────────────────────────────────
+                  // ── fonte ─────────────────────────────────────
                   const rawFamily = (obj.fontFamily || 'Arial').replace(/,.*$/, '').trim();
                   const isBold    = obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900' || Number(obj.fontWeight) >= 700;
                   const isItalic  = obj.fontStyle === 'italic';
+                  const safeFontSize = Math.max(1, Math.round((obj.fontSize || 16) * scX));
                   const PS_MAP: Record<string,{r:string;b:string;i:string;bi:string}> = {
                     'Arial':            {r:'ArialMT',                b:'Arial-BoldMT',                i:'Arial-ItalicMT',                bi:'Arial-BoldItalicMT'},
                     'Verdana':          {r:'Verdana',                b:'Verdana-Bold',                i:'Verdana-Italic',                bi:'Verdana-BoldItalic'},
@@ -154,38 +163,17 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const psName = psEntry
                     ? (isBold && isItalic ? psEntry.bi : isBold ? psEntry.b : isItalic ? psEntry.i : psEntry.r)
                     : rawFamily.replace(/ /g,'-') + (isBold ? '-Bold' : isItalic ? '-Italic' : '-Regular');
-                  // fontSize: nunca multiplicar por scaleX — Fabric já aplica scale no bounding box
-                  const safeFontSize = Math.max(1, Math.round((obj.fontSize || 16) * (obj.scaleX || 1)));
-
                   const textContent = (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-                  const txtCanvas = document.createElement('canvas'); txtCanvas.width = objW||1; txtCanvas.height = objH||1;
+                  const textStyle = { font: { name: psName }, fontSize: safeFontSize, fillColor: { r, g, b }, fauxBold: isBold, fauxItalic: isItalic };
                   psdLayers.push({
                     name,
                     top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
-                    canvas: txtCanvas,
                     text: {
                       text: textContent,
                       transform: [1, 0, 0, 1, objLeft, objTop],
-                      style: {
-                        font: { name: psName },
-                        fontSize: safeFontSize,
-                        fillColor: { r, g, b },
-                        fauxBold:   isBold,
-                        fauxItalic: isItalic,
-                      },
-                      styleRuns: [{
-                        length: textContent.length,
-                        style: {
-                          font: { name: psName },
-                          fontSize: safeFontSize,
-                          fillColor: { r, g, b },
-                          fauxBold:   isBold,
-                          fauxItalic: isItalic,
-                        },
-                      }],
-                      paragraphStyle: {
-                        justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left',
-                      },
+                      style: textStyle,
+                      styleRuns: [{ length: textContent.length, style: textStyle }],
+                      paragraphStyle: { justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left' },
                     },
                   });
                 } else {
