@@ -20,9 +20,8 @@ const STATUS_COLOR: Record<string,string> = { DRAFT:"#888", REVIEW:"#4285F4", AP
 // ─── EXPORT FORMATS ──────────────────────────────────────────────
 const EXPORT_FORMATS = [
   { id:"png",  label:"PNG",  desc:"Web, social media — com transparência" },
-  { id:"tiff", label:"TIFF", desc:"Impressão, OOH, produção gráfica" },
   { id:"svg",  label:"SVG",  desc:"Vetorial, editável" },
-  { id:"psd",  label:"PSD",  desc:"Photoshop com layers" },
+  { id:"psd",  label:"PSD",  desc:"Photoshop com layers editáveis" },
 ];
 
 // ─── EXPORT DIALOG ───────────────────────────────────────────────
@@ -74,12 +73,6 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             const base64 = dataUrl.replace(/^data:image\/png;base64,/,"");
             folder.file(`${safeName}.png`, base64, { base64:true });
           }
-          if (fmt === "tiff") {
-            const dataUrl = fc.toDataURL({ format:"png", multiplier:1 });
-            const base64 = dataUrl.replace(/^data:image\/png;base64,/,"");
-            folder.file(`${safeName}.tif`, base64, { base64:true });
-          }
-
           if (fmt === "svg") {
             const svg = fc.toSVG();
             folder.file(`${safeName}.svg`, svg);
@@ -108,7 +101,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                 const isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText';
 
                 if (isText) {
-                  // ── cor ──────────────────────────────────────
+                  // ── COR: parse hex ou rgb(), valores 0-255 ────
                   const rawFill = (obj.fill && typeof obj.fill === 'string') ? obj.fill.trim() : '#000000';
                   let hexFill = '000000';
                   if (rawFill.startsWith('#')) {
@@ -117,27 +110,39 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                     const m = rawFill.match(/[0-9]+/g);
                     if (m && m.length >= 3) hexFill = [m[0],m[1],m[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join('');
                   }
-                  const r = parseInt(hexFill.substring(0,2),16) / 255;
-                  const g = parseInt(hexFill.substring(2,4),16) / 255;
-                  const b = parseInt(hexFill.substring(4,6),16) / 255;
+                  // ag-psd usa 0-255 (NÃO normalizado)
+                  const cr = parseInt(hexFill.substring(0,2),16);
+                  const cg = parseInt(hexFill.substring(2,4),16);
+                  const cb = parseInt(hexFill.substring(4,6),16);
 
-                  // ── posição real (considera originX/Y) ────────
+                  // ── ESCALA E DIMENSÕES VISUAIS ─────────────────
                   const scX = obj.scaleX || 1;
                   const scY = obj.scaleY || 1;
+                  // Dimensões visuais reais = dimensão_base * scale
                   const objW = Math.round((obj.width  || 100) * scX);
                   const objH = Math.round((obj.height || 30)  * scY);
+
+                  // ── POSIÇÃO REAL ───────────────────────────────
+                  // Fabric: left/top é o ponto de ORIGEM do objeto
+                  // originX/Y pode ser 'left'|'center'|'right'|'top'|'bottom'
                   const cx = obj.left || 0;
                   const cy = obj.top  || 0;
-                  const originX = obj.originX || 'left';
-                  const originY = obj.originY || 'top';
-                  const objLeft = Math.round(originX === 'center' ? cx - objW/2 : originX === 'right' ? cx - objW : cx);
-                  const objTop  = Math.round(originY === 'center' ? cy - objH/2 : originY === 'bottom' ? cy - objH : cy);
+                  const ox = obj.originX || 'left';
+                  const oy = obj.originY || 'top';
+                  const objLeft = Math.round(ox === 'center' ? cx - objW/2 : ox === 'right' ? cx - objW : cx);
+                  const objTop  = Math.round(oy === 'center' ? cy - objH/2 : oy === 'bottom' ? cy - objH : cy);
 
-                  // ── fonte ─────────────────────────────────────
+                  // ── FONTE ──────────────────────────────────────
+                  // fontFamily pode ter fallbacks separados por vírgula
                   const rawFamily = (obj.fontFamily || 'Arial').replace(/,.*$/, '').trim();
                   const isBold    = obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900' || Number(obj.fontWeight) >= 700;
                   const isItalic  = obj.fontStyle === 'italic';
+                  // fontSize visual = fontSize_original * scaleX
                   const safeFontSize = Math.max(1, Math.round((obj.fontSize || 16) * scX));
+
+                  // ── POSTSCRIPT NAME ────────────────────────────
+                  // Para fontes padrão: mapa fixo de nomes PS
+                  // Para fontes customizadas: usa o nome direto (usuário deve ter instalada)
                   const PS_MAP: Record<string,{r:string;b:string;i:string;bi:string}> = {
                     'Arial':            {r:'ArialMT',                b:'Arial-BoldMT',                i:'Arial-ItalicMT',                bi:'Arial-BoldItalicMT'},
                     'Verdana':          {r:'Verdana',                b:'Verdana-Bold',                i:'Verdana-Italic',                bi:'Verdana-BoldItalic'},
@@ -158,22 +163,118 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                     'Playfair Display': {r:'PlayfairDisplay-Regular',b:'PlayfairDisplay-Bold',        i:'PlayfairDisplay-Italic',        bi:'PlayfairDisplay-BoldItalic'},
                     'Bebas Neue':       {r:'BebasNeue-Regular',      b:'BebasNeue-Regular',           i:'BebasNeue-Regular',             bi:'BebasNeue-Regular'},
                     'Anton':            {r:'Anton-Regular',          b:'Anton-Regular',               i:'Anton-Regular',                 bi:'Anton-Regular'},
+                    'Source Sans Pro':  {r:'SourceSansPro-Regular',  b:'SourceSansPro-Bold',          i:'SourceSansPro-Italic',          bi:'SourceSansPro-BoldItalic'},
+                    'Ubuntu':           {r:'Ubuntu-Regular',         b:'Ubuntu-Bold',                 i:'Ubuntu-Italic',                 bi:'Ubuntu-BoldItalic'},
+                    'PT Sans':          {r:'PTSans-Regular',         b:'PTSans-Bold',                 i:'PTSans-Italic',                 bi:'PTSans-BoldItalic'},
+                    'Barlow':           {r:'Barlow-Regular',         b:'Barlow-Bold',                 i:'Barlow-Italic',                 bi:'Barlow-BoldItalic'},
+                    'Mulish':           {r:'Mulish-Regular',         b:'Mulish-Bold',                 i:'Mulish-Italic',                 bi:'Mulish-BoldItalic'},
+                    'Work Sans':        {r:'WorkSans-Regular',       b:'WorkSans-Bold',               i:'WorkSans-Italic',               bi:'WorkSans-BoldItalic'},
+                    'Merriweather':     {r:'Merriweather-Regular',   b:'Merriweather-Bold',           i:'Merriweather-Italic',           bi:'Merriweather-BoldItalic'},
                   };
                   const psEntry = PS_MAP[rawFamily];
+                  // Fontes customizadas (upload do usuário): usa o nome direto
+                  // O Photoshop vai tentar resolver pelo nome — se a fonte estiver instalada, funciona
                   const psName = psEntry
                     ? (isBold && isItalic ? psEntry.bi : isBold ? psEntry.b : isItalic ? psEntry.i : psEntry.r)
-                    : rawFamily.replace(/ /g,'-') + (isBold ? '-Bold' : isItalic ? '-Italic' : '-Regular');
+                    : rawFamily; // nome direto para fontes customizadas
+
+                  // ── TEXTO E STYLERUNS ─────────────────────────
                   const textContent = (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-                  const textStyle = { font: { name: psName }, fontSize: safeFontSize, fillColor: { r, g, b }, fauxBold: isBold, fauxItalic: isItalic };
+                  const baseStyle = {
+                    font: { name: psName },
+                    fontSize: safeFontSize,
+                    fillColor: { r: cr, g: cg, b: cb },
+                    fauxBold:   isBold,
+                    fauxItalic: isItalic,
+                  };
+
+                  // styleRuns: suporte a cores/estilos por caractere (Fabric styles[lineIdx][charIdx])
+                  const fabricStyles = obj.styles || [];
+                  const styleRuns: any[] = [];
+
+                  if (!fabricStyles.length) {
+                    // Caso simples: cor uniforme
+                    styleRuns.push({ length: textContent.length, style: baseStyle });
+                  } else {
+                    // Percorre caractere a caractere agrupando runs com estilos iguais
+                    let runStart = 0;
+                    let prevStyleKey = '';
+                    let prevStyle = baseStyle;
+                    let lineIdx = 0;
+                    let charIdx = 0;
+                    for (let ci = 0; ci < textContent.length; ci++) {
+                      if (textContent[ci] === '\n') { lineIdx++; charIdx = 0; continue; }
+                      const cs = (fabricStyles[lineIdx] && fabricStyles[lineIdx][charIdx]) || {};
+                      const f2 = (cs.fill && typeof cs.fill === 'string') ? cs.fill.trim() : rawFill;
+                      let h2 = '000000';
+                      if (f2.startsWith('#')) h2 = f2.replace('#','').padEnd(6,'0');
+                      else if (f2.startsWith('rgb')) { const m2=f2.match(/[0-9]+/g); if(m2&&m2.length>=3) h2=[m2[0],m2[1],m2[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join(''); }
+                      const bold2 = cs.fontWeight ? (cs.fontWeight==='bold'||cs.fontWeight==='700'||cs.fontWeight==='900'||Number(cs.fontWeight)>=700) : isBold;
+                      const italic2 = cs.fontStyle ? cs.fontStyle==='italic' : isItalic;
+                      const fs2 = Math.max(1, Math.round((cs.fontSize || obj.fontSize || 16) * scX));
+                      const thisStyle = { font:{name:psName}, fontSize:fs2, fillColor:{r:parseInt(h2.substring(0,2),16),g:parseInt(h2.substring(2,4),16),b:parseInt(h2.substring(4,6),16)}, fauxBold:bold2, fauxItalic:italic2 };
+                      const key = JSON.stringify(thisStyle);
+                      if (key !== prevStyleKey) {
+                        if (ci > runStart) styleRuns.push({ length: ci - runStart, style: prevStyle });
+                        prevStyle = thisStyle; prevStyleKey = key; runStart = ci;
+                      }
+                      charIdx++;
+                    }
+                    if (runStart < textContent.length) styleRuns.push({ length: textContent.length - runStart, style: prevStyle });
+                    if (!styleRuns.length) styleRuns.push({ length: textContent.length, style: baseStyle });
+                  }
+
                   psdLayers.push({
                     name,
-                    top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
                     text: {
                       text: textContent,
                       transform: [1, 0, 0, 1, objLeft, objTop],
-                      style: textStyle,
-                      styleRuns: [{ length: textContent.length, style: textStyle }],
-                      paragraphStyle: { justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left' },
+                      style: baseStyle,
+                      styleRuns,
+                      paragraphStyle: {
+                        justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left',
+                      },
+                    },
+                  });
+                } else {
+                    // Percorre caractere a caractere agrupando runs com estilos iguais
+                    let runStart = 0;
+                    let prevStyleKey = '';
+                    let prevStyle = baseStyle;
+                    let lineIdx = 0;
+                    let charIdx = 0;
+                    for (let ci = 0; ci < textContent.length; ci++) {
+                      if (textContent[ci] === '\n') { lineIdx++; charIdx = 0; continue; }
+                      const cs = (fabricStyles[lineIdx] && fabricStyles[lineIdx][charIdx]) || {};
+                      const f2 = (cs.fill && typeof cs.fill === 'string') ? cs.fill.trim() : rawFill;
+                      let h2 = '000000';
+                      if (f2.startsWith('#')) h2 = f2.replace('#','').padEnd(6,'0');
+                      else if (f2.startsWith('rgb')) { const m2=f2.match(/[0-9]+/g); if(m2&&m2.length>=3) h2=[m2[0],m2[1],m2[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join(''); }
+                      const bold2 = cs.fontWeight ? (cs.fontWeight==='bold'||cs.fontWeight==='700'||cs.fontWeight==='900'||Number(cs.fontWeight)>=700) : isBold;
+                      const italic2 = cs.fontStyle ? cs.fontStyle==='italic' : isItalic;
+                      const fs2 = Math.max(1, Math.round((cs.fontSize || obj.fontSize || 16) * scX));
+                      const thisStyle = { font:{name:psName}, fontSize:fs2, fillColor:{r:parseInt(h2.substring(0,2),16),g:parseInt(h2.substring(2,4),16),b:parseInt(h2.substring(4,6),16)}, fauxBold:bold2, fauxItalic:italic2 };
+                      const key = JSON.stringify(thisStyle);
+                      if (key !== prevStyleKey) {
+                        if (ci > runStart) styleRuns.push({ length: ci - runStart, style: prevStyle });
+                        prevStyle = thisStyle; prevStyleKey = key; runStart = ci;
+                      }
+                      charIdx++;
+                    }
+                    if (runStart < textContent.length) styleRuns.push({ length: textContent.length - runStart, style: prevStyle });
+                    if (!styleRuns.length) styleRuns.push({ length: textContent.length, style: baseStyle });
+                  }
+
+                  psdLayers.push({
+                    name,
+                    text: {
+                      text: textContent,
+                      transform: [1, 0, 0, 1, objLeft, objTop],
+                      style: baseStyle,
+                      styleRuns,
+                      paragraphStyle: {
+                        justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left',
+                      },
                     },
                   });
                 } else {
