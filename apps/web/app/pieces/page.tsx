@@ -109,7 +109,10 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
 
                 if (isText) {
                   // ── parse cor ──────────────────────────────────
-                  const fill = (obj.fill && typeof obj.fill === 'string' && obj.fill.startsWith('#')) ? obj.fill : '#000000';
+                  const rawFill = (obj.fill && typeof obj.fill === 'string') ? obj.fill.trim() : '#000000';
+                  let fill = '#000000';
+                  if (rawFill.startsWith('#')) { fill = rawFill; }
+                  else if (rawFill.startsWith('rgb')) { const m=rawFill.match(/\d+/g); if(m&&m.length>=3) fill='#'+[m[0],m[1],m[2]].map(n=>parseInt(n).toString(16).padStart(2,'0')).join(''); }
                   const hex = fill.replace('#','').padEnd(6,'0');
                   const r = parseInt(hex.substring(0,2),16) / 255;
                   const g = parseInt(hex.substring(2,4),16) / 255;
