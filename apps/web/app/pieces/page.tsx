@@ -152,7 +152,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                     ? (isBold && isItalic ? psEntry.bi : isBold ? psEntry.b : isItalic ? psEntry.i : psEntry.r)
                     : rawFamily.replace(/ /g,'-') + (isBold ? '-Bold' : isItalic ? '-Italic' : '-Regular');
                   // fontSize: nunca multiplicar por scaleX — Fabric já aplica scale no bounding box
-                  const safeFontSize = Math.max(1, Math.round(obj.fontSize || 16));
+                  const safeFontSize = Math.max(1, Math.round((obj.fontSize || 16) * (obj.scaleX || 1)));
 
                   psdLayers.push({
                     name,
