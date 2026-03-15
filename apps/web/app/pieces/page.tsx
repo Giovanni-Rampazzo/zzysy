@@ -435,7 +435,7 @@ function PiecesPageInner() {
             {selected.length>0 && (
               <button onClick={()=>setShowExport(true)}
                 style={{ padding:"10px 20px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:"8px" }}>
-                ⬇ Exportar {selected.length} peça{selected.length!==1?"s":""}
+                ⬆ Exportar {selected.length} peça{selected.length!==1?"s":""}
               </button>
             )}
           </div>
