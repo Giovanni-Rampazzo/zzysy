@@ -75,6 +75,10 @@ const ALL_FORMATS = CHANNELS.flatMap(c=>c.formats);
 function getCanvasJson(canvas: Canvas, w: number, h: number) {
   const z = canvas.getZoom();
   canvas.setZoom(1); canvas.setDimensions({width:w,height:h});
+  // Garante layerId em todos objetos antes de serializar
+  canvas.getObjects().forEach((obj: any, i: number) => {
+    if (!obj.layerId) obj.layerId = "layer_" + Date.now() + "_" + i;
+  });
   const json = (canvas as any).toJSON(["layerId"]);
   canvas.setZoom(z); canvas.setDimensions({width:w*z,height:h*z});
   return { ...json, width: w, height: h };
@@ -338,7 +342,7 @@ function EditorPageInner() {
     const padding = Math.max(6,Math.round(canvasSize.w*0.05));
     let fs = Math.max(10,Math.round(fontSize*Math.sqrt(canvasSize.w*canvasSize.h)/1080));
     const text = new IText(defaults[type]??label,{left:padding,top:padding,fontSize:fs,fontWeight,fontFamily:"DM Sans, sans-serif",fill:"#111111",textAlign:"left"});
-    text.set({layerId: id} as any); canvas.add(text);
+    (text as any).layerId = id; canvas.add(text);
     for (let i=0;i<40;i++){canvas.renderAll();if(text.getBoundingRect().width<=canvasSize.w-padding*2)break;fs=Math.max(10,fs-1);text.set({fontSize:fs});if(fs<=10)break;}
     canvas.setActiveObject(text); canvas.renderAll();
     setLayers(prev=>[...prev,{id,type,name:label,visible:true,locked:false}]);
@@ -349,7 +353,7 @@ function EditorPageInner() {
     const canvas = fabricRef.current; if (!canvas) return;
     const id = `layer_${Date.now()}`;
     const shape = type==="rect" ? new Rect({left:100,top:100,width:200,height:120,fill:"#4285F4",rx:8}) : new Circle({left:100,top:100,radius:80,fill:"#34A853"});
-    shape.set({layerId: id} as any); canvas.add(shape); canvas.setActiveObject(shape); canvas.renderAll();
+    (shape as any).layerId = id; canvas.add(shape); canvas.setActiveObject(shape); canvas.renderAll();
     setLayers(prev=>[...prev,{id,type,name:type==="rect"?"Retângulo":"Círculo",visible:true,locked:false}]);
     setSelectedId(id);
   },[]);
@@ -359,7 +363,7 @@ function EditorPageInner() {
     const id = `layer_${Date.now()}`;
     const img = await FabricImage.fromURL(URL.createObjectURL(file));
     if (img.width&&img.width>canvasSize.w*0.6) img.scaleToWidth(canvasSize.w*0.6);
-    img.set({left:100,top:100}); img.set({layerId: id} as any);
+    img.set({left:100,top:100}); (img as any).layerId = id;
     canvas.add(img); canvas.setActiveObject(img); canvas.renderAll();
     setLayers(prev=>[...prev,{id,type:"image",name:file.name,visible:true,locked:false}]);
     setSelectedId(id);
