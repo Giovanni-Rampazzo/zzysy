@@ -119,8 +119,8 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const b = parseInt(hex.substring(4,6),16) / 255;
 
                   // ── posição: left/top já são coordenadas absolutas no Fabric ──
-                  const objLeft  = Math.round(obj.left  || 0);
-                  const objTop   = Math.round(obj.top   || 0);
+                  const objLeft  = Math.round((obj.aCoords?.tl?.x ?? obj.left) || 0);
+                  const objTop   = Math.round((obj.aCoords?.tl?.y ?? obj.top)  || 0);
                   const objW     = Math.round((obj.width  || 200) * (obj.scaleX || 1));
                   const objH     = Math.round((obj.height || 50)  * (obj.scaleY || 1));
                   const fontSize = Math.round((obj.fontSize || 16) * (obj.scaleX || 1));
