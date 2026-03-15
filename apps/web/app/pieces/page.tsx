@@ -104,19 +104,24 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const r = parseInt(hex.substring(0,2),16);
                   const g = parseInt(hex.substring(2,4),16);
                   const b = parseInt(hex.substring(4,6),16);
+                  const objLeft = Math.round((obj.left || 0) * (obj.scaleX || 1));
+                  const objTop  = Math.round((obj.top  || 0) * (obj.scaleY || 1));
+                  const objW    = Math.round((obj.width  || 200) * (obj.scaleX || 1));
+                  const objH    = Math.round((obj.height || 50)  * (obj.scaleY || 1));
+                  const rN = r / 255, gN = g / 255, bN = b / 255;
                   psdLayers.unshift({
                     name,
                     text: {
                       text: obj.text || '',
                       style: {
-                        font: { name: obj.fontFamily || 'ArialMT', style: 'Regular' },
-                        fontSize: (obj.fontSize || 16) * (obj.scaleX || 1),
-                        fillColor: { r, g, b, a: 1 },
+                        font: { name: (obj.fontFamily || 'Arial').replace(/ /g, '') + ',Regular', style: 'Regular' },
+                        fontSize: Math.round((obj.fontSize || 16) * (obj.scaleX || 1)),
+                        fillColor: { r: rN, g: gN, b: bN },
                         bold: obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900',
-                        color: { r, g, b, a: 1 },
+                        color: { r: rN, g: gN, b: bN },
                       },
                     },
-                    top: 0, left: 0, bottom: canvH, right: canvW,
+                    top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
                   });
                 } else {
                   // Layer pixel para shapes/imagens
