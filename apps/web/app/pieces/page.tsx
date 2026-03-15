@@ -88,60 +88,82 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             try {
               const { writePsd } = await import("ag-psd");
               const objects = fc.getObjects();
-              const psdLayers = [];
+              const psdLayers: any[] = [];
               const origVisible = objects.map((o:any) => o.visible);
               const origBg = (fc as any).backgroundColor;
-              (fc as any).backgroundColor = '';
+
+              // ── fundo branco como layer pixel ──────────────────
+              const bgCanvas = document.createElement('canvas');
+              bgCanvas.width = canvW; bgCanvas.height = canvH;
+              const bgCtx = bgCanvas.getContext('2d')!;
+              bgCtx.fillStyle = (origBg && origBg !== 'transparent') ? origBg : '#FFFFFF';
+              bgCtx.fillRect(0, 0, canvW, canvH);
+              psdLayers.push({ name: 'Background', imageData: bgCtx.getImageData(0, 0, canvW, canvH), top: 0, left: 0, bottom: canvH, right: canvW });
+
+              (fc as any).backgroundColor = 'transparent';
 
               for (let oi = 0; oi < objects.length; oi++) {
                 const obj = objects[oi] as any;
                 const name = obj.text?.substring(0, 40) || obj.layerId || obj.type || 'layer';
+                const isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText';
 
-                // Layer de texto editável
-                if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText') {
-                  const fill = obj.fill || '#000000';
-                  const hex = fill.replace('#','');
-                  const r = parseInt(hex.substring(0,2),16);
-                  const g = parseInt(hex.substring(2,4),16);
-                  const b = parseInt(hex.substring(4,6),16);
-                  const objLeft = Math.round((obj.left || 0) * (obj.scaleX || 1));
-                  const objTop  = Math.round((obj.top  || 0) * (obj.scaleY || 1));
-                  const objW    = Math.round((obj.width  || 200) * (obj.scaleX || 1));
-                  const objH    = Math.round((obj.height || 50)  * (obj.scaleY || 1));
-                  const rN = r / 255, gN = g / 255, bN = b / 255;
-                  psdLayers.unshift({
+                if (isText) {
+                  // ── parse cor ──────────────────────────────────
+                  const fill = (obj.fill && typeof obj.fill === 'string' && obj.fill.startsWith('#')) ? obj.fill : '#000000';
+                  const hex = fill.replace('#','').padEnd(6,'0');
+                  const r = parseInt(hex.substring(0,2),16) / 255;
+                  const g = parseInt(hex.substring(2,4),16) / 255;
+                  const b = parseInt(hex.substring(4,6),16) / 255;
+
+                  // ── posição: left/top já são coordenadas absolutas no Fabric ──
+                  const objLeft  = Math.round(obj.left  || 0);
+                  const objTop   = Math.round(obj.top   || 0);
+                  const objW     = Math.round((obj.width  || 200) * (obj.scaleX || 1));
+                  const objH     = Math.round((obj.height || 50)  * (obj.scaleY || 1));
+                  const fontSize = Math.round((obj.fontSize || 16) * (obj.scaleX || 1));
+
+                  // ── fonte ──────────────────────────────────────
+                  const rawFamily = (obj.fontFamily || 'Arial').replace(/,.*$/, '').trim();
+                  const isBold    = obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900' || Number(obj.fontWeight) >= 700;
+                  const isItalic  = obj.fontStyle === 'italic';
+                  const fontStyle = isBold && isItalic ? 'Bold Italic' : isBold ? 'Bold' : isItalic ? 'Italic' : 'Regular';
+
+                  psdLayers.push({
                     name,
                     text: {
-                      text: obj.text || '',
+                      text: (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n'),
                       style: {
-                        font: { name: (obj.fontFamily || 'Arial').replace(/ /g, '') + ',Regular', style: 'Regular' },
-                        fontSize: Math.round((obj.fontSize || 16) * (obj.scaleX || 1)),
-                        fillColor: { r: rN, g: gN, b: bN },
-                        bold: obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900',
-                        color: { r: rN, g: gN, b: bN },
+                        font: { name: rawFamily, style: fontStyle },
+                        fontSize,
+                        fillColor: { r, g, b },
+                        color:     { r, g, b },
+                        bold:   isBold,
+                        italic: isItalic,
                       },
+                      transform: { xx: 1, xy: 0, yx: 0, yy: 1, tx: objLeft, ty: objTop },
                     },
                     top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
                   });
                 } else {
-                  // Layer pixel para shapes/imagens
+                  // ── layer pixel para shapes/imagens ───────────
                   objects.forEach((o:any, idx:number) => { o.visible = idx === oi; });
                   fc.renderAll();
-                  await new Promise<void>(r => setTimeout(r, 50));
+                  await new Promise<void>(res => setTimeout(res, 60));
                   fc.renderAll();
                   const nativeEl = (fc as any).lowerCanvasEl as HTMLCanvasElement;
                   const tmp = document.createElement('canvas');
                   tmp.width = canvW; tmp.height = canvH;
                   tmp.getContext('2d')!.drawImage(nativeEl, 0, 0);
                   const imgData = tmp.getContext('2d')!.getImageData(0, 0, canvW, canvH);
-                  psdLayers.unshift({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
+                  psdLayers.push({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
                 }
               }
 
-              // Restaura
+              // ── restaura ──────────────────────────────────────
               objects.forEach((o:any, idx:number) => { o.visible = origVisible[idx]; });
               (fc as any).backgroundColor = origBg;
               fc.renderAll();
+
               const buffer = writePsd({ width: canvW, height: canvH, children: psdLayers });
               folder.file(`${safeName}.psd`, buffer);
             } catch(psdErr) { console.error('PSD error:', psdErr); }
