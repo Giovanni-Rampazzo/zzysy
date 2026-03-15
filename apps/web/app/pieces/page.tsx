@@ -126,29 +126,51 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const rawFamily = (obj.fontFamily || 'Arial').replace(/,.*$/, '').trim();
                   const isBold    = obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900' || Number(obj.fontWeight) >= 700;
                   const isItalic  = obj.fontStyle === 'italic';
-                  // Nome PostScript correto para Photoshop
-                  const psName = isBold && isItalic ? rawFamily.replace(/ /g,'-') + '-BoldItalicMT'
-                               : isBold             ? rawFamily.replace(/ /g,'-') + '-BoldMT'
-                               : isItalic           ? rawFamily.replace(/ /g,'-') + '-ItalicMT'
-                               :                     rawFamily.replace(/ /g,'-') + 'MT';
+                  const PS_MAP: Record<string,{r:string;b:string;i:string;bi:string}> = {
+                    'Arial':            {r:'ArialMT',                b:'Arial-BoldMT',                i:'Arial-ItalicMT',                bi:'Arial-BoldItalicMT'},
+                    'Verdana':          {r:'Verdana',                b:'Verdana-Bold',                i:'Verdana-Italic',                bi:'Verdana-BoldItalic'},
+                    'Georgia':          {r:'Georgia',                b:'Georgia-Bold',                i:'Georgia-Italic',                bi:'Georgia-BoldItalic'},
+                    'Times New Roman':  {r:'TimesNewRomanPSMT',      b:'TimesNewRomanPS-BoldMT',      i:'TimesNewRomanPS-ItalicMT',      bi:'TimesNewRomanPS-BoldItalicMT'},
+                    'Courier New':      {r:'CourierNewPSMT',         b:'CourierNewPS-BoldMT',         i:'CourierNewPS-ItalicMT',         bi:'CourierNewPS-BoldItalicMT'},
+                    'Helvetica':        {r:'Helvetica',              b:'Helvetica-Bold',              i:'Helvetica-Oblique',             bi:'Helvetica-BoldOblique'},
+                    'DM Sans':          {r:'DMSans-Regular',         b:'DMSans-Bold',                 i:'DMSans-Italic',                 bi:'DMSans-BoldItalic'},
+                    'Inter':            {r:'Inter-Regular',          b:'Inter-Bold',                  i:'Inter-Italic',                  bi:'Inter-BoldItalic'},
+                    'Roboto':           {r:'Roboto-Regular',         b:'Roboto-Bold',                 i:'Roboto-Italic',                 bi:'Roboto-BoldItalic'},
+                    'Montserrat':       {r:'Montserrat-Regular',     b:'Montserrat-Bold',             i:'Montserrat-Italic',             bi:'Montserrat-BoldItalic'},
+                    'Poppins':          {r:'Poppins-Regular',        b:'Poppins-Bold',                i:'Poppins-Italic',                bi:'Poppins-BoldItalic'},
+                    'Lato':             {r:'Lato-Regular',           b:'Lato-Bold',                   i:'Lato-Italic',                   bi:'Lato-BoldItalic'},
+                    'Open Sans':        {r:'OpenSans-Regular',       b:'OpenSans-Bold',               i:'OpenSans-Italic',               bi:'OpenSans-BoldItalic'},
+                    'Oswald':           {r:'Oswald-Regular',         b:'Oswald-Bold',                 i:'Oswald-Regular',                bi:'Oswald-Bold'},
+                    'Raleway':          {r:'Raleway-Regular',        b:'Raleway-Bold',                i:'Raleway-Italic',                bi:'Raleway-BoldItalic'},
+                    'Nunito':           {r:'Nunito-Regular',         b:'Nunito-Bold',                 i:'Nunito-Italic',                 bi:'Nunito-BoldItalic'},
+                    'Playfair Display': {r:'PlayfairDisplay-Regular',b:'PlayfairDisplay-Bold',        i:'PlayfairDisplay-Italic',        bi:'PlayfairDisplay-BoldItalic'},
+                    'Bebas Neue':       {r:'BebasNeue-Regular',      b:'BebasNeue-Regular',           i:'BebasNeue-Regular',             bi:'BebasNeue-Regular'},
+                    'Anton':            {r:'Anton-Regular',          b:'Anton-Regular',               i:'Anton-Regular',                 bi:'Anton-Regular'},
+                  };
+                  const psEntry = PS_MAP[rawFamily];
+                  const psName = psEntry
+                    ? (isBold && isItalic ? psEntry.bi : isBold ? psEntry.b : isItalic ? psEntry.i : psEntry.r)
+                    : rawFamily.replace(/ /g,'-') + (isBold ? '-Bold' : isItalic ? '-Italic' : '-Regular');
                   // fontSize: nunca multiplicar por scaleX — Fabric já aplica scale no bounding box
                   const safeFontSize = Math.max(1, Math.round(obj.fontSize || 16));
 
                   psdLayers.push({
                     name,
+                    top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
                     text: {
                       text: (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n'),
+                      transform: [1, 0, 0, 1, objLeft, objTop],
                       style: {
-                        font: { name: psName, style: isBold ? 'Bold' : 'Regular' },
+                        font: { name: psName },
                         fontSize: safeFontSize,
                         fillColor: { r, g, b },
-                        color:     { r, g, b },
-                        bold:   isBold,
-                        italic: isItalic,
+                        fauxBold:   isBold,
+                        fauxItalic: isItalic,
                       },
-                      transform: { xx: obj.scaleX || 1, xy: 0, yx: 0, yy: obj.scaleY || 1, tx: objLeft, ty: objTop },
+                      paragraphStyle: {
+                        justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left',
+                      },
                     },
-                    top: objTop, left: objLeft, bottom: objTop + objH, right: objLeft + objW,
                   });
                 } else {
                   // ── layer pixel para shapes/imagens ───────────
