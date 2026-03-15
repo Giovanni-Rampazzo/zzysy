@@ -511,9 +511,14 @@ function EditorPageInner() {
           {saving?"Salvando...":saved?"✓ Salvo":"Salvar"}
         </button>
         {!isPiece && (
-          <button onClick={()=>setShowExportDialog(true)} style={{padding:"6px 20px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
-            Gerar Peças →
-          </button>
+          <>
+            <button onClick={()=>{ window.location.href="/pieces?campaignId="+(activeCampaignId??campaignId??""); }} style={{padding:"6px 16px",border:"1.5px solid #E5E5E5",borderRadius:"8px",background:"#FFF",color:"#111",fontSize:"0.8rem",fontWeight:600,cursor:"pointer"}}>
+              Ver Peças
+            </button>
+            <button onClick={()=>setShowExportDialog(true)} style={{padding:"6px 20px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
+              Gerar Peças →
+            </button>
+          </>
         )}
         {isPiece && activeCampaignId && (
           <button onClick={()=>{ window.location.href="/editor?campaign="+activeCampaignId+(pieceId?"&fromPiece="+pieceId:""); }} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
