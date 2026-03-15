@@ -33,7 +33,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [formats, setFormats] = useState<string[]>(["png"]);
+  const [formats, setFormats] = useState<string[]>([]);
   const [quality, setQuality] = useState(100); // 100 = máxima, 60 = reduzida
   const [exporting, setExporting] = useState(false);
 
