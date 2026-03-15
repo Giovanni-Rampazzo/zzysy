@@ -279,7 +279,12 @@ function EditorPageInner() {
   // ─── CANVAS INIT ─────────────────────────────────────────────
   useEffect(() => {
     if (!canvasRef.current||fabricRef.current) return;
-    const canvas = new Canvas(canvasRef.current,{width:1080,height:1080,backgroundColor:"#FFFFFF"});
+    const canvas = new Canvas(canvasRef.current,{
+      width:1080,height:1080,backgroundColor:"#FFFFFF",
+      selectionColor:"rgba(66,133,244,0.1)",
+      selectionBorderColor:"#4285F4",
+      selectionLineWidth:1,
+    });
     canvas.setZoom(0.45); canvas.setDimensions({width:1080*0.45,height:1080*0.45});
     fabricRef.current = canvas; setCanvasReady(true);
     const sync = (obj: any) => {
