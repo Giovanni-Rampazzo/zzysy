@@ -21,13 +21,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { campaignId, name, format, data, upsert } = body;
   if (!name || !format || !campaignId) return NextResponse.json({ error: "name, format e campaignId obrigatorios" }, { status: 400 });
+
   if (upsert) {
     const existing = await prisma.piece.findFirst({ where: { campaignId, format } });
-    const piece = existing
-      ? await prisma.piece.update({ where: { id: existing.id }, data: { data: data ?? {} } })
-      : await prisma.piece.create({ data: { campaignId, name, format, data: data ?? {} } });
-    return NextResponse.json(piece);
+    if (existing) {
+      const piece = await prisma.piece.update({ where: { id: existing.id }, data: { data: data ?? {} } });
+      return NextResponse.json(piece);
+    }
   }
-  const piece = await prisma.piece.create({ data: { campaignId, name, format, data: data ?? {} } });
+
+  const piece = await prisma.piece.create({
+    data: { campaignId, name, format, data: data ?? {} },
+  });
   return NextResponse.json(piece);
 }
