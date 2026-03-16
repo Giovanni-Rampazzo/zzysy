@@ -8,6 +8,12 @@ export async function GET() {
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const subscription = await prisma.subscription.findFirst({ where: { tenantId: user.tenantId } });
-  return NextResponse.json({ plan: subscription?.plan ?? "FREE", status: subscription?.status ?? "inactive" });
+  const subscription = await prisma.subscription.findFirst({ 
+    where: { tenantId: user.tenantId },
+    include: { plan: true }
+  });
+  return NextResponse.json({ 
+    plan: subscription?.plan?.name ?? "FREE", 
+    status: subscription?.status ?? "inactive" 
+  });
 }
