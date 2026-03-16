@@ -9,9 +9,9 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return NextResponse.json([]);
-  const clientId = req.nextUrl.searchParams.get("clientId");
+  const  = req.nextUrl.searchParams.get("");
   const campaigns = await prisma.campaign.findMany({
-    where: { tenantId: user.tenantId, ...(clientId ? { clientId } : {}) },
+    where: { tenantId: user.tenantId, ...( ? {  } : {}) },
     include: {
       client: { select: { id: true, name: true } },
       _count: { select: { , fields: true } },
@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const body = await req.json();
-  const { name, clientId } = body;
+  const { name } = body;
   if (!name?.trim()) return NextResponse.json({ error: "Nome obrigatorio" }, { status: 400 });
   const campaign = await prisma.campaign.create({
-    data: { tenantId: user.tenantId, name, ...(clientId ? { clientId } : {}) },
+    data: { tenantId: user.tenantId, name, ...( ? {  } : {}) },
     include: { client: { select: { id: true, name: true } }, _count: { select: { , fields: true } } },
   });
   return NextResponse.json(campaign);
