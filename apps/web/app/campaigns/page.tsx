@@ -61,7 +61,7 @@ export default function CampaignsPage() {
             <h1 style={{ fontSize:"1.5rem",fontWeight:900,color:"#111",margin:"0 0 4px",letterSpacing:"-0.03em" }}>Campanhas</h1>
             <p style={{ fontSize:"0.875rem",color:"#888",margin:0 }}>{campaigns.length} no total</p>
           </div>
-          <button onClick={()=>setShowModal(true)} style={{ padding:"11px 20px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>+ Nova campanha</button>
+          <button onClick={()=>setShowModal(true)} style={{ padding:"10px 20px",background:"#E45804",color:"#FFFFFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>+ Nova campanha</button>
         </div>
 
         <div style={{ display:"flex",gap:"12px",marginBottom:"24px",flexWrap:"wrap" }}>
@@ -83,7 +83,7 @@ export default function CampaignsPage() {
         {loading ? <div style={{ color:"#999" }}>Carregando...</div> : filtered.length===0 ? (
           <div style={{ border:"1.5px dashed #E5E5E5",borderRadius:"12px",padding:"60px 40px",textAlign:"center" }}>
             <p style={{ fontSize:"0.95rem",color:"#AAA",margin:"0 0 16px" }}>{search?"Nenhuma campanha encontrada.":"Nenhuma campanha ainda."}</p>
-            {!search&&<button onClick={()=>setShowModal(true)} style={{ padding:"10px 20px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Criar primeira campanha</button>}
+            {!search&&<button onClick={()=>setShowModal(true)} style={{ padding:"10px 20px",background:"#E45804",color:"#FFFFFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>Criar primeira campanha</button>}
           </div>
         ) : (
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:"16px" }}>
@@ -120,7 +120,7 @@ export default function CampaignsPage() {
               onFocus={e=>e.target.style.borderColor="#111"} onBlur={e=>e.target.style.borderColor="#E5E5E5"} />
             <div style={{ display:"flex",gap:"8px" }}>
               <button onClick={()=>{setShowModal(false);setNewName("");}} style={{ flex:1,padding:"11px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"transparent",color:"#666",fontSize:"0.875rem",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",fontWeight:600 }}>Cancelar</button>
-              <button onClick={handleCreate} disabled={!newName.trim()||creating} style={{ flex:1,padding:"11px",border:"none",borderRadius:"8px",background:newName.trim()?"#111":"#CCC",color:"#FFF",fontSize:"0.875rem",fontFamily:"'DM Sans',sans-serif",cursor:newName.trim()?"pointer":"not-allowed",fontWeight:700 }}>{creating?"Criando...":"Criar"}</button>
+              <button onClick={handleCreate} disabled={!newName.trim()||creating} style={{ flex:1,padding:"11px",border:"none",borderRadius:"8px",background:newName.trim()?"#E45804":"#CCC",color:"#FFF",fontSize:"0.875rem",fontFamily:"'DM Sans',sans-serif",cursor:newName.trim()?"pointer":"not-allowed",fontWeight:700 }}>{creating?"Criando...":"Criar"}</button>
             </div>
           </div>
         </div>
