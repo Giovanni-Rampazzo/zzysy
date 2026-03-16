@@ -364,9 +364,15 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
   return (
     <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)}
       style={{ border:`1.5px solid ${selected?"#111":hover?"#555":colors.border}`,borderRadius:"12px",overflow:"hidden",background:"#FFF",transition:"border-color 0.15s, box-shadow 0.15s",boxShadow:selected?"0 0 0 3px rgba(0,0,0,0.08)":hover?"0 4px 16px rgba(0,0,0,0.1)":"none",position:"relative",display:"flex",flexDirection:"column",height:"100%" }}>
-      {/* Checkbox de seleção */}
-      <div onClick={e=>{e.stopPropagation();onSelect();}} style={{ position:"absolute",top:"8px",right:"8px",zIndex:2,width:"18px",height:"18px",borderRadius:"3px",border:`1.5px solid ${selected?"#111":"#CCC"}`,background:selected?"#111":"#FFF",cursor:"pointer",display:selectMode?"flex":"none",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
-        {selected && <span style={{ color:"#FFF",fontSize:"12px",lineHeight:1 }}>✓</span>}
+      {/* Checkbox de seleção + botão apagar rápido */}
+      <div style={{ position:"absolute",top:"8px",right:"8px",zIndex:2,display:"flex",gap:"4px",alignItems:"center" }}>
+        {!selectMode && hover && (
+          <button onClick={e=>{e.stopPropagation();onDelete();}} title="Deletar"
+            style={{ width:"24px",height:"24px",borderRadius:"6px",border:"none",background:"rgba(229,57,53,0.9)",color:"#FFF",fontSize:"0.75rem",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>🗑</button>
+        )}
+        <div onClick={e=>{e.stopPropagation();onSelect();}} style={{ width:"18px",height:"18px",borderRadius:"3px",border:`1.5px solid ${selected?"#111":"#CCC"}`,background:selected?"#111":"rgba(255,255,255,0.9)",cursor:"pointer",display:selectMode?"flex":"none",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
+          {selected && <span style={{ color:"#FFF",fontSize:"12px",lineHeight:1 }}>✓</span>}
+        </div>
       </div>
       <PiecePreview key={piece.id+"-"+(piece.updatedAt||"0")} piece={piece} onClick={onEdit} />
       <div style={{ padding:"12px 14px",flexShrink:0 }}>
