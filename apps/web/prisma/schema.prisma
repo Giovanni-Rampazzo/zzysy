@@ -18,6 +18,7 @@ model Tenant {
 
   users         User[]
   campaigns     Campaign[]
+  clients       Client[]
   subscriptions Subscription[]
 }
 
@@ -192,4 +193,37 @@ enum DeliveryStatus {
   REVIEW
   APPROVED
   SENT
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  cnpj      String?
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  campaigns Campaign[]
+}
+
+model CampaignField {
+  id         String   @id @default(cuid())
+  campaignId String
+  label      String
+  type       String   @default("text")
+  value      String?  @db.Text
+  imageUrl   String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
