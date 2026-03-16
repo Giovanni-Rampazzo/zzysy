@@ -200,6 +200,8 @@ function EditorPageInner() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [layers, setLayers] = useState<Layer[]>([]);
   const [campaignName, setCampaignName] = useState("");
+  const [allCampaigns, setAllCampaigns] = useState<{id:string;name:string}[]>([]);
+  const [applyingFields, setApplyingFields] = useState(false);
   const [selectedId, setSelectedId] = useState<string|null>(null);
   const [selectedType, setSelectedType] = useState<string|null>(null);
   const formatParam = searchParams.get("format");
@@ -360,8 +362,11 @@ function EditorPageInner() {
   useEffect(() => {
     const canvas = fabricRef.current; if (!canvas||!canvasReady||pieceId||!campaignId) return;
     fetch("/api/campaigns").then(r=>r.json()).then(list=>{
-      const c = Array.isArray(list)?list.find((x:any)=>x.id===campaignId):null;
-      if (c) setCampaignName(c.name);
+      if (Array.isArray(list)) {
+        setAllCampaigns(list);
+        const c = list.find((x:any)=>x.id===campaignId);
+        if (c) setCampaignName(c.name);
+      }
     });
     fetch(`/api/campaigns/${campaignId}/matrix`).then(r=>r.ok?r.json():null).then(res=>{
       const data = res?.data; if (!data) return;
@@ -507,6 +512,44 @@ function EditorPageInner() {
     window.location.href = closeUrl + (closeUrl.includes("?") ? "&" : "?") + "ts=" + Date.now();
   },[isDirty,closeUrl,save]);
 
+  const applyFieldsToCanvas = async (toCampaignId: string) => {
+    const canvas = fabricRef.current; if (!canvas) return;
+    setApplyingFields(true);
+    try {
+      const res = await fetch("/api/campaigns/"+toCampaignId+"/fields");
+      const fields: any[] = await res.json();
+      if (!Array.isArray(fields) || !fields.length) {
+        alert("Campanha sem fields. Va em Campanhas > Campos para adicionar.");
+        return;
+      }
+      const textFields = fields.filter(f=>f.type!=="image" && f.value);
+      const imageFields = fields.filter(f=>f.type==="image" && f.imageUrl);
+      const objects = canvas.getObjects() as any[];
+      let tIdx=0, iIdx=0;
+      for (const obj of objects) {
+        const isText = obj.type==="i-text"||obj.type==="text"||obj.type==="IText";
+        const isImage = obj.type==="image";
+        if (isText && tIdx<textFields.length) {
+          obj.set({text: textFields[tIdx++].value});
+        }
+        if (isImage && iIdx<imageFields.length) {
+          const url = imageFields[iIdx++].imageUrl;
+          const imgEl = await new Promise<HTMLImageElement>((resolve)=>{
+            const img = new Image(); img.crossOrigin="anonymous";
+            img.onload=()=>resolve(img); img.src=url;
+          });
+          (obj as any).setElement(imgEl);
+        }
+      }
+      canvas.renderAll();
+      setIsDirty(true);
+      // Atualizar nome da campanha
+      const c = allCampaigns.find(x=>x.id===toCampaignId);
+      if (c) setCampaignName(c.name);
+    } catch(e) { console.error(e); }
+    finally { setApplyingFields(false); }
+  };
+
   const handleGenerate = useCallback(async (formats: string[]) => {
     const cid = activeCampaignId??campaignId; if (!cid||formats.length===0) return;
     setGenerating(true);
@@ -553,6 +596,14 @@ function EditorPageInner() {
         <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
           {!isPiece && <span style={{fontSize:"0.68rem",fontWeight:700,background:"#F5C400",color:"#111",padding:"2px 8px",borderRadius:"99px",textTransform:"uppercase",letterSpacing:"0.06em"}}>Matriz</span>}
           <span style={{fontSize:"0.9rem",fontWeight:700,color:"#111"}}>{campaignName||"Editor"}</span>
+          {allCampaigns.length>1 && (
+            <select onChange={e=>e.target.value&&applyFieldsToCanvas(e.target.value)} defaultValue=""
+              disabled={applyingFields}
+              style={{padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",fontSize:"0.75rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:"#555",cursor:"pointer",background:"#FFF"}}>
+              <option value="">{applyingFields?"Aplicando...":"Trocar campanha..."}</option>
+              {allCampaigns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
         </div>
         <div style={{flex:1}}/>
         <button onClick={undo} disabled={!canUndo} title="Desfazer (Ctrl+Z)" style={{...btn,opacity:canUndo?1:0.35,cursor:canUndo?"pointer":"not-allowed",padding:"5px 10px"}}>↩</button>
