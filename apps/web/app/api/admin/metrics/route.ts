@@ -21,7 +21,7 @@ export async function GET() {
       prisma.campaign.count(),
       prisma.piece.count(),
       Promise.all(plans.map(p => prisma.subscription.count({ where: { plan: p } }).then((c: number) => ({ plan: p, count: c })))),
-      prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 5, select: { id:true, name:true, email:true, createdAt:true, blocked:true } }),
+      prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 5, select: { id:true, name:true, email:true, createdAt:true } }),
     ]);
 
     const mrr = usersByPlan.reduce((acc, { plan, count }) => acc + (planPrices[plan] ?? 0) * count, 0);
