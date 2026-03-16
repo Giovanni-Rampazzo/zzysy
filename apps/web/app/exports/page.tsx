@@ -246,7 +246,7 @@ function ExportsPageInner() {
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
 
   const deleteSelected = () => {
-    if (!confirm(`Deletar ${selected.length} exportação${selected.length!==1?'ões':''}?`)) return;
+    if (!confirm('Deletar '+selected.length+' exportacao(oes)?')) return;
     Promise.all(selected.map((id:string) => fetch("/api/exports/"+id, {method:"DELETE"}))).then(()=>{
       setDeliveries((p:Delivery[])=>p.filter((x:Delivery)=>!selected.includes(x.id)));
       setSelected([]);
