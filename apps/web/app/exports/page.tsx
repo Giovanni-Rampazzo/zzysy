@@ -239,6 +239,8 @@ function ExportsPageInner() {
   const [filterCampaign, setFilterCampaign] = useState(searchParams.get("campaignId") ?? "");
   const [filterStatus, setFilterStatus] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
   const [view, setView] = useState<"grid"|"list">("grid");
 
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
@@ -284,9 +286,27 @@ function ExportsPageInner() {
 
         {/* HEADER */}
         <div style={{ padding:"28px 40px 0", borderBottom:b, flexShrink:0 }}>
-          <div style={{ marginBottom:"20px" }}>
-            <h1 style={{ fontSize:"1.5rem", fontWeight:900, color:colors.text, margin:"0 0 4px", letterSpacing:"-0.03em" }}>Exportações</h1>
-            <p style={{ fontSize:"0.875rem", color:colors.textMuted, margin:0 }}>{filtered.length} entrega{filtered.length!==1?"s":""}</p>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"20px" }}>
+            <div>
+              <h1 style={{ fontSize:"1.5rem", fontWeight:900, color:colors.text, margin:"0 0 4px", letterSpacing:"-0.03em" }}>Exportações</h1>
+              <p style={{ fontSize:"0.875rem", color:colors.textMuted, margin:0 }}>{filtered.length} entrega{filtered.length!==1?"s":""}{selected.length>0?` · ${selected.length} selecionada${selected.length!==1?"s":""}`:""}</p>
+            </div>
+            <div style={{ display:"flex",gap:"8px",alignItems:"center" }}>
+              {selectMode && (
+                <button onClick={()=>{setSelectMode(false);setSelected([]);}}
+                  style={{ padding:"8px 16px",background:"transparent",color:"#888",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
+                  ✕ Cancelar
+                </button>
+              )}
+              <button onClick={async()=>{ if(selected.length>0){ await deleteSelected(); } else { setSelectMode(true); } }}
+                style={{ padding:"8px 16px",background:"transparent",color:"#E53935",border:"1.5px solid #E53935",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
+                {selected.length>0?`🗑 Apagar ${selected.length}`:"🗑 Apagar"}
+              </button>
+              <button onClick={()=>{ if(selected.length>0){ /* download selected */ } else { setSelectMode(true); } }}
+                style={{ padding:"8px 20px",background:"#E45804",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
+                {selected.length>0?`⬇ Baixar ${selected.length}`:"⬇ Baixar"}
+              </button>
+            </div>
           </div>
           <div style={{ display:"flex", gap:"10px", paddingBottom:"20px", flexWrap:"wrap", alignItems:"center" }}>
             <button onClick={()=>setView("grid")} title="Grade" style={{ width:"32px",height:"32px",border:"1.5px solid "+(view==="grid"?"#111":colors.border),borderRadius:"8px",background:view==="grid"?"#111":"#FFF",color:view==="grid"?"#FFF":"#888",cursor:"pointer",fontSize:"1rem",display:"flex",alignItems:"center",justifyContent:"center" }}>⊞</button>
