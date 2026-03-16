@@ -12,12 +12,11 @@ export async function GET(req: NextRequest) {
   const clientId = req.nextUrl.searchParams.get("clientId");
   const campaigns = await prisma.campaign.findMany({
     where: { tenantId: user.tenantId, ...(clientId ? { clientId } : {}) },
-    orderBy: { createdAt: "desc" },
     include: {
       client: { select: { id: true, name: true } },
-      _count: { select: { medias: true } },
-      fields: { orderBy: { order: "asc" } },
+      _count: { select: { medias: true, fields: true } },
     },
+    orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(campaigns);
 }
@@ -27,11 +26,12 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const { name, clientId } = await req.json();
+  const body = await req.json();
+  const { name, clientId } = body;
   if (!name?.trim()) return NextResponse.json({ error: "Nome obrigatorio" }, { status: 400 });
   const campaign = await prisma.campaign.create({
     data: { tenantId: user.tenantId, name, ...(clientId ? { clientId } : {}) },
-    include: { client: { select: { id: true, name: true } }, _count: { select: { medias: true } } },
+    include: { client: { select: { id: true, name: true } }, _count: { select: { medias: true, fields: true } } },
   });
   return NextResponse.json(campaign);
 }
