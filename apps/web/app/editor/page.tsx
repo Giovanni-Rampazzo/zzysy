@@ -523,8 +523,8 @@ function EditorPageInner() {
         return;
       }
       // Separar fields por tipo — inclui mesmo sem value para substituir
-      const textFields = fields.filter(f=>f.type!=="image");
-      const imageFields = fields.filter(f=>f.type==="image" && f.imageUrl);
+      const textFields = fields.filter(f=>f.type!=="imagem");
+      const imageFields = fields.filter(f=>f.type==="imagem" && f.imageUrl);
       const objects = canvas.getObjects() as any[];
       let tIdx=0, iIdx=0;
       for (const obj of objects) {
