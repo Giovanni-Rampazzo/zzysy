@@ -243,15 +243,16 @@ function ExportsPageInner() {
   const [selectMode, setSelectMode] = useState(false);
   const [view, setView] = useState<"grid"|"list">("grid");
 
-  const deleteSelected = async () => {
-    if (!confirm(`Deletar ${selected.length} exportação${selected.length!==1?'ões':''}?`)) return;
-    await Promise.all(selected.map((id:string) => fetch("/api/exports/"+id, {method:"DELETE"})));
-    setDeliveries((p:Delivery[])=>p.filter((x:Delivery)=>!selected.includes(x.id)));
-    setSelected([]);
-    setSelectMode(false);
-  };
-
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
+
+  const deleteSelected = () => {
+    if (!confirm(`Deletar ${selected.length} exportação${selected.length!==1?'ões':''}?`)) return;
+    Promise.all(selected.map((id:string) => fetch("/api/exports/"+id, {method:"DELETE"}))).then(()=>{
+      setDeliveries((p:Delivery[])=>p.filter((x:Delivery)=>!selected.includes(x.id)));
+      setSelected([]);
+      setSelectMode(false);
+    });
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -308,11 +309,11 @@ function ExportsPageInner() {
               )}
               <button onClick={()=>{ if(selected.length>0){ deleteSelected(); } else { setSelectMode(true); } }}
                 style={{ padding:"8px 16px",background:"transparent",color:"#E53935",border:"1.5px solid #E53935",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
-                {selected.length>0?`🗑 Apagar ${selected.length}`:"🗑 Apagar"}
+                {selected.length>0?"🗑 Apagar "+selected.length:"🗑 Apagar"}
               </button>
-              <button onClick={()=>{ if(selected.length>0){ /* download selected */ } else { setSelectMode(true); } }}
+              <button onClick={()=>{ if(selected.length>0){ /* download */ } else { setSelectMode(true); } }}
                 style={{ padding:"8px 20px",background:"#E45804",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
-                {selected.length>0?`⬇ Baixar ${selected.length}`:"⬇ Baixar"}
+                {selected.length>0?"⬇ Baixar "+selected.length:"⬇ Baixar"}
               </button>
             </div>
           </div>
