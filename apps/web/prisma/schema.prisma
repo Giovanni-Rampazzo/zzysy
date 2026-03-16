@@ -17,6 +17,7 @@ model Tenant {
 
   users         User[]
   clients       Client[]
+  campaigns     Campaign[]
   subscriptions Subscription[]
 }
 
