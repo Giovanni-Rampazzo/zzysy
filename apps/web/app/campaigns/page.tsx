@@ -134,6 +134,10 @@ export default function CampaignsPage() {
                     style={{ flex:1,padding:"7px 0",background:"transparent",color:"#E45804",border:"1.5px solid #E45804",borderRadius:"8px",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>
                     🖼 Peças
                   </button>
+                  <button onClick={()=>router.push("/campaigns/"+c.id+"/fields")}
+                    style={{ flex:1,padding:"7px 0",background:"transparent",color:"#888",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>
+                    📋 Campos
+                  </button>
                 </div>
               </div>
             ))}
