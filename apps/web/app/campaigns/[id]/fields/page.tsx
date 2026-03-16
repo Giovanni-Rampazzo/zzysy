@@ -17,6 +17,7 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
   const [campaignName, setCampaignName] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string|null>(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetch("/api/campaigns/"+campaignId+"/fields").then(r=>r.json()).then(d=>{ setFields(Array.isArray(d)?d:[]); });
@@ -59,10 +60,10 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
         }
       }
       setFields(updated);
-      alert("Campos salvos!");
+      setSaved(true);
+      setTimeout(()=>setSaved(false), 3000);
     } catch(e) {
       console.error("Erro ao salvar:", e);
-      alert("Erro ao salvar campos.");
     } finally {
       setSaving(false);
     }
@@ -96,8 +97,8 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
               <p style={{fontSize:"0.875rem",color:"#888",margin:"4px 0 0"}}>{fields.length} campo{fields.length!==1?"s":""} configurado{fields.length!==1?"s":""}</p>
             </div>
             <button onClick={saveAll} disabled={saving}
-              style={{padding:"8px 24px",background:P,color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px"}}>
-              {saving?"Salvando...":"💾 Salvar tudo"}
+              style={{padding:"8px 24px",background:saved?"#34A853":P,color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",transition:"background 0.3s"}}>
+              {saving?"Salvando...":saved?"✓ Salvo":"💾 Salvar tudo"}
             </button>
           </div>
         </div>
