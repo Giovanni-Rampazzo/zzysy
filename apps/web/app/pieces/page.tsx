@@ -121,7 +121,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const rawFamily=(obj.fontFamily||'Arial').replace(/,.*$/,'').trim();
                   const isBold=obj.fontWeight==='bold'||obj.fontWeight==='700'||obj.fontWeight==='900'||Number(obj.fontWeight)>=700;
                   const isItalic=obj.fontStyle==='italic';
-                  const safeFontSize=Math.max(1,Math.round((obj.fontSize||16)*scX));
+                  const safeFontSize=Math.max(1,Math.round(obj.fontSize||16)); // scaleJsonToFormat já escalou o fontSize
                   const PS_MAP: Record<string,{r:string;b:string;i:string;bi:string}> = {
                     'Arial':{r:'ArialMT',b:'Arial-BoldMT',i:'Arial-ItalicMT',bi:'Arial-BoldItalicMT'},
                     'Verdana':{r:'Verdana',b:'Verdana-Bold',i:'Verdana-Italic',bi:'Verdana-BoldItalic'},
@@ -170,7 +170,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                       else if(f2.startsWith('rgb')){const m2=f2.match(/[0-9]+/g);if(m2&&m2.length>=3)h2=[m2[0],m2[1],m2[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join('');}
                       const b2=cs.fontWeight?(cs.fontWeight==='bold'||cs.fontWeight==='700'||cs.fontWeight==='900'||Number(cs.fontWeight)>=700):isBold;
                       const i2=cs.fontStyle?cs.fontStyle==='italic':isItalic;
-                      const fs2=Math.max(1,Math.round((cs.fontSize||obj.fontSize||16)*scX));
+                      const fs2=Math.max(1,Math.round(cs.fontSize||obj.fontSize||16)); // scaleJsonToFormat já escalou
                       const st={font:{name:psName},fontSize:fs2,fillColor:{r:parseInt(h2.substring(0,2),16),g:parseInt(h2.substring(2,4),16),b:parseInt(h2.substring(4,6),16)},fauxBold:b2,fauxItalic:i2};
                       const k=JSON.stringify(st);
                       if(k!==prevKey){if(ci>runStart)styleRuns.push({length:ci-runStart,style:prevSt});prevSt=st;prevKey=k;runStart=ci;}
