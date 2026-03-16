@@ -20,7 +20,7 @@ export async function GET() {
       prisma.user.count(),
       prisma.campaign.count(),
       prisma.piece.count(),
-      Promise.all(plans.map(p => prisma.user.count({ where: { plan: p } }).then((c: number) => ({ plan: p, count: c })))),
+      Promise.all(plans.map(p => prisma.subscription.count({ where: { plan: p } }).then((c: number) => ({ plan: p, count: c })))),
       prisma.user.findMany({ orderBy: { createdAt: "desc" }, take: 5, select: { id:true, name:true, email:true, plan:true, createdAt:true, blocked:true } }),
     ]);
 
