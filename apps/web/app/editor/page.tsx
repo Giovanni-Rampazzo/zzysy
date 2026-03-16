@@ -627,6 +627,13 @@ function EditorPageInner() {
             </button>
           </>
         )}
+        {isPiece && (
+          <select onChange={e=>e.target.value&&applyFieldsToCanvas(e.target.value)} defaultValue="" disabled={applyingFields}
+            style={{padding:"6px 12px",border:"1.5px solid #E45804",borderRadius:"8px",fontSize:"0.8rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:"#E45804",fontWeight:700,cursor:"pointer",background:"#FFF",height:"36px",boxSizing:"border-box"}}>
+            <option value="">Aplicar campanha...</option>
+            {allCampaigns.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
         {isPiece && activeCampaignId && (
           <button onClick={()=>{ window.location.href="/editor?campaign="+activeCampaignId+(pieceId?"&fromPiece="+pieceId:""); }} style={{padding:"8px 16px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box"}}>
             ✏️ Editar Matriz
