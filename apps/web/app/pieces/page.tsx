@@ -8,6 +8,7 @@ import { colors } from "@/lib/theme";
 type Piece = {
   id: string; name: string; format: string;
   status: "DRAFT"|"REVIEW"|"APPROVED"|"EXPORTED";
+  data?: any;
   createdAt: string; updatedAt: string;
   data?: any;
   campaign: { id: string; name: string };
@@ -461,6 +462,61 @@ function PiecesPageInner() {
     await fetch("/api/pieces/"+id, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({status}) });
     setPieces(p=>p.map(x=>x.id===id?{...x,status:status as Piece["status"]}:x));
   }
+  const [applying, setApplying] = useState(false);
+
+  async function applyCampaign(toCampaignId: string) {
+    if (!toCampaignId) return;
+    if (!confirm("Aplicar os fields da campanha selecionada em todas as pecas visiveis?")) return;
+    setApplying(true);
+    try {
+      // Buscar fields da campanha alvo
+      const fieldsRes = await fetch("/api/campaigns/"+toCampaignId+"/fields");
+      const fields: any[] = await fieldsRes.json();
+      if (!Array.isArray(fields) || fields.length===0) {
+        alert("Campanha sem fields configurados. Va em Campanhas > Campos para adicionar.");
+        return;
+      }
+      const textFields = fields.filter(f=>f.type!=="image" && f.value);
+      const imageFields = fields.filter(f=>f.type==="image" && f.imageUrl);
+
+      // Aplicar em cada peça filtrada
+      const piecesToUpdate = filtered;
+      for (const piece of piecesToUpdate) {
+        const data = piece.data as any;
+        if (!data || !data.objects) continue;
+        let tIdx = 0, iIdx = 0;
+        const newObjects = data.objects.map((obj: any) => {
+          const isText = obj.type==="i-text"||obj.type==="text"||obj.type==="IText";
+          const isImage = obj.type==="image";
+          if (isText && tIdx < textFields.length) {
+            const field = textFields[tIdx++];
+            return { ...obj, text: field.value };
+          }
+          if (isImage && iIdx < imageFields.length) {
+            const field = imageFields[iIdx++];
+            return { ...obj, src: field.imageUrl };
+          }
+          return obj;
+        });
+        const newData = { ...data, objects: newObjects };
+        // Salvar peça atualizada
+        await fetch("/api/pieces/"+piece.id, {
+          method:"PATCH",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({ data: newData })
+        });
+        setPieces(prev=>prev.map(p=>p.id===piece.id?{...p,data:newData}:p));
+      }
+      setFilterCampaign(toCampaignId);
+      alert("Campos aplicados em "+piecesToUpdate.length+" peca(s)!");
+    } catch(e) {
+      console.error(e);
+      alert("Erro ao aplicar campanha.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
   async function deleteSelected() {
     if (!confirm('Deletar '+selected.length+' peca(s)?')) return;
     await Promise.all(selected.map(id => fetch("/api/pieces/"+id, {method:"DELETE"})));
@@ -538,7 +594,18 @@ function PiecesPageInner() {
               </button>
             </div>
           </div>
-          <div style={{ display:"flex",gap:"10px",paddingBottom:"20px",flexWrap:"wrap",alignItems:"center" }}>
+          {/* APLICAR CAMPANHA */}
+        <div style={{ display:"flex",gap:"10px",paddingBottom:"12px",alignItems:"center",flexWrap:"wrap" }}>
+          <span style={{fontSize:"0.78rem",fontWeight:700,color:"#888",textTransform:"uppercase",letterSpacing:"0.05em"}}>Aplicar campos de:</span>
+          <select onChange={e=>e.target.value&&applyCampaign(e.target.value)} defaultValue=""
+            disabled={applying}
+            style={{border:"1.5px solid #E45804",borderRadius:"8px",padding:"7px 12px",fontSize:"0.875rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:"#E45804",fontWeight:700,cursor:"pointer",background:"#FFF"}}>
+            <option value="">Selecionar campanha...</option>
+            {campaigns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          {applying && <span style={{fontSize:"0.8rem",color:"#888"}}>Aplicando...</span>}
+        </div>
+        <div style={{ display:"flex",gap:"10px",paddingBottom:"20px",flexWrap:"wrap",alignItems:"center" }}>
             <button onClick={()=>setView("grid")} title="Grade" style={{ width:"32px",height:"32px",border:"1.5px solid "+(view==="grid"?"#111":colors.border),borderRadius:"8px",background:view==="grid"?"#111":"#FFF",color:view==="grid"?"#FFF":"#888",cursor:"pointer",fontSize:"1rem",display:"flex",alignItems:"center",justifyContent:"center" }}>⊞</button>
             <button onClick={()=>setView("list")} title="Lista" style={{ width:"32px",height:"32px",border:"1.5px solid "+(view==="list"?"#111":colors.border),borderRadius:"8px",background:view==="list"?"#111":"#FFF",color:view==="list"?"#FFF":"#888",cursor:"pointer",fontSize:"1rem",display:"flex",alignItems:"center",justifyContent:"center" }}>☰</button>
             <input style={{ border:b,borderRadius:"8px",padding:"8px 14px",fontSize:"0.875rem",outline:"none",fontFamily:"'DM Sans', sans-serif",background:"#FFF",color:colors.text,width:"220px" }} placeholder="🔍 Buscar peças..." value={search} onChange={e=>setSearch(e.target.value)} />
