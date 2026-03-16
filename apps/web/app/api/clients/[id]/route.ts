@@ -7,7 +7,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const client = await prisma.client.findUnique({ where: { id } });
+  const client = await prisma.client.findUnique({
+    where: { id },
+    include: {
+      campaigns: {
+        orderBy: { createdAt: "desc" },
+        include: { _count: { select: { medias: true } }, fields: { orderBy: { order: "asc" } } }
+      }
+    }
+  });
   if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(client);
 }
@@ -16,8 +24,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const body = await req.json();
-  const { name, cnpj, email, phone, address, city, state, zip, notes } = body;
+  const { name, cnpj, email, phone, address, city, state, zip, notes } = await req.json();
   const client = await prisma.client.update({ where: { id }, data: { name, cnpj, email, phone, address, city, state, zip, notes } });
   return NextResponse.json(client);
 }
