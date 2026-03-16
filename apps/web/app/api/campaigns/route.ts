@@ -9,13 +9,9 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   if (!user) return NextResponse.json([]);
-  const  = req.nextUrl.searchParams.get("");
   const campaigns = await prisma.campaign.findMany({
-    where: { tenantId: user.tenantId, ...( ? {  } : {}) },
-    include: {
-      client: { select: { id: true, name: true } },
-      _count: { select: { , fields: true } },
-    },
+    where: { tenantId: user.tenantId },
+    include: { _count: { select: { pieces: true } } },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(campaigns);
@@ -30,8 +26,7 @@ export async function POST(req: NextRequest) {
   const { name } = body;
   if (!name?.trim()) return NextResponse.json({ error: "Nome obrigatorio" }, { status: 400 });
   const campaign = await prisma.campaign.create({
-    data: { tenantId: user.tenantId, name, ...( ? {  } : {}) },
-    include: { client: { select: { id: true, name: true } }, _count: { select: { , fields: true } } },
+    data: { tenantId: user.tenantId, name },
   });
   return NextResponse.json(campaign);
 }
