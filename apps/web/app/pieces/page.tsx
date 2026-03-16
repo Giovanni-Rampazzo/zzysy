@@ -251,6 +251,8 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
       });
 
       onClose();
+      setSelected([]);
+      setSelectMode(false);
       router.push(`/exports?campaignId=${campaignId}`);
     } catch(e) {
       console.error(e);
@@ -598,14 +600,14 @@ function PiecesPageInner() {
                               <td style={{ padding:"10px 12px",verticalAlign:"middle" }}>
                                 <input type="checkbox" checked={selected.includes(piece.id)} onChange={()=>toggleSelect(piece.id)} style={{ cursor:"pointer",accentColor:"#111",width:"16px",height:"16px",display:"block" }}/>
                               </td>
-                              <td style={{ padding:"10px 12px",width:"80px" }}><div style={{ width:"72px",height:"48px",overflow:"hidden",borderRadius:"4px",cursor:"pointer" }} onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}><PiecePreview piece={piece} onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)} /></div></td>
+                              <td style={{ padding:"10px 12px",width:"80px" }}><div style={{ width:"72px",height:"48px",overflow:"hidden",borderRadius:"4px",cursor:"pointer" }} onClick={()=>{ const ts=Date.now(); router.push(`/editor?pieceId=${piece.id}&format=${piece.format}&ts=${ts}`); }}><PiecePreview piece={piece} onClick={()=>{ const ts=Date.now(); router.push(`/editor?pieceId=${piece.id}&format=${piece.format}&ts=${ts}`); }} /></div></td>
                               <td style={{ padding:"10px 12px",fontSize:"0.85rem",fontWeight:600,color:"#111",maxWidth:"200px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{piece.name.includes(" — ") ? piece.name.split(" — ").pop()! : piece.name}</td>
                               <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{piece.format}</td>
                               <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</td>
                               <td style={{ padding:"10px 12px" }}><span style={{ padding:"2px 8px",borderRadius:"99px",fontSize:"0.7rem",fontWeight:700,background:STATUS_COLOR[piece.status]+"22",color:STATUS_COLOR[piece.status] }}>{STATUS_LABEL[piece.status]}</span></td>
                               <td style={{ padding:"10px 12px" }}>
                                 <div style={{ display:"flex",gap:"4px" }}>
-                                  <button onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)} style={{ padding:"4px 10px",border:"1.5px solid #E45804",borderRadius:"6px",background:"transparent",fontSize:"0.72rem",cursor:"pointer",fontWeight:700,color:"#E45804" }}>Editar</button>
+                                  <button onClick={()=>{ const ts=Date.now(); router.push(`/editor?pieceId=${piece.id}&format=${piece.format}&ts=${ts}`); }} style={{ padding:"4px 10px",border:"1.5px solid #E45804",borderRadius:"6px",background:"transparent",fontSize:"0.72rem",cursor:"pointer",fontWeight:700,color:"#E45804" }}>Editar</button>
                                   <button onClick={()=>duplicatePiece(piece)} style={{ padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer" }}>⧉</button>
                                   <button onClick={()=>deletePiece(piece.id)} style={{ padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",color:"#E53935" }}>🗑</button>
                                 </div>
@@ -620,7 +622,7 @@ function PiecesPageInner() {
                           <PieceCard key={piece.id} piece={piece}
                             selected={selected.includes(piece.id)}
                             onSelect={()=>toggleSelect(piece.id)}
-                            onEdit={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}
+                            onEdit={()=>{ const ts=Date.now(); router.push(`/editor?pieceId=${piece.id}&format=${piece.format}&ts=${ts}`); }}
                             onDelete={()=>deletePiece(piece.id)}
                             onDuplicate={()=>duplicatePiece(piece)}
                             onStatusChange={(s)=>changeStatus(piece.id,s)}
