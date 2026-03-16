@@ -4,8 +4,11 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 
 type Field = { id?: string; label: string; type: string; value?: string; imageUrl?: string; order: number; };
-const TYPES = ["text","subtitle","cta","image","custom"];
-const TYPE_LABELS: Record<string,string> = { text:"Texto", subtitle:"Subtítulo", cta:"CTA", image:"Imagem", custom:"Personalizado" };
+const TYPES = ["titulo","subtitulo","texto_principal","texto_secundario","cta","www","imagem","personalizado"];
+const TYPE_LABELS: Record<string,string> = {
+  titulo:"Título", subtitulo:"Subtítulo", texto_principal:"Texto Principal",
+  texto_secundario:"Texto Secundário", cta:"CTA", www:"WWW", imagem:"Imagem", personalizado:"Personalizado"
+};
 const P = "#E45804";
 const b = "1px solid #E5E5E5";
 const inp = { width:"100%", padding:"9px 12px", border:b, borderRadius:"8px", fontSize:"0.875rem", outline:"none", fontFamily:"'DM Sans',sans-serif", boxSizing:"border-box" as const };
@@ -24,8 +27,8 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
     fetch("/api/campaigns").then(r=>r.json()).then((d:any[])=>{ const c=d.find(x=>x.id===campaignId); if(c) setCampaignName(c.name); });
   }, [campaignId]);
 
-  const addField = (type="text") => {
-    const newField: Field = { label: TYPE_LABELS[type]||"Campo", type, value:"", order: fields.length };
+  const addField = (type="titulo") => {
+    const newField: Field = { label: TYPE_LABELS[type]||type, type, value:"", order: fields.length };
     setFields(prev=>[...prev, newField]);
   };
 
@@ -115,17 +118,9 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
 
             {fields.map((f, idx) => (
               <div key={idx} style={{border:b,borderRadius:"12px",padding:"20px",marginBottom:"16px",background:"#FFF"}}>
-                <div style={{display:"flex",gap:"12px",marginBottom:"12px",alignItems:"center"}}>
-                  <div style={{flex:1,display:"flex",alignItems:"center",gap:"8px"}}>
-                    <span style={{fontSize:"0.72rem",fontWeight:700,color:"#E45804",textTransform:"uppercase",letterSpacing:"0.05em",background:"#FFF3EC",padding:"3px 8px",borderRadius:"99px",border:"1px solid #E45804"}}>
-                      {TYPE_LABELS[f.type]||f.type}
-                    </span>
-                    <input value={f.label} onChange={e=>updateField(idx,"label",e.target.value)}
-                      style={{flex:1,padding:"6px 10px",border:"1px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",outline:"none",fontFamily:"'DM Sans',sans-serif"}}
-                      placeholder="Nome do campo (ex: Título principal)"/>
-                  </div>
-                  <select value={f.type} onChange={e=>updateField(idx,"type",e.target.value)}
-                    style={{padding:"6px 10px",border:"1px solid #E5E5E5",borderRadius:"8px",fontSize:"0.8rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:"#888"}}>
+                <div style={{display:"flex",gap:"12px",alignItems:"center"}}>
+                  <select value={f.type} onChange={e=>{updateField(idx,"type",e.target.value);updateField(idx,"label",TYPE_LABELS[e.target.value]||e.target.value);}}
+                    style={{padding:"6px 12px",border:"1.5px solid #E45804",borderRadius:"8px",fontSize:"0.8rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:"#E45804",fontWeight:700,background:"#FFF3EC",flexShrink:0}}>
                     {TYPES.map(t=><option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
                   </select>
                   <button onClick={()=>removeField(idx)} style={{marginTop:"20px",background:"none",border:"none",cursor:"pointer",color:"#CCC",fontSize:"1.1rem",padding:"4px"}}
@@ -133,7 +128,7 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
                     onMouseLeave={e=>(e.currentTarget as HTMLElement).style.color="#CCC"}>🗑</button>
                 </div>
 
-                {f.type==="image" ? (
+                {f.type==="imagem" ? (
                   <div>
                     <label style={{fontSize:"0.72rem",fontWeight:700,color:"#888",display:"block",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Imagem</label>
                     <div style={{display:"flex",gap:"12px",alignItems:"center"}}>
@@ -146,13 +141,13 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <label style={{fontSize:"0.72rem",fontWeight:700,color:"#888",display:"block",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Conteúdo</label>
-                    {f.type==="text" || f.type==="custom" ? (
-                      <textarea value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} rows={3}
-                        style={{...inp,resize:"vertical"}} placeholder={"Digite o conteúdo para: "+f.label}/>
+                  <div style={{flex:1}}>
+                    {f.type==="texto_principal"||f.type==="texto_secundario"||f.type==="personalizado" ? (
+                      <textarea value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} rows={2}
+                        style={{...inp,resize:"vertical"}} placeholder={"Digite o "+( TYPE_LABELS[f.type]||f.type)+"..."}/>
                     ) : (
-                      <input value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} style={inp} placeholder={"Digite o conteúdo para: "+f.label}/>
+                      <input value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} style={inp}
+                        placeholder={"Digite o "+(TYPE_LABELS[f.type]||f.type)+"..."}/>
                     )}
                   </div>
                 )}
@@ -163,8 +158,8 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
               <p style={{fontSize:"0.8rem",fontWeight:700,color:"#888",margin:"0 0 12px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Adicionar campo</p>
               <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
                 {TYPES.map(t=>(
-                  <button key={t} onClick={()=>addField(t)}
-                    style={{padding:"6px 14px",background:"#F7F7F7",color:"#111",border:b,borderRadius:"8px",fontSize:"0.8rem",fontWeight:600,cursor:"pointer"}}>
+                  <button key={t} onClick={()=>{ addField(t); }}
+                    style={{padding:"6px 14px",background:"#FFF3EC",color:"#E45804",border:"1px solid #E45804",borderRadius:"8px",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
                     + {TYPE_LABELS[t]}
                   </button>
                 ))}
