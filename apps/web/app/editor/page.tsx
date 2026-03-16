@@ -311,7 +311,20 @@ function EditorPageInner() {
       }
       if (obj.fill&&typeof obj.fill==="string"&&!obj.fontSize) setShapeColor(obj.fill);
     };
-    canvas.on("selection:created",(e:any)=>sync(e.selected?.[0]));
+    canvas.on("selection:created",(e:any)=>{
+      const obj=e.selected?.[0] as any;
+      if(obj&&!obj.layerId){
+        const idx2=canvas.getObjects().indexOf(obj);
+        obj.layerId="layer_"+Date.now()+"_"+idx2;
+        setLayers(prev=>{
+          const exists=prev.find(l=>l.id===obj.layerId);
+          if(exists) return prev;
+          const t=(obj.type??"").toLowerCase();
+          return [...prev,{id:obj.layerId,type:(t==="i-text"?"text":t) as LayerType,name:obj.text?obj.text.substring(0,20):t==="rect"?"Retângulo":t==="circle"?"Círculo":"Imagem",visible:true,locked:false}];
+        });
+      }
+      sync(obj);
+    });
     canvas.on("selection:updated",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
     canvas.on("text:selection:changed",(e:any)=>{ if(e.target) sync(e.target); });
@@ -421,14 +434,14 @@ function EditorPageInner() {
 
   const toggleVisible = useCallback((id: string) => {
     const canvas = fabricRef.current; if (!canvas) return;
-    canvas.getObjects().forEach((o:any)=>{if(o.layerId===id)o.visible=!o.visible;});
-    canvas.renderAll(); setLayers(prev=>prev.map(l=>l.id===id?{...l,visible:!l.visible}:l));
+    canvas.getObjects().forEach((o:any)=>{if(o.layerId===id){o.visible=!o.visible;o.dirty=true;}});
+    canvas.requestRenderAll(); setLayers(prev=>prev.map(l=>l.id===id?{...l,visible:!l.visible}:l));
   },[]);
 
   const toggleLock = useCallback((id: string) => {
     const canvas = fabricRef.current; if (!canvas) return;
-    canvas.getObjects().forEach((o:any)=>{if(o.layerId===id){const lock=!o.lockMovementX;o.set({lockMovementX:lock,lockMovementY:lock,lockScalingX:lock,lockScalingY:lock,selectable:!lock});}});
-    canvas.renderAll(); setLayers(prev=>prev.map(l=>l.id===id?{...l,locked:!l.locked}:l));
+    canvas.getObjects().forEach((o:any)=>{if(o.layerId===id){const lock=!o.lockMovementX;o.set({lockMovementX:lock,lockMovementY:lock,lockScalingX:lock,lockScalingY:lock,selectable:!lock,evented:!lock});if(lock)canvas.discardActiveObject();}});
+    canvas.requestRenderAll(); setLayers(prev=>prev.map(l=>l.id===id?{...l,locked:!l.locked}:l));
   },[]);
 
   const save = useCallback(async () => {
