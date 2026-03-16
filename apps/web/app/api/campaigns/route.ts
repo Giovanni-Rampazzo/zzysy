@@ -21,12 +21,13 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { name } = await req.json();
+  const body = await req.json();
+  const { name } = body;
   if (!name) return NextResponse.json({ error: "Nome obrigatório." }, { status: 400 });
 
   const tenantId = (session.user as any).tenantId;
   const campaign = await prisma.campaign.create({
-    data: { name, tenantId },
+    data: { name, tenantId, ...(body.clientId ? { clientId: body.clientId } : {}) },
   });
 
   return NextResponse.json(campaign, { status: 201 });
