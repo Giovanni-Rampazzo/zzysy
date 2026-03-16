@@ -9,11 +9,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const campaign = await prisma.campaign.findUnique({
     where: { id },
-    include: {
-      client: { select: { id: true, name: true } },
-      fields: { orderBy: { order: "asc" } },
-      medias: { include: { _count: { select: { pieces: true } } }, orderBy: { createdAt: "asc" } },
-    },
+    include: { matrix: true, pieces: true },
   });
   if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(campaign);
@@ -24,10 +20,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const body = await req.json();
-  const { name, clientId, matrixData } = body;
+  const { name } = body;
   const campaign = await prisma.campaign.update({
     where: { id },
-    data: { ...(name ? { name } : {}), ...(clientId !== undefined ? { clientId } : {}), ...(matrixData !== undefined ? { matrixData } : {}) },
+    data: { ...(name ? { name } : {}) },
   });
   return NextResponse.json(campaign);
 }
