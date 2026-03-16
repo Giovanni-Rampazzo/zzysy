@@ -328,6 +328,20 @@ function EditorPageInner() {
     canvas.on("selection:updated",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
     canvas.on("text:selection:changed",(e:any)=>{ if(e.target) sync(e.target); });
+
+    // Zoom com scroll do mouse
+    canvas.on("mouse:wheel", (opt: any) => {
+      const delta = opt.e.deltaY;
+      let zoom = canvas.getZoom();
+      zoom *= 0.999 ** delta;
+      if (zoom > 5) zoom = 5;
+      if (zoom < 0.1) zoom = 0.1;
+      canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+      opt.e.preventDefault();
+      opt.e.stopPropagation();
+      // Atualizar o display de zoom
+      setZoom(Math.round(zoom * 100));
+    });
     canvas.on("object:modified",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
     canvas.on("object:added",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
     canvas.on("object:removed",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
