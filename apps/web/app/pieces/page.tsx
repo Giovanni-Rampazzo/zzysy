@@ -200,9 +200,10 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const dataUrlLayer=fc.toDataURL({format:'png',multiplier:1});
                   const imgElLayer=new Image();
                   await new Promise<void>(res=>{imgElLayer.onload=()=>res();imgElLayer.src=dataUrlLayer;});
+                  // drawImage com dimensão natural → estica para canvW x canvH (corrige Retina 2x)
                   const tmpLayer=document.createElement('canvas');
                   tmpLayer.width=canvW; tmpLayer.height=canvH;
-                  tmpLayer.getContext('2d')!.drawImage(imgElLayer,0,0,canvW,canvH);
+                  tmpLayer.getContext('2d')!.drawImage(imgElLayer,0,0,imgElLayer.naturalWidth,imgElLayer.naturalHeight,0,0,canvW,canvH);
                   const imgData=tmpLayer.getContext('2d')!.getImageData(0,0,canvW,canvH);
                   psdLayers.push({name,imageData:imgData,top:0,left:0,bottom:canvH,right:canvW});
                 }
