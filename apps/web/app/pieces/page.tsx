@@ -194,7 +194,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   // layer pixel para shapes/imagens
                   objects.forEach((o:any,idx:number)=>{o.visible=idx===oi;});
                   fc.renderAll();
-                  await new Promise<void>(res=>setTimeout(res,60));
+                  await new Promise<void>(res=>setTimeout(res,150));
                   fc.renderAll();
                   const nativeEl=(fc as any).lowerCanvasEl as HTMLCanvasElement;
                   const tmp=document.createElement('canvas');
@@ -251,7 +251,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
       });
 
       onClose();
-      router.push(`/exports?campaignId=${campaignId}`);
+      router.push(`/pieces?campaignId=${campaignId}`);
     } catch(e) {
       console.error(e);
       alert("Erro ao exportar.");
