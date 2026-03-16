@@ -7,10 +7,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const fields = await prisma.campaignField.findMany({
-    where: { campaignId: id },
-    orderBy: { order: "asc" },
-  });
+  const fields = await prisma.campaignField.findMany({ where: { campaignId: id }, orderBy: { order: "asc" } });
   return NextResponse.json(fields);
 }
 
@@ -18,10 +15,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const body = await req.json();
-  const { label, type, value, imageUrl, order } = body;
+  const { label, type, value, imageUrl, order } = await req.json();
   const field = await prisma.campaignField.create({
-    data: { campaignId: id, label: label || "Campo", type: type || "text", value, imageUrl, order: order ?? 0 },
+    data: { campaignId: id, label: label || "Campo", type: type || "titulo", value, imageUrl, order: order ?? 0 },
   });
   return NextResponse.json(field);
 }
