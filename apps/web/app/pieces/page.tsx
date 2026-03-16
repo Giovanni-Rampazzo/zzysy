@@ -607,8 +607,8 @@ function PiecesPageInner() {
                               <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{piece.format}</td>
                               <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</td>
                               <td style={{ padding:"10px 12px" }}><span style={{ padding:"2px 8px",borderRadius:"99px",fontSize:"0.7rem",fontWeight:700,background:STATUS_COLOR[piece.status]+"22",color:STATUS_COLOR[piece.status] }}>{STATUS_LABEL[piece.status]}</span></td>
-                              <td style={{ padding:"10px 12px" }}>
-                                <div style={{ display:"flex",gap:"4px" }}>
+                              <td style={{ padding:"10px 12px",whiteSpace:"nowrap",minWidth:"120px" }}>
+                                <div style={{ display:"flex",gap:"4px",flexWrap:"nowrap" }}>
                                   <button onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format+"&ts="+Date.now())} style={{ padding:"4px 10px",border:"1.5px solid #E45804",borderRadius:"6px",background:"transparent",fontSize:"0.72rem",cursor:"pointer",fontWeight:700,color:"#E45804" }}>Editar</button>
                                   <button onClick={()=>duplicatePiece(piece)} style={{ padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer" }}>⧉</button>
                                   <button onClick={()=>deletePiece(piece.id)} style={{ padding:"4px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",fontSize:"0.72rem",cursor:"pointer",color:"#E53935" }}>🗑</button>
