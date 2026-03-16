@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     where: { tenantId: user.tenantId, ...(clientId ? { clientId } : {}) },
     include: {
       client: { select: { id: true, name: true } },
-      _count: { select: { medias: true, fields: true } },
+      _count: { select: { , fields: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (!name?.trim()) return NextResponse.json({ error: "Nome obrigatorio" }, { status: 400 });
   const campaign = await prisma.campaign.create({
     data: { tenantId: user.tenantId, name, ...(clientId ? { clientId } : {}) },
-    include: { client: { select: { id: true, name: true } }, _count: { select: { medias: true, fields: true } } },
+    include: { client: { select: { id: true, name: true } }, _count: { select: { , fields: true } } },
   });
   return NextResponse.json(campaign);
 }
