@@ -517,21 +517,19 @@ function PiecesPageInner() {
               <p style={{ fontSize:"0.875rem",color:colors.textMuted,margin:0 }}>{filtered.length} peça{filtered.length!==1?"s":""}{selected.length>0?` · ${selected.length} selecionada${selected.length!==1?"s":""}`:""}</p>
             </div>
             <div style={{ display:"flex",gap:"8px",alignItems:"center" }}>
-              {selectMode && selected.length>0 && (
-                <>
-                  <button onClick={deleteSelected}
-                    style={{ padding:"10px 16px",background:"transparent",color:"#E53935",border:"1.5px solid #E53935",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
-                    🗑 Apagar {selected.length}
-                  </button>
-                  <button onClick={()=>setShowExport(true)}
-                    style={{ padding:"10px 20px",background:"#E45804",color:"#FFFFFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
-                    ⬆ Exportar {selected.length} peça{selected.length!==1?"s":""}
-                  </button>
-                </>
+              {selectMode && (
+                <button onClick={()=>{setSelectMode(false);setSelected([]);}}
+                  style={{ padding:"8px 16px",background:"transparent",color:"#888",border:"1.5px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
+                  ✕ Cancelar
+                </button>
               )}
-              <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}}
-                style={{ padding:"10px 16px",background:selectMode?"transparent":"#E45804",color:selectMode?"#E53935":"#FFFFFF",border:"1.5px solid "+(selectMode?"#E5E5E5":"#E45804"),borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
-                {selectMode?"✕ Cancelar":"⬆ Exportar"}
+              <button onClick={async()=>{ if(selected.length>0){ await deleteSelected(); setSelectMode(false); } else { setSelectMode(true); } }}
+                style={{ padding:"8px 16px",background:"transparent",color:"#E53935",border:"1.5px solid #E53935",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
+                {selected.length>0?`🗑 Apagar ${selected.length}`:"🗑 Apagar"}
+              </button>
+              <button onClick={()=>{ if(selected.length>0){ setShowExport(true); } else { setSelectMode(true); } }}
+                style={{ padding:"8px 20px",background:"#E45804",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
+                {selected.length>0?`⬆ Exportar ${selected.length}`:"⬆ Exportar"}
               </button>
             </div>
           </div>
