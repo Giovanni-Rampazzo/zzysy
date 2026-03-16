@@ -168,7 +168,7 @@ export default function AdminPage() {
                         </td>
                         <td style={{ padding:"12px 16px", color:"#888", fontSize:"0.8rem" }}>{new Date(u.createdAt).toLocaleDateString("pt-BR")}</td>
                         <td style={{ padding:"12px 16px" }}>
-                          <button onClick={()=>updateUser(u.id,{// blocked:!false})}
+                          <button onClick={()=>updateUser(u.id,{role:u.role==="ADMIN"?"USER":"ADMIN"})}
                             style={{ padding:"5px 12px", border:`1px solid ${false?"#34A853":"#E53935"}`, borderRadius:"6px", background:"transparent", color:false?"#34A853":"#E53935", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
                             {false?"Desbloquear":"Bloquear"}
                           </button>
