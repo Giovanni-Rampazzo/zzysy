@@ -118,6 +118,13 @@ function DeliveryCard({ delivery, onStatusChange, onDelete, view }: {
   const [downloading, setDownloading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  const deleteSelected = async () => {
+    if (!confirm(`Deletar ${selected.length} exportação${selected.length!==1?'ões':''}?`)) return;
+    await Promise.all(selected.map((id:string) => fetch("/api/exports/"+id, {method:"DELETE"})));
+    setExports((p:any[])=>p.filter((x:any)=>!selected.includes(x.id)));
+    setSelected([]);
+    setSelectMode(false);
+  };
   const handleDownload = async () => {
     setDownloading(true);
     try { await downloadDeliveryZip(delivery); }
