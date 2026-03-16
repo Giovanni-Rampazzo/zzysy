@@ -465,52 +465,30 @@ function PiecesPageInner() {
 
   async function applyCampaign(toCampaignId: string) {
     if (!toCampaignId) return;
-    if (!confirm("Aplicar os fields da campanha selecionada em todas as pecas visiveis?")) return;
     setApplying(true);
     try {
-      // Buscar fields da campanha alvo
-      const fieldsRes = await fetch("/api/campaigns/"+toCampaignId+"/fields");
-      const fields: any[] = await fieldsRes.json();
-      if (!Array.isArray(fields) || fields.length===0) {
-        alert("Campanha sem fields configurados. Va em Campanhas > Campos para adicionar.");
+      const pieceIds = filtered.map(p=>p.id);
+      if (!pieceIds.length) return;
+      const res = await fetch("/api/pieces/apply-campaign", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ pieceIds, campaignId: toCampaignId })
+      });
+      const result = await res.json();
+      if (res.status===422) {
+        alert("Campanha sem fields. Va em Campanhas > Campos para adicionar.");
         return;
       }
-      const textFields = fields.filter(f=>f.type!=="image" && f.value);
-      const imageFields = fields.filter(f=>f.type==="image" && f.imageUrl);
-
-      // Aplicar em cada peça filtrada
-      const piecesToUpdate = filtered;
-      for (const piece of piecesToUpdate) {
-        const data = piece.data as any;
-        if (!data || !data.objects) continue;
-        let tIdx = 0, iIdx = 0;
-        const newObjects = data.objects.map((obj: any) => {
-          const isText = obj.type==="i-text"||obj.type==="text"||obj.type==="IText";
-          const isImage = obj.type==="image";
-          if (isText && tIdx < textFields.length) {
-            const field = textFields[tIdx++];
-            return { ...obj, text: field.value };
-          }
-          if (isImage && iIdx < imageFields.length) {
-            const field = imageFields[iIdx++];
-            return { ...obj, src: field.imageUrl };
-          }
-          return obj;
+      if (!res.ok) { alert("Erro ao aplicar."); return; }
+      // Atualizar dados locais
+      if (result.results) {
+        result.results.forEach((r: any) => {
+          setPieces(prev=>prev.map(p=>p.id===r.id?{...p,data:r.data}:p));
         });
-        const newData = { ...data, objects: newObjects };
-        // Salvar peça atualizada
-        await fetch("/api/pieces/"+piece.id, {
-          method:"PATCH",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({ data: newData })
-        });
-        setPieces(prev=>prev.map(p=>p.id===piece.id?{...p,data:newData}:p));
       }
       setFilterCampaign(toCampaignId);
-      alert("Campos aplicados em "+piecesToUpdate.length+" peca(s)!");
     } catch(e) {
       console.error(e);
-      alert("Erro ao aplicar campanha.");
     } finally {
       setApplying(false);
     }
