@@ -85,223 +85,122 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               const origVisible = objects.map((o:any) => o.visible);
               const origBg = (fc as any).backgroundColor;
 
-              // ── fundo branco como layer pixel ──────────────────
+              // fundo como layer pixel
               const bgCanvas = document.createElement('canvas');
               bgCanvas.width = canvW; bgCanvas.height = canvH;
               const bgCtx = bgCanvas.getContext('2d')!;
               bgCtx.fillStyle = (origBg && origBg !== 'transparent') ? origBg : '#FFFFFF';
               bgCtx.fillRect(0, 0, canvW, canvH);
-              psdLayers.push({ name: 'Background', imageData: bgCtx.getImageData(0, 0, canvW, canvH), top: 0, left: 0, bottom: canvH, right: canvW });
-
+              psdLayers.push({ name: 'Background', imageData: bgCtx.getImageData(0,0,canvW,canvH), top:0, left:0, bottom:canvH, right:canvW });
               (fc as any).backgroundColor = 'transparent';
 
               for (let oi = 0; oi < objects.length; oi++) {
                 const obj = objects[oi] as any;
-                const name = obj.text?.substring(0, 40) || obj.layerId || obj.type || 'layer';
+                const name = obj.text?.substring(0,40) || obj.layerId || obj.type || 'layer';
                 const isText = obj.type === 'i-text' || obj.type === 'text' || obj.type === 'IText';
 
                 if (isText) {
-                  // ── COR: parse hex ou rgb(), valores 0-255 ────
+                  // cor: parse hex ou rgb(), valores 0-255
                   const rawFill = (obj.fill && typeof obj.fill === 'string') ? obj.fill.trim() : '#000000';
                   let hexFill = '000000';
-                  if (rawFill.startsWith('#')) {
-                    hexFill = rawFill.replace('#','').padEnd(6,'0');
-                  } else if (rawFill.startsWith('rgb')) {
-                    const m = rawFill.match(/[0-9]+/g);
-                    if (m && m.length >= 3) hexFill = [m[0],m[1],m[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join('');
-                  }
-                  // ag-psd usa 0-255 (NÃO normalizado)
-                  const cr = parseInt(hexFill.substring(0,2),16);
-                  const cg = parseInt(hexFill.substring(2,4),16);
-                  const cb = parseInt(hexFill.substring(4,6),16);
+                  if (rawFill.startsWith('#')) { hexFill = rawFill.replace('#','').padEnd(6,'0'); }
+                  else if (rawFill.startsWith('rgb')) { const m=rawFill.match(/[0-9]+/g); if(m&&m.length>=3) hexFill=[m[0],m[1],m[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join(''); }
+                  const cr=parseInt(hexFill.substring(0,2),16), cg=parseInt(hexFill.substring(2,4),16), cb=parseInt(hexFill.substring(4,6),16);
 
-                  // ── ESCALA E DIMENSÕES VISUAIS ─────────────────
-                  const scX = obj.scaleX || 1;
-                  const scY = obj.scaleY || 1;
-                  // Dimensões visuais reais = dimensão_base * scale
-                  const objW = Math.round((obj.width  || 100) * scX);
-                  const objH = Math.round((obj.height || 30)  * scY);
+                  // dimensões e posição reais
+                  const scX=obj.scaleX||1, scY=obj.scaleY||1;
+                  const objW=Math.round((obj.width||100)*scX), objH=Math.round((obj.height||30)*scY);
+                  const cx=obj.left||0, cy=obj.top||0;
+                  const ox=obj.originX||'left', oy=obj.originY||'top';
+                  const objLeft=Math.round(ox==='center'?cx-objW/2:ox==='right'?cx-objW:cx);
+                  const objTop=Math.round(oy==='center'?cy-objH/2:oy==='bottom'?cy-objH:cy);
 
-                  // ── POSIÇÃO REAL ───────────────────────────────
-                  // Fabric: left/top é o ponto de ORIGEM do objeto
-                  // originX/Y pode ser 'left'|'center'|'right'|'top'|'bottom'
-                  const cx = obj.left || 0;
-                  const cy = obj.top  || 0;
-                  const ox = obj.originX || 'left';
-                  const oy = obj.originY || 'top';
-                  const objLeft = Math.round(ox === 'center' ? cx - objW/2 : ox === 'right' ? cx - objW : cx);
-                  const objTop  = Math.round(oy === 'center' ? cy - objH/2 : oy === 'bottom' ? cy - objH : cy);
-
-                  // ── FONTE ──────────────────────────────────────
-                  // fontFamily pode ter fallbacks separados por vírgula
-                  const rawFamily = (obj.fontFamily || 'Arial').replace(/,.*$/, '').trim();
-                  const isBold    = obj.fontWeight === 'bold' || obj.fontWeight === '700' || obj.fontWeight === '900' || Number(obj.fontWeight) >= 700;
-                  const isItalic  = obj.fontStyle === 'italic';
-                  // fontSize visual = fontSize_original * scaleX
-                  const safeFontSize = Math.max(1, Math.round((obj.fontSize || 16) * scX));
-
-                  // ── POSTSCRIPT NAME ────────────────────────────
-                  // Para fontes padrão: mapa fixo de nomes PS
-                  // Para fontes customizadas: usa o nome direto (usuário deve ter instalada)
+                  // fonte
+                  const rawFamily=(obj.fontFamily||'Arial').replace(/,.*$/,'').trim();
+                  const isBold=obj.fontWeight==='bold'||obj.fontWeight==='700'||obj.fontWeight==='900'||Number(obj.fontWeight)>=700;
+                  const isItalic=obj.fontStyle==='italic';
+                  const safeFontSize=Math.max(1,Math.round((obj.fontSize||16)*scX));
                   const PS_MAP: Record<string,{r:string;b:string;i:string;bi:string}> = {
-                    'Arial':            {r:'ArialMT',                b:'Arial-BoldMT',                i:'Arial-ItalicMT',                bi:'Arial-BoldItalicMT'},
-                    'Verdana':          {r:'Verdana',                b:'Verdana-Bold',                i:'Verdana-Italic',                bi:'Verdana-BoldItalic'},
-                    'Georgia':          {r:'Georgia',                b:'Georgia-Bold',                i:'Georgia-Italic',                bi:'Georgia-BoldItalic'},
-                    'Times New Roman':  {r:'TimesNewRomanPSMT',      b:'TimesNewRomanPS-BoldMT',      i:'TimesNewRomanPS-ItalicMT',      bi:'TimesNewRomanPS-BoldItalicMT'},
-                    'Courier New':      {r:'CourierNewPSMT',         b:'CourierNewPS-BoldMT',         i:'CourierNewPS-ItalicMT',         bi:'CourierNewPS-BoldItalicMT'},
-                    'Helvetica':        {r:'Helvetica',              b:'Helvetica-Bold',              i:'Helvetica-Oblique',             bi:'Helvetica-BoldOblique'},
-                    'DM Sans':          {r:'DMSans-Regular',         b:'DMSans-Bold',                 i:'DMSans-Italic',                 bi:'DMSans-BoldItalic'},
-                    'Inter':            {r:'Inter-Regular',          b:'Inter-Bold',                  i:'Inter-Italic',                  bi:'Inter-BoldItalic'},
-                    'Roboto':           {r:'Roboto-Regular',         b:'Roboto-Bold',                 i:'Roboto-Italic',                 bi:'Roboto-BoldItalic'},
-                    'Montserrat':       {r:'Montserrat-Regular',     b:'Montserrat-Bold',             i:'Montserrat-Italic',             bi:'Montserrat-BoldItalic'},
-                    'Poppins':          {r:'Poppins-Regular',        b:'Poppins-Bold',                i:'Poppins-Italic',                bi:'Poppins-BoldItalic'},
-                    'Lato':             {r:'Lato-Regular',           b:'Lato-Bold',                   i:'Lato-Italic',                   bi:'Lato-BoldItalic'},
-                    'Open Sans':        {r:'OpenSans-Regular',       b:'OpenSans-Bold',               i:'OpenSans-Italic',               bi:'OpenSans-BoldItalic'},
-                    'Oswald':           {r:'Oswald-Regular',         b:'Oswald-Bold',                 i:'Oswald-Regular',                bi:'Oswald-Bold'},
-                    'Raleway':          {r:'Raleway-Regular',        b:'Raleway-Bold',                i:'Raleway-Italic',                bi:'Raleway-BoldItalic'},
-                    'Nunito':           {r:'Nunito-Regular',         b:'Nunito-Bold',                 i:'Nunito-Italic',                 bi:'Nunito-BoldItalic'},
-                    'Playfair Display': {r:'PlayfairDisplay-Regular',b:'PlayfairDisplay-Bold',        i:'PlayfairDisplay-Italic',        bi:'PlayfairDisplay-BoldItalic'},
-                    'Bebas Neue':       {r:'BebasNeue-Regular',      b:'BebasNeue-Regular',           i:'BebasNeue-Regular',             bi:'BebasNeue-Regular'},
-                    'Anton':            {r:'Anton-Regular',          b:'Anton-Regular',               i:'Anton-Regular',                 bi:'Anton-Regular'},
-                    'Source Sans Pro':  {r:'SourceSansPro-Regular',  b:'SourceSansPro-Bold',          i:'SourceSansPro-Italic',          bi:'SourceSansPro-BoldItalic'},
-                    'Ubuntu':           {r:'Ubuntu-Regular',         b:'Ubuntu-Bold',                 i:'Ubuntu-Italic',                 bi:'Ubuntu-BoldItalic'},
-                    'PT Sans':          {r:'PTSans-Regular',         b:'PTSans-Bold',                 i:'PTSans-Italic',                 bi:'PTSans-BoldItalic'},
-                    'Barlow':           {r:'Barlow-Regular',         b:'Barlow-Bold',                 i:'Barlow-Italic',                 bi:'Barlow-BoldItalic'},
-                    'Mulish':           {r:'Mulish-Regular',         b:'Mulish-Bold',                 i:'Mulish-Italic',                 bi:'Mulish-BoldItalic'},
-                    'Work Sans':        {r:'WorkSans-Regular',       b:'WorkSans-Bold',               i:'WorkSans-Italic',               bi:'WorkSans-BoldItalic'},
-                    'Merriweather':     {r:'Merriweather-Regular',   b:'Merriweather-Bold',           i:'Merriweather-Italic',           bi:'Merriweather-BoldItalic'},
+                    'Arial':{r:'ArialMT',b:'Arial-BoldMT',i:'Arial-ItalicMT',bi:'Arial-BoldItalicMT'},
+                    'Verdana':{r:'Verdana',b:'Verdana-Bold',i:'Verdana-Italic',bi:'Verdana-BoldItalic'},
+                    'Georgia':{r:'Georgia',b:'Georgia-Bold',i:'Georgia-Italic',bi:'Georgia-BoldItalic'},
+                    'Times New Roman':{r:'TimesNewRomanPSMT',b:'TimesNewRomanPS-BoldMT',i:'TimesNewRomanPS-ItalicMT',bi:'TimesNewRomanPS-BoldItalicMT'},
+                    'Courier New':{r:'CourierNewPSMT',b:'CourierNewPS-BoldMT',i:'CourierNewPS-ItalicMT',bi:'CourierNewPS-BoldItalicMT'},
+                    'Helvetica':{r:'Helvetica',b:'Helvetica-Bold',i:'Helvetica-Oblique',bi:'Helvetica-BoldOblique'},
+                    'DM Sans':{r:'DMSans-Regular',b:'DMSans-Bold',i:'DMSans-Italic',bi:'DMSans-BoldItalic'},
+                    'Inter':{r:'Inter-Regular',b:'Inter-Bold',i:'Inter-Italic',bi:'Inter-BoldItalic'},
+                    'Roboto':{r:'Roboto-Regular',b:'Roboto-Bold',i:'Roboto-Italic',bi:'Roboto-BoldItalic'},
+                    'Montserrat':{r:'Montserrat-Regular',b:'Montserrat-Bold',i:'Montserrat-Italic',bi:'Montserrat-BoldItalic'},
+                    'Poppins':{r:'Poppins-Regular',b:'Poppins-Bold',i:'Poppins-Italic',bi:'Poppins-BoldItalic'},
+                    'Lato':{r:'Lato-Regular',b:'Lato-Bold',i:'Lato-Italic',bi:'Lato-BoldItalic'},
+                    'Open Sans':{r:'OpenSans-Regular',b:'OpenSans-Bold',i:'OpenSans-Italic',bi:'OpenSans-BoldItalic'},
+                    'Oswald':{r:'Oswald-Regular',b:'Oswald-Bold',i:'Oswald-Regular',bi:'Oswald-Bold'},
+                    'Raleway':{r:'Raleway-Regular',b:'Raleway-Bold',i:'Raleway-Italic',bi:'Raleway-BoldItalic'},
+                    'Nunito':{r:'Nunito-Regular',b:'Nunito-Bold',i:'Nunito-Italic',bi:'Nunito-BoldItalic'},
+                    'Playfair Display':{r:'PlayfairDisplay-Regular',b:'PlayfairDisplay-Bold',i:'PlayfairDisplay-Italic',bi:'PlayfairDisplay-BoldItalic'},
+                    'Bebas Neue':{r:'BebasNeue-Regular',b:'BebasNeue-Regular',i:'BebasNeue-Regular',bi:'BebasNeue-Regular'},
+                    'Anton':{r:'Anton-Regular',b:'Anton-Regular',i:'Anton-Regular',bi:'Anton-Regular'},
+                    'Source Sans Pro':{r:'SourceSansPro-Regular',b:'SourceSansPro-Bold',i:'SourceSansPro-Italic',bi:'SourceSansPro-BoldItalic'},
+                    'Ubuntu':{r:'Ubuntu-Regular',b:'Ubuntu-Bold',i:'Ubuntu-Italic',bi:'Ubuntu-BoldItalic'},
+                    'PT Sans':{r:'PTSans-Regular',b:'PTSans-Bold',i:'PTSans-Italic',bi:'PTSans-BoldItalic'},
+                    'Barlow':{r:'Barlow-Regular',b:'Barlow-Bold',i:'Barlow-Italic',bi:'Barlow-BoldItalic'},
+                    'Mulish':{r:'Mulish-Regular',b:'Mulish-Bold',i:'Mulish-Italic',bi:'Mulish-BoldItalic'},
+                    'Work Sans':{r:'WorkSans-Regular',b:'WorkSans-Bold',i:'WorkSans-Italic',bi:'WorkSans-BoldItalic'},
+                    'Merriweather':{r:'Merriweather-Regular',b:'Merriweather-Bold',i:'Merriweather-Italic',bi:'Merriweather-BoldItalic'},
                   };
-                  const psEntry = PS_MAP[rawFamily];
-                  // Fontes customizadas (upload do usuário): usa o nome direto
-                  // O Photoshop vai tentar resolver pelo nome — se a fonte estiver instalada, funciona
-                  const psName = psEntry
-                    ? (isBold && isItalic ? psEntry.bi : isBold ? psEntry.b : isItalic ? psEntry.i : psEntry.r)
-                    : rawFamily; // nome direto para fontes customizadas
+                  const psEntry=PS_MAP[rawFamily];
+                  const psName=psEntry?(isBold&&isItalic?psEntry.bi:isBold?psEntry.b:isItalic?psEntry.i:psEntry.r):rawFamily;
 
-                  // ── TEXTO E STYLERUNS ─────────────────────────
-                  const textContent = (obj.text || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-                  const baseStyle = {
-                    font: { name: psName },
-                    fontSize: safeFontSize,
-                    fillColor: { r: cr, g: cg, b: cb },
-                    fauxBold:   isBold,
-                    fauxItalic: isItalic,
-                  };
-
-                  // styleRuns: suporte a cores/estilos por caractere (Fabric styles[lineIdx][charIdx])
-                  const fabricStyles = obj.styles || [];
-                  const styleRuns: any[] = [];
-
+                  const textContent=(obj.text||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+                  const baseStyle={ font:{name:psName}, fontSize:safeFontSize, fillColor:{r:cr,g:cg,b:cb}, fauxBold:isBold, fauxItalic:isItalic };
+                  const fabricStyles=obj.styles||[];
+                  const styleRuns: any[]=[];
                   if (!fabricStyles.length) {
-                    // Caso simples: cor uniforme
-                    styleRuns.push({ length: textContent.length, style: baseStyle });
+                    styleRuns.push({ length:textContent.length, style:baseStyle });
                   } else {
-                    // Percorre caractere a caractere agrupando runs com estilos iguais
-                    let runStart = 0;
-                    let prevStyleKey = '';
-                    let prevStyle = baseStyle;
-                    let lineIdx = 0;
-                    let charIdx = 0;
-                    for (let ci = 0; ci < textContent.length; ci++) {
-                      if (textContent[ci] === '\n') { lineIdx++; charIdx = 0; continue; }
-                      const cs = (fabricStyles[lineIdx] && fabricStyles[lineIdx][charIdx]) || {};
-                      const f2 = (cs.fill && typeof cs.fill === 'string') ? cs.fill.trim() : rawFill;
-                      let h2 = '000000';
-                      if (f2.startsWith('#')) h2 = f2.replace('#','').padEnd(6,'0');
-                      else if (f2.startsWith('rgb')) { const m2=f2.match(/[0-9]+/g); if(m2&&m2.length>=3) h2=[m2[0],m2[1],m2[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join(''); }
-                      const bold2 = cs.fontWeight ? (cs.fontWeight==='bold'||cs.fontWeight==='700'||cs.fontWeight==='900'||Number(cs.fontWeight)>=700) : isBold;
-                      const italic2 = cs.fontStyle ? cs.fontStyle==='italic' : isItalic;
-                      const fs2 = Math.max(1, Math.round((cs.fontSize || obj.fontSize || 16) * scX));
-                      const thisStyle = { font:{name:psName}, fontSize:fs2, fillColor:{r:parseInt(h2.substring(0,2),16),g:parseInt(h2.substring(2,4),16),b:parseInt(h2.substring(4,6),16)}, fauxBold:bold2, fauxItalic:italic2 };
-                      const key = JSON.stringify(thisStyle);
-                      if (key !== prevStyleKey) {
-                        if (ci > runStart) styleRuns.push({ length: ci - runStart, style: prevStyle });
-                        prevStyle = thisStyle; prevStyleKey = key; runStart = ci;
-                      }
-                      charIdx++;
+                    let runStart=0, prevKey='', prevSt=baseStyle, lIdx=0, cIdx=0;
+                    for (let ci=0;ci<textContent.length;ci++) {
+                      if (textContent[ci]==='\n'){lIdx++;cIdx=0;continue;}
+                      const cs=(fabricStyles[lIdx]&&fabricStyles[lIdx][cIdx])||{};
+                      const f2=(cs.fill&&typeof cs.fill==='string')?cs.fill.trim():rawFill;
+                      let h2='000000';
+                      if(f2.startsWith('#'))h2=f2.replace('#','').padEnd(6,'0');
+                      else if(f2.startsWith('rgb')){const m2=f2.match(/[0-9]+/g);if(m2&&m2.length>=3)h2=[m2[0],m2[1],m2[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join('');}
+                      const b2=cs.fontWeight?(cs.fontWeight==='bold'||cs.fontWeight==='700'||cs.fontWeight==='900'||Number(cs.fontWeight)>=700):isBold;
+                      const i2=cs.fontStyle?cs.fontStyle==='italic':isItalic;
+                      const fs2=Math.max(1,Math.round((cs.fontSize||obj.fontSize||16)*scX));
+                      const st={font:{name:psName},fontSize:fs2,fillColor:{r:parseInt(h2.substring(0,2),16),g:parseInt(h2.substring(2,4),16),b:parseInt(h2.substring(4,6),16)},fauxBold:b2,fauxItalic:i2};
+                      const k=JSON.stringify(st);
+                      if(k!==prevKey){if(ci>runStart)styleRuns.push({length:ci-runStart,style:prevSt});prevSt=st;prevKey=k;runStart=ci;}
+                      cIdx++;
                     }
-                    if (runStart < textContent.length) styleRuns.push({ length: textContent.length - runStart, style: prevStyle });
-                    if (!styleRuns.length) styleRuns.push({ length: textContent.length, style: baseStyle });
+                    if(runStart<textContent.length)styleRuns.push({length:textContent.length-runStart,style:prevSt});
+                    if(!styleRuns.length)styleRuns.push({length:textContent.length,style:baseStyle});
                   }
-
-                  psdLayers.push({
-                    name,
-                    text: {
-                      text: textContent,
-                      transform: [1, 0, 0, 1, objLeft, objTop],
-                      style: baseStyle,
-                      styleRuns,
-                      paragraphStyle: {
-                        justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left',
-                      },
-                    },
-                  });
+                  psdLayers.push({ name, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
                 } else {
-                    // Percorre caractere a caractere agrupando runs com estilos iguais
-                    let runStart = 0;
-                    let prevStyleKey = '';
-                    let prevStyle = baseStyle;
-                    let lineIdx = 0;
-                    let charIdx = 0;
-                    for (let ci = 0; ci < textContent.length; ci++) {
-                      if (textContent[ci] === '\n') { lineIdx++; charIdx = 0; continue; }
-                      const cs = (fabricStyles[lineIdx] && fabricStyles[lineIdx][charIdx]) || {};
-                      const f2 = (cs.fill && typeof cs.fill === 'string') ? cs.fill.trim() : rawFill;
-                      let h2 = '000000';
-                      if (f2.startsWith('#')) h2 = f2.replace('#','').padEnd(6,'0');
-                      else if (f2.startsWith('rgb')) { const m2=f2.match(/[0-9]+/g); if(m2&&m2.length>=3) h2=[m2[0],m2[1],m2[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join(''); }
-                      const bold2 = cs.fontWeight ? (cs.fontWeight==='bold'||cs.fontWeight==='700'||cs.fontWeight==='900'||Number(cs.fontWeight)>=700) : isBold;
-                      const italic2 = cs.fontStyle ? cs.fontStyle==='italic' : isItalic;
-                      const fs2 = Math.max(1, Math.round((cs.fontSize || obj.fontSize || 16) * scX));
-                      const thisStyle = { font:{name:psName}, fontSize:fs2, fillColor:{r:parseInt(h2.substring(0,2),16),g:parseInt(h2.substring(2,4),16),b:parseInt(h2.substring(4,6),16)}, fauxBold:bold2, fauxItalic:italic2 };
-                      const key = JSON.stringify(thisStyle);
-                      if (key !== prevStyleKey) {
-                        if (ci > runStart) styleRuns.push({ length: ci - runStart, style: prevStyle });
-                        prevStyle = thisStyle; prevStyleKey = key; runStart = ci;
-                      }
-                      charIdx++;
-                    }
-                    if (runStart < textContent.length) styleRuns.push({ length: textContent.length - runStart, style: prevStyle });
-                    if (!styleRuns.length) styleRuns.push({ length: textContent.length, style: baseStyle });
-                  }
-
-                  psdLayers.push({
-                    name,
-                    text: {
-                      text: textContent,
-                      transform: [1, 0, 0, 1, objLeft, objTop],
-                      style: baseStyle,
-                      styleRuns,
-                      paragraphStyle: {
-                        justification: obj.textAlign === 'center' ? 'center' : obj.textAlign === 'right' ? 'right' : 'left',
-                      },
-                    },
-                  });
-                } else {
-                  // ── layer pixel para shapes/imagens ───────────
-                  objects.forEach((o:any, idx:number) => { o.visible = idx === oi; });
+                  // layer pixel para shapes/imagens
+                  objects.forEach((o:any,idx:number)=>{o.visible=idx===oi;});
                   fc.renderAll();
-                  await new Promise<void>(res => setTimeout(res, 60));
+                  await new Promise<void>(res=>setTimeout(res,60));
                   fc.renderAll();
-                  const nativeEl = (fc as any).lowerCanvasEl as HTMLCanvasElement;
-                  const tmp = document.createElement('canvas');
-                  tmp.width = canvW; tmp.height = canvH;
-                  tmp.getContext('2d')!.drawImage(nativeEl, 0, 0);
-                  const imgData = tmp.getContext('2d')!.getImageData(0, 0, canvW, canvH);
-                  psdLayers.push({ name, imageData: imgData, top: 0, left: 0, bottom: canvH, right: canvW });
+                  const nativeEl=(fc as any).lowerCanvasEl as HTMLCanvasElement;
+                  const tmp=document.createElement('canvas');
+                  tmp.width=canvW;tmp.height=canvH;
+                  tmp.getContext('2d')!.drawImage(nativeEl,0,0);
+                  const imgData=tmp.getContext('2d')!.getImageData(0,0,canvW,canvH);
+                  psdLayers.push({name,imageData:imgData,top:0,left:0,bottom:canvH,right:canvW});
                 }
               }
 
-              // ── restaura ──────────────────────────────────────
-              objects.forEach((o:any, idx:number) => { o.visible = origVisible[idx]; });
-              (fc as any).backgroundColor = origBg;
+              objects.forEach((o:any,idx:number)=>{o.visible=origVisible[idx];});
+              (fc as any).backgroundColor=origBg;
               fc.renderAll();
-
-              const buffer = writePsd({ width: canvW, height: canvH, children: psdLayers });
-              folder.file(`${safeName}.psd`, buffer);
-            } catch(psdErr) { console.error('PSD error:', psdErr); }
+              const buffer=writePsd({width:canvW,height:canvH,children:psdLayers});
+              folder.file(`${safeName}.psd`,buffer);
+            } catch(psdErr){console.error('PSD error:',psdErr);}
           }
-          if (fmt === "pdf") {
+                    if (fmt === "pdf") {
             try {
               const { PDFDocument, rgb } = await import("pdf-lib");
               const pdfDoc = await PDFDocument.create();
