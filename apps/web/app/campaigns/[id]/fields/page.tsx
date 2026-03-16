@@ -123,34 +123,31 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
                     style={{padding:"6px 12px",border:"1.5px solid #E45804",borderRadius:"8px",fontSize:"0.8rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:"#E45804",fontWeight:700,background:"#FFF3EC",flexShrink:0}}>
                     {TYPES.map(t=><option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
                   </select>
-                  <button onClick={()=>removeField(idx)} style={{marginTop:"20px",background:"none",border:"none",cursor:"pointer",color:"#CCC",fontSize:"1.1rem",padding:"4px"}}
-                    onMouseEnter={e=>(e.currentTarget as HTMLElement).style.color="#E53935"}
-                    onMouseLeave={e=>(e.currentTarget as HTMLElement).style.color="#CCC"}>🗑</button>
+
                 </div>
 
                 {f.type==="imagem" ? (
-                  <div>
-                    <label style={{fontSize:"0.72rem",fontWeight:700,color:"#888",display:"block",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Imagem</label>
-                    <div style={{display:"flex",gap:"12px",alignItems:"center"}}>
-                      {f.imageUrl && <img src={f.imageUrl} alt="" style={{width:"60px",height:"60px",objectFit:"cover",borderRadius:"8px",border:b}}/>}
-                      <label style={{flex:1,padding:"10px 16px",border:"1.5px dashed #E5E5E5",borderRadius:"8px",cursor:"pointer",textAlign:"center",fontSize:"0.875rem",color:"#888"}}>
-                        {uploading===String(idx) ? "Enviando..." : f.imageUrl ? "Trocar imagem" : "📎 Clique para fazer upload"}
-                        <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{ if(e.target.files?.[0]) handleImageUpload(idx,e.target.files[0]); }}/>
-                      </label>
-                      {f.imageUrl && <input value={f.imageUrl} onChange={e=>updateField(idx,"imageUrl",e.target.value)} style={{...inp,flex:2}} placeholder="URL da imagem"/>}
-                    </div>
+                  <div style={{display:"flex",gap:"12px",alignItems:"center"}}>
+                    {f.imageUrl && <img src={f.imageUrl} alt="" style={{width:"48px",height:"48px",objectFit:"cover",borderRadius:"8px",border:b,flexShrink:0}}/>}
+                    <label style={{flex:1,padding:"8px 14px",border:"1.5px dashed #E5E5E5",borderRadius:"8px",cursor:"pointer",textAlign:"center",fontSize:"0.8rem",color:"#888"}}>
+                      {uploading===String(idx) ? "Enviando..." : f.imageUrl ? "Trocar imagem" : "📎 Upload de imagem"}
+                      <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{ if(e.target.files?.[0]) handleImageUpload(idx,e.target.files[0]); }}/>
+                    </label>
                   </div>
                 ) : (
-                  <div style={{flex:1}}>
-                    {f.type==="texto_principal"||f.type==="texto_secundario"||f.type==="personalizado" ? (
-                      <textarea value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} rows={2}
-                        style={{...inp,resize:"vertical"}} placeholder={"Digite o "+( TYPE_LABELS[f.type]||f.type)+"..."}/>
-                    ) : (
-                      <input value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} style={inp}
-                        placeholder={"Digite o "+(TYPE_LABELS[f.type]||f.type)+"..."}/>
-                    )}
-                  </div>
+                  f.type==="texto_principal"||f.type==="texto_secundario"||f.type==="personalizado" ? (
+                    <textarea value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} rows={2}
+                      style={{...inp,resize:"vertical",marginBottom:0}} placeholder={"Digite o "+(TYPE_LABELS[f.type]||f.type)+"..."}/>
+                  ) : (
+                    <input value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} style={{...inp,marginBottom:0}}
+                      placeholder={"Digite o "+(TYPE_LABELS[f.type]||f.type)+"..."}/>
+                  )
                 )}
+                </div>
+                {/* Botão apagar */}
+                <button onClick={()=>removeField(idx)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",color:"#CCC",fontSize:"1.1rem",padding:"4px"}}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.color="#E53935"}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.color="#CCC"}>🗑</button>
               </div>
             ))}
 
