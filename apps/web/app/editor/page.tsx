@@ -340,7 +340,7 @@ function EditorPageInner() {
       opt.e.preventDefault();
       opt.e.stopPropagation();
       // Atualizar o display de zoom
-      setZoom(Math.round(zoom * 100));
+      setZoom(zoom);
     });
     canvas.on("object:modified",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
     canvas.on("object:added",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
@@ -605,9 +605,14 @@ function EditorPageInner() {
         <input ref={fileInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)addImage(f);}}/>
         {selectedId && <button onClick={deleteSelected} style={{...btn,color:"#E53935"}}>🗑 Apagar</button>}
         <div style={{flex:1}}/>
-        <button onClick={()=>setZoom(z=>Math.max(0.1,+(z-0.05).toFixed(2)))} style={{width:"28px",height:"28px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",cursor:"pointer"}}>-</button>
-        <span style={{fontSize:"0.8rem",color:"#666",minWidth:"40px",textAlign:"center"}}>{Math.round(zoom*100)}%</span>
-        <button onClick={()=>setZoom(z=>Math.min(2,+(z+0.05).toFixed(2)))} style={{width:"28px",height:"28px",border:"1px solid #E5E5E5",borderRadius:"6px",background:"#FFF",cursor:"pointer"}}>+</button>
+        <input
+          type="number" min={5} max={500} step={5}
+          value={Math.round(zoom*100)}
+          onChange={e=>{ const v=parseInt(e.target.value); if(!isNaN(v)&&v>=5&&v<=500) setZoom(v/100); }}
+          onKeyDown={e=>{ if(e.key==="Enter"){ const v=parseInt((e.target as HTMLInputElement).value); if(!isNaN(v)&&v>=5&&v<=500) setZoom(v/100); (e.target as HTMLInputElement).blur(); } }}
+          style={{width:"56px",padding:"3px 6px",border:"1px solid #E5E5E5",borderRadius:"6px",fontSize:"0.8rem",textAlign:"center",color:"#666",background:"#FFF",outline:"none",fontFamily:"'DM Sans',sans-serif"}}
+        />
+        <span style={{fontSize:"0.8rem",color:"#888"}}>%</span>
       </div>
 
       {/* CANVAS + PAINEL */}
