@@ -644,7 +644,7 @@ function PiecesPageInner() {
           pieces={selectedPieces}
           campaignId={selectedCampaignId}
           campaignName={selectedCampaignName}
-          onClose={()=>setShowExport(false)}
+          onClose={()=>{ setShowExport(false); setSelected([]); setSelectMode(false); }}
         />
       )}
     </div>
