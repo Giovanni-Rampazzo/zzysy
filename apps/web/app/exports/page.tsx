@@ -118,13 +118,6 @@ function DeliveryCard({ delivery, onStatusChange, onDelete, view }: {
   const [downloading, setDownloading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const deleteSelected = async () => {
-    if (!confirm(`Deletar ${selected.length} exportação${selected.length!==1?'ões':''}?`)) return;
-    await Promise.all(selected.map((id:string) => fetch("/api/exports/"+id, {method:"DELETE"})));
-    setDeliveries((p:Delivery[])=>p.filter((x:Delivery)=>!selected.includes(x.id)));
-    setSelected([]);
-    setSelectMode(false);
-  };
   const handleDownload = async () => {
     setDownloading(true);
     try { await downloadDeliveryZip(delivery); }
@@ -249,6 +242,14 @@ function ExportsPageInner() {
   const [selected, setSelected] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState(false);
   const [view, setView] = useState<"grid"|"list">("grid");
+
+  const deleteSelected = async () => {
+    if (!confirm(`Deletar ${selected.length} exportação${selected.length!==1?'ões':''}?`)) return;
+    await Promise.all(selected.map((id:string) => fetch("/api/exports/"+id, {method:"DELETE"})));
+    setDeliveries((p:Delivery[])=>p.filter((x:Delivery)=>!selected.includes(x.id)));
+    setSelected([]);
+    setSelectMode(false);
+  };
 
   useEffect(() => { fetch("/api/campaigns").then(r=>r.json()).then(setCampaigns); }, []);
 
