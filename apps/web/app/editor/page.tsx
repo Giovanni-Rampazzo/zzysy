@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Canvas, IText, Rect, Circle, FabricImage, Point } from "fabric";
 
-type LayerType = "title"|"subtitle"|"body"|"subtext"|"cta"|"image"|"rect"|"circle";
+type LayerType = "titulo"|"subtitulo"|"texto_principal"|"texto_secundario"|"cta"|"www"|"image"|"rect"|"circle"|"personalizado";
 interface Layer { id: string; type: LayerType; name: string; visible: boolean; locked: boolean; }
 
 const MAX_HISTORY = 20;
@@ -26,11 +26,12 @@ function LayerItem({ layer, selected, onSelect, onToggleVisible, onToggleLock }:
 }
 
 const textTypes = [
-  { type:"title" as LayerType, label:"Título", fontSize:48, fontWeight:"900" },
-  { type:"subtitle" as LayerType, label:"Subtítulo", fontSize:28, fontWeight:"700" },
-  { type:"body" as LayerType, label:"Texto corrido", fontSize:16, fontWeight:"400" },
-  { type:"subtext" as LayerType, label:"Subtexto", fontSize:12, fontWeight:"400" },
+  { type:"titulo" as LayerType, label:"Título", fontSize:48, fontWeight:"900" },
+  { type:"subtitulo" as LayerType, label:"Subtítulo", fontSize:28, fontWeight:"700" },
+  { type:"texto_principal" as LayerType, label:"Texto Principal", fontSize:18, fontWeight:"400" },
+  { type:"texto_secundario" as LayerType, label:"Texto Secundário", fontSize:14, fontWeight:"400" },
   { type:"cta" as LayerType, label:"CTA", fontSize:16, fontWeight:"700" },
+  { type:"www" as LayerType, label:"WWW", fontSize:12, fontWeight:"400" },
 ];
 
 const CHANNELS = [
