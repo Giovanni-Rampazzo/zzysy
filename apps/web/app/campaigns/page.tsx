@@ -156,8 +156,18 @@ export default function CampaignsPage() {
             <input autoFocus value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleCreate()} placeholder="Ex: Campanha Verão 2026"
               style={{ width:"100%",padding:"12px 14px",border:"1px solid #E5E5E5",borderRadius:"8px",fontSize:"0.95rem",color:"#111",outline:"none",boxSizing:"border-box",marginBottom:"24px",fontFamily:"'DM Sans',sans-serif" }}
               onFocus={e=>e.target.style.borderColor="#111"} onBlur={e=>e.target.style.borderColor="#E5E5E5"} />
+            {clients.length>0 && (
+              <div style={{marginBottom:"16px"}}>
+                <label style={{fontSize:"0.72rem",fontWeight:700,color:"#888",display:"block",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Cliente (opcional)</label>
+                <select value={newClientId} onChange={e=>setNewClientId(e.target.value)}
+                  style={{width:"100%",padding:"10px 12px",border:"1px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",fontFamily:"'DM Sans',sans-serif",outline:"none",color:"#111"}}>
+                  <option value="">Sem cliente</option>
+                  {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
             <div style={{ display:"flex",gap:"8px" }}>
-              <button onClick={()=>{setShowModal(false);setNewName("");}} style={{ flex:1,padding:"11px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"transparent",color:"#666",fontSize:"0.875rem",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",fontWeight:600 }}>Cancelar</button>
+              <button onClick={()=>{setShowModal(false);setNewName("");setNewClientId("");}} style={{ flex:1,padding:"11px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"transparent",color:"#666",fontSize:"0.875rem",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",fontWeight:600 }}>Cancelar</button>
               <button onClick={handleCreate} disabled={!newName.trim()||creating} style={{ flex:1,padding:"11px",border:"none",borderRadius:"8px",background:newName.trim()?"#E45804":"#CCC",color:"#FFF",fontSize:"0.875rem",fontFamily:"'DM Sans',sans-serif",cursor:newName.trim()?"pointer":"not-allowed",fontWeight:700 }}>{creating?"Criando...":"Criar"}</button>
             </div>
           </div>
