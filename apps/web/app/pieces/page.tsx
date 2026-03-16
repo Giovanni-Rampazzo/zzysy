@@ -191,16 +191,20 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const textImgData=tmp2.getContext('2d')!.getImageData(0,0,canvW,canvH);
                   psdLayers.push({ name, imageData:textImgData, top:0, left:0, bottom:canvH, right:canvW, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
                 } else {
-                  // layer pixel para shapes/imagens
-                  objects.forEach((o:any,idx:number)=>{o.visible=idx===oi;});
+                  // layer pixel — toDataURL garante zoom=1 e posição correta
+                  objects.forEach((o:any,idx2:number)=>{o.visible=idx2===oi;});
+                  (fc as any).backgroundColor='transparent';
+                  fc.setZoom(1);
+                  fc.setDimensions({width:canvW,height:canvH});
                   fc.renderAll();
-                  await new Promise<void>(res=>setTimeout(res,150));
-                  fc.renderAll();
-                  const nativeEl=(fc as any).lowerCanvasEl as HTMLCanvasElement;
-                  const tmp=document.createElement('canvas');
-                  tmp.width=canvW;tmp.height=canvH;
-                  tmp.getContext('2d')!.drawImage(nativeEl,0,0);
-                  const imgData=tmp.getContext('2d')!.getImageData(0,0,canvW,canvH);
+                  await new Promise<void>(res=>setTimeout(res,100));
+                  const dataUrlObj=fc.toDataURL({format:'png',multiplier:1});
+                  const imgEl=new Image();
+                  await new Promise<void>(res=>{imgEl.onload=()=>res();imgEl.src=dataUrlObj;});
+                  const tmpObj=document.createElement('canvas');
+                  tmpObj.width=canvW;tmpObj.height=canvH;
+                  tmpObj.getContext('2d')!.drawImage(imgEl,0,0);
+                  const imgData=tmpObj.getContext('2d')!.getImageData(0,0,canvW,canvH);
                   psdLayers.push({name,imageData:imgData,top:0,left:0,bottom:canvH,right:canvW});
                 }
               }
