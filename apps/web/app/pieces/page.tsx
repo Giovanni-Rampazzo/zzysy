@@ -517,18 +517,18 @@ function PiecesPageInner() {
             <div style={{ display:"flex",gap:"8px",alignItems:"center" }}>
               {selectMode && selected.length>0 && (
                 <>
-                  <button onClick={()=>setShowExport(true)}
-                    style={{ padding:"10px 20px",background:"#F5C400",color:"#111",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
-                    ⬆ Exportar {selected.length} peça{selected.length!==1?"s":""}
-                  </button>
                   <button onClick={deleteSelected}
-                    style={{ padding:"10px 16px",background:"#E53935",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+                    style={{ padding:"10px 16px",background:"transparent",color:"#E53935",border:"1.5px solid #E53935",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
                     🗑 Apagar {selected.length}
+                  </button>
+                  <button onClick={()=>setShowExport(true)}
+                    style={{ padding:"10px 20px",background:"#E45804",color:"#FFFFFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+                    ⬆ Exportar {selected.length} peça{selected.length!==1?"s":""}
                   </button>
                 </>
               )}
               <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}}
-                style={{ padding:"10px 16px",background:selectMode?"#FFF":"#111",color:selectMode?"#E53935":"#FFF",border:"1.5px solid "+(selectMode?"#E5E5E5":"#111"),borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+                style={{ padding:"10px 16px",background:selectMode?"transparent":"#E45804",color:selectMode?"#E53935":"#FFFFFF",border:"1.5px solid "+(selectMode?"#E5E5E5":"#E45804"),borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
                 {selectMode?"✕ Cancelar":"⬆ Exportar"}
               </button>
             </div>
