@@ -19,12 +19,15 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json();
-  const { name, format, mediaId, data } = body;
-  if (!name || !format || !mediaId) return NextResponse.json({ error: "name, format e mediaId obrigatorios" }, { status: 400 });
-  const piece = await prisma.piece.upsert({
-    where: { mediaId_format: { mediaId, format } },
-    update: { name, data },
-    create: { mediaId, name, format, data },
-  });
+  const { campaignId, name, format, data, upsert } = body;
+  if (!name || !format || !campaignId) return NextResponse.json({ error: "name, format e campaignId obrigatorios" }, { status: 400 });
+  if (upsert) {
+    const existing = await prisma.piece.findFirst({ where: { campaignId, format } });
+    const piece = existing
+      ? await prisma.piece.update({ where: { id: existing.id }, data: { data: data ?? {} } })
+      : await prisma.piece.create({ data: { campaignId, name, format, data: data ?? {} } });
+    return NextResponse.json(piece);
+  }
+  const piece = await prisma.piece.create({ data: { campaignId, name, format, data: data ?? {} } });
   return NextResponse.json(piece);
 }
