@@ -16,10 +16,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const { name, data, status } = await req.json();
+  const body = await req.json();
+  const { name, data, status } = body;
   const piece = await prisma.piece.update({
     where: { id },
-    data: { ...(name !== undefined ? { name } : {}), ...(data !== undefined ? { data } : {}), ...(status !== undefined ? { status } : {}) },
+    data: { ...(name ? { name } : {}), ...(data !== undefined ? { data } : {}), ...(status ? { status } : {}) },
   });
   return NextResponse.json(piece);
 }
