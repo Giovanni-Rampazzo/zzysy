@@ -10,7 +10,6 @@ type Piece = {
   status: "DRAFT"|"REVIEW"|"APPROVED"|"EXPORTED";
   data?: any;
   createdAt: string; updatedAt: string;
-  data?: any;
   campaign: { id: string; name: string };
 };
 type Campaign = { id: string; name: string };
