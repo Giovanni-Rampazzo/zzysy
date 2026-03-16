@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     include: {
       client: { select: { id: true, name: true } },
       fields: { orderBy: { order: "asc" } },
-      medias: { orderBy: { createdAt: "asc" }, include: { _count: { select: { pieces: true } } } },
+      medias: { include: { _count: { select: { pieces: true } } }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -23,7 +23,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const { name, clientId, matrixData } = await req.json();
+  const body = await req.json();
+  const { name, clientId, matrixData } = body;
   const campaign = await prisma.campaign.update({
     where: { id },
     data: { ...(name ? { name } : {}), ...(clientId !== undefined ? { clientId } : {}), ...(matrixData !== undefined ? { matrixData } : {}) },
