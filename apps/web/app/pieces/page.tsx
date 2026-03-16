@@ -251,8 +251,6 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
       });
 
       onClose();
-      setSelected([]);
-      setSelectMode(false);
       router.push(`/exports?campaignId=${campaignId}`);
     } catch(e) {
       console.error(e);
