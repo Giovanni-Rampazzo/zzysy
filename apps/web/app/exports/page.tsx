@@ -305,7 +305,7 @@ function ExportsPageInner() {
                   ✕ Cancelar
                 </button>
               )}
-              <button onClick={async()=>{ if(selected.length>0){ await deleteSelected(); } else { setSelectMode(true); } }}
+              <button onClick={()=>{ if(selected.length>0){ deleteSelected(); } else { setSelectMode(true); } }}
                 style={{ padding:"8px 16px",background:"transparent",color:"#E53935",border:"1.5px solid #E53935",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",height:"36px",boxSizing:"border-box" }}>
                 {selected.length>0?`🗑 Apagar ${selected.length}`:"🗑 Apagar"}
               </button>
