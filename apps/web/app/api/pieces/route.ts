@@ -7,9 +7,9 @@ import { NextRequest } from "next/server";
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const mediaId = req.nextUrl.searchParams.get("mediaId");
+  const campaignId = req.nextUrl.searchParams.get("campaignId");
   const pieces = await prisma.piece.findMany({
-    where: { ...(mediaId ? { mediaId } : {}) },
+    where: { ...(campaignId ? { campaignId } : {}) },
     orderBy: { createdAt: "asc" },
   });
   return NextResponse.json(pieces);
