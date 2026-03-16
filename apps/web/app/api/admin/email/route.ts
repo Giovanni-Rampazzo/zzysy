@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const users = await prisma.user.findMany({ select: { email: true } });
     recipients = users.map((u: {email: string}) => u.email);
   } else if (to === "plan" && plan) {
-    const users = await prisma.user.findMany({ where: { plan }, select: { email: true } });
+    const users = await prisma.user.findMany({ select: { email: true } });
     recipients = users.map((u: {email: string}) => u.email);
   } else if (to) {
     recipients = [to];
