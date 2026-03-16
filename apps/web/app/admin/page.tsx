@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 const PLANS = ["FREE","STARTER","PRO","AGENCY","ENTERPRISE"];
 const planColors: Record<string,string> = { FREE:"#E5E5E5", STARTER:"#4285F4", PRO:"#F5C400", AGENCY:"#34A853", ENTERPRISE:"#111" };
 
-type User = { id:string; name:string|null; email:string; plan:string;// blocked:boolean; createdAt:string; tenant:{name:string;slug:string}; _count:{sessions:number} };
+type User = { id:string; name:string|null; email:string; role:string; createdAt:string; tenant:{name:string;slug:string}; _count:{campaigns:number}; };
 type Metrics = { totalUsers:number; totalCampaigns:number; totalPieces:number; mrr:number; paying:number; usersByPlan:{plan:string;count:number}[]; recentUsers:User[] };
 
 export default function AdminPage() {
@@ -50,7 +50,7 @@ export default function AdminPage() {
   };
 
   const exportCSV = () => {
-    const rows = [["ID","Nome","Email","Plano","Bloqueado","Criado em"],...users.map(u=>[u.id,u.name??"",u.email,u.plan,u.blocked?"Sim":"Não",new Date(u.createdAt).toLocaleDateString("pt-BR")])];
+    const rows = [["ID","Nome","Email","Plano","Role","Criado em"],...users.map(u=>[u.id,u.name??"",u.email,"FREE",false?"Sim":"Não",new Date(u.createdAt).toLocaleDateString("pt-BR")])];
     const csv = rows.map(r=>r.join(",")).join("\n");
     const blob = new Blob([csv], {type:"text/csv"});
     const url = URL.createObjectURL(blob);
@@ -117,7 +117,7 @@ export default function AdminPage() {
                       <div style={{ fontSize:"0.875rem", fontWeight:600 }}>{u.name??u.email}</div>
                       <div style={{ fontSize:"0.75rem", color:"#AAA" }}>{u.email}</div>
                     </div>
-                    <span style={{ background:planColors[u.plan], color:u.plan==="FREE"?"#111":"#FFF", fontSize:"0.7rem", fontWeight:700, padding:"2px 8px", borderRadius:"99px" }}>{u.plan}</span>
+                    <span style={{ background:planColors["FREE"], color:"FREE"==="FREE"?"#111":"#FFF", fontSize:"0.7rem", fontWeight:700, padding:"2px 8px", borderRadius:"99px" }}>{"FREE"}</span>
                   </div>
                 ))}
               </div>
@@ -158,19 +158,19 @@ export default function AdminPage() {
                         </td>
                         <td style={{ padding:"12px 16px", color:"#666" }}>{u.tenant?.name??"-"}</td>
                         <td style={{ padding:"12px 16px" }}>
-                          <select value={u.plan} onChange={e=>updateUser(u.id,{plan:e.target.value})}
-                            style={{ padding:"4px 8px", border:"1px solid #E5E5E5", borderRadius:"6px", fontSize:"0.8rem", fontFamily:"'DM Sans',sans-serif", cursor:"pointer", background:planColors[u.plan], color:u.plan==="FREE"?"#111":"#FFF", fontWeight:700 }}>
+                          <select value={"FREE"} onChange={e=>updateUser(u.id,{plan:e.target.value})}
+                            style={{ padding:"4px 8px", border:"1px solid #E5E5E5", borderRadius:"6px", fontSize:"0.8rem", fontFamily:"'DM Sans',sans-serif", cursor:"pointer", background:planColors["FREE"], color:"FREE"==="FREE"?"#111":"#FFF", fontWeight:700 }}>
                             {PLANS.map(p=><option key={p} value={p} style={{ background:"#FFF", color:"#111" }}>{p}</option>)}
                           </select>
                         </td>
                         <td style={{ padding:"12px 16px" }}>
-                          <span style={{ background:u.blocked?"#FEE2E2":"#DCFCE7", color:u.blocked?"#E53935":"#16A34A", fontSize:"0.75rem", fontWeight:700, padding:"3px 10px", borderRadius:"99px" }}>{u.blocked?"Bloqueado":"Ativo"}</span>
+                          <span style={{ background:false?"#FEE2E2":"#DCFCE7", color:false?"#E53935":"#16A34A", fontSize:"0.75rem", fontWeight:700, padding:"3px 10px", borderRadius:"99px" }}>{false?"Role":"Ativo"}</span>
                         </td>
                         <td style={{ padding:"12px 16px", color:"#888", fontSize:"0.8rem" }}>{new Date(u.createdAt).toLocaleDateString("pt-BR")}</td>
                         <td style={{ padding:"12px 16px" }}>
-                          <button onClick={()=>updateUser(u.id,{// blocked:!u.blocked})}
-                            style={{ padding:"5px 12px", border:`1px solid ${u.blocked?"#34A853":"#E53935"}`, borderRadius:"6px", background:"transparent", color:u.blocked?"#34A853":"#E53935", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
-                            {u.blocked?"Desbloquear":"Bloquear"}
+                          <button onClick={()=>updateUser(u.id,{// blocked:!false})}
+                            style={{ padding:"5px 12px", border:`1px solid ${false?"#34A853":"#E53935"}`, borderRadius:"6px", background:"transparent", color:false?"#34A853":"#E53935", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+                            {false?"Desbloquear":"Bloquear"}
                           </button>
                         </td>
                       </tr>
