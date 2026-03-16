@@ -98,7 +98,7 @@ function getCanvasJson(canvas: Canvas, w: number, h: number) {
   canvas.getObjects().forEach((obj: any, i: number) => {
     if (!obj.layerId) obj.layerId = "layer_" + Date.now() + "_" + i;
   });
-  const json = (canvas as any).toJSON(["layerId"]);
+  const json = (canvas as any).toJSON(["layerId","lockMovementX","lockMovementY","lockScalingX","lockScalingY","selectable"]);
   canvas.setZoom(z); canvas.setDimensions({width:w*z,height:h*z});
   return { ...json, width: w, height: h };
 }
@@ -266,7 +266,15 @@ function EditorPageInner() {
   const updateTextProp = (prop: string, value: any) => {
     const canvas = fabricRef.current; if (!canvas) return;
     const obj = canvas.getActiveObject() as any; if (!obj) return;
-    obj.set({[prop]:value}); canvas.renderAll();
+    // Se estiver editando texto com seleção parcial, aplica apenas aos chars selecionados
+    if (prop === 'fill' && obj.isEditing && obj.selectionStart !== obj.selectionEnd) {
+      obj.setSelectionStyles({ fill: value });
+    } else if ((prop === 'fontSize' || prop === 'fontWeight' || prop === 'fontStyle') && obj.isEditing && obj.selectionStart !== obj.selectionEnd) {
+      obj.setSelectionStyles({ [prop]: value });
+    } else {
+      obj.set({[prop]:value});
+    }
+    canvas.renderAll();
     setTextProps(prev=>({...prev,[prop]:value})); setIsDirty(true);
   };
 
@@ -290,12 +298,23 @@ function EditorPageInner() {
     const sync = (obj: any) => {
       if (!obj) return;
       setSelectedId(obj.layerId??null); setSelectedType(obj.type??null);
-      if (obj.fontSize) setTextProps({fontSize:obj.fontSize,fontFamily:obj.fontFamily??"DM Sans",fill:obj.fill??"#111111",fontWeight:String(obj.fontWeight??"400"),textAlign:obj.textAlign??"left"});
+      if (obj.fontSize) {
+        // Se em edição com seleção, ler estilo do char selecionado
+        let fill = obj.fill??"#111111";
+        let fontWeight = String(obj.fontWeight??"400");
+        if (obj.isEditing && obj.selectionStart !== obj.selectionEnd) {
+          const charStyle = obj.getSelectionStyles(obj.selectionStart, obj.selectionStart+1)?.[0] ?? {};
+          if (charStyle.fill) fill = charStyle.fill;
+          if (charStyle.fontWeight) fontWeight = String(charStyle.fontWeight);
+        }
+        setTextProps({fontSize:obj.fontSize,fontFamily:obj.fontFamily??"DM Sans",fill,fontWeight,textAlign:obj.textAlign??"left"});
+      }
       if (obj.fill&&typeof obj.fill==="string"&&!obj.fontSize) setShapeColor(obj.fill);
     };
     canvas.on("selection:created",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:updated",(e:any)=>sync(e.selected?.[0]));
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
+    canvas.on("text:selection:changed",(e:any)=>{ if(e.target) sync(e.target); });
     canvas.on("object:modified",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
     canvas.on("object:added",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
     canvas.on("object:removed",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });

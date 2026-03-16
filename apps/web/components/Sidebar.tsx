@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 function Logo({ collapsed }: { collapsed: boolean }) {
   if (collapsed) return (
@@ -35,6 +35,8 @@ const navItems = [
 
 export function Sidebar({ active }: { active: string }) {
   const [collapsed, setCollapsed] = useState(false);
+  const { data: session } = useSession();
+  const userName = (session?.user as any)?.name ?? session?.user?.email ?? "";
   const w = collapsed ? "60px" : "220px";
 
   useEffect(() => {
@@ -61,6 +63,11 @@ export function Sidebar({ active }: { active: string }) {
         ))}
       </nav>
       <div style={{ padding:"16px 8px 0",borderTop:"1px solid #E5E5E5",margin:"0 8px" }}>
+        {!collapsed && userName && (
+          <div style={{ padding:"8px 12px 12px",fontSize:"0.78rem",color:"#888",fontFamily:"'DM Sans',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+            👤 {userName}
+          </div>
+        )}
         <button onClick={()=>signOut({callbackUrl:"/login"})} title={collapsed?"Sair":undefined}
           style={{ width:"100%",padding:"9px 12px",borderRadius:"8px",border:"none",background:"transparent",color:"#888",fontSize:"0.875rem",fontFamily:"'DM Sans',sans-serif",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:collapsed?"0":"10px",justifyContent:collapsed?"center":"flex-start" }}>
           <span>🚪</span>{!collapsed&&" Sair"}

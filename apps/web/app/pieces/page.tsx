@@ -64,7 +64,9 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
             });
           });
         }
-        const safeName = piece.name.replace(/[^a-zA-Z0-9\-_]/g,"_");
+        // Usa só a parte após " — " (nome do formato) + formato como nome do arquivo
+        const pieceLabelRaw = piece.name.includes(" — ") ? piece.name.split(" — ").slice(1).join("_") : piece.name;
+        const safeName = (pieceLabelRaw + "_" + piece.format).replace(/[^a-zA-Z0-9\-_]/g,"_").replace(/_+/g,"_").replace(/^_|_$/g,"");
 
         for (const fmt of formats) {
           try {
@@ -200,7 +202,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               folder.file(`${safeName}.psd`,buffer);
             } catch(psdErr){console.error('PSD error:',psdErr);}
           }
-                    if (fmt === "pdf") {
+          if (fmt === "pdf") {
             try {
               const { PDFDocument, rgb } = await import("pdf-lib");
               const pdfDoc = await PDFDocument.create();
