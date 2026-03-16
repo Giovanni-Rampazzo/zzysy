@@ -1,32 +1,40 @@
-import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await params;
+  const campaign = await prisma.campaign.findUnique({
+    where: { id },
+    include: {
+      client: { select: { id: true, name: true } },
+      fields: { orderBy: { order: "asc" } },
+      medias: { orderBy: { createdAt: "asc" }, include: { _count: { select: { pieces: true } } } },
+    },
+  });
+  if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(campaign);
+}
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
+  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const { name } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: "Nome invalido" }, { status: 400 });
-  const updated = await prisma.campaign.update({ where: { id }, data: { name: name.trim() } });
-  return NextResponse.json(updated);
+  const { name, clientId, matrixData } = await req.json();
+  const campaign = await prisma.campaign.update({
+    where: { id },
+    data: { ...(name ? { name } : {}), ...(clientId !== undefined ? { clientId } : {}), ...(matrixData !== undefined ? { matrixData } : {}) },
+  });
+  return NextResponse.json(campaign);
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-
+  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
-
-  // Deleta em ordem para evitar foreign key errors
-  await prisma.piece.deleteMany({ where: { deliveryId: { not: null }, delivery: { campaignId: id } } });
-  await prisma.delivery.deleteMany({ where: { campaignId: id } });
-  await prisma.piece.deleteMany({ where: { campaignId: id } });
-  await prisma.matrix.deleteMany({ where: { campaignId: id } });
-  await prisma.campaign.deleteMany({ where: { id, tenantId: user.tenantId } });
-
-  return NextResponse.json({ success: true });
+  await prisma.campaign.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }
