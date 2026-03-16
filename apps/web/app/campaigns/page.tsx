@@ -105,6 +105,16 @@ export default function CampaignsPage() {
                   <span style={{ fontSize:"0.8rem",color:"#AAA" }}>Criada em {new Date(c.createdAt).toLocaleDateString("pt-BR")}</span>
                   <span style={{ fontSize:"0.75rem",fontWeight:600,color:"#888",background:"#F7F7F7",padding:"3px 8px",borderRadius:"99px" }}>{c._count.pieces} peça{c._count.pieces!==1?"s":""}</span>
                 </div>
+                <div style={{ display:"flex",gap:"8px",marginTop:"14px" }} onClick={e=>e.stopPropagation()}>
+                  <button onClick={()=>router.push("/editor?campaign="+c.id)}
+                    style={{ flex:1,padding:"7px 0",background:"#E45804",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>
+                    ✏️ Matriz
+                  </button>
+                  <button onClick={()=>router.push("/pieces?campaignId="+c.id)}
+                    style={{ flex:1,padding:"7px 0",background:"transparent",color:"#E45804",border:"1.5px solid #E45804",borderRadius:"8px",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>
+                    🖼 Peças
+                  </button>
+                </div>
               </div>
             ))}
           </div>
