@@ -63,9 +63,10 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { campaignId, name, format, data } = body;
   const upsert = body.upsert ?? false;
-  const existing = await prisma.piece.findFirst({ where: { campaignId, format } });
-  const piece = existing
-    ? await prisma.piece.update({ where: { id: existing.id }, data: { name, data: data ?? {} } })
-    : await prisma.piece.create({ data: { campaignId, name, format, data: data ?? {} } });
+  const piece = await prisma.piece.upsert({
+    where: { campaignId_format: { campaignId, format } },
+    update: { name, data: data ?? {} },
+    create: { campaignId, name, format, data: data ?? {} },
+  });
   return NextResponse.json(piece);
 }
