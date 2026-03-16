@@ -10,11 +10,17 @@ export async function POST(req: Request) {
     if (email && planId) {
       const user = await prisma.user.findUnique({ where: { email } });
       if (user) {
-        await prisma.subscription.upsert({
-          where: { tenantId: user.tenantId },
-          update: { plan: planId.toUpperCase(), status: "active" },
-          create: { tenantId: user.tenantId, plan: planId.toUpperCase(), status: "active" },
-        });
+        const existing = await prisma.subscription.findFirst({ where: { tenantId: user.tenantId } });
+        if (existing) {
+          await prisma.subscription.update({
+            where: { id: existing.id },
+            data: { plan: planId.toUpperCase(), status: "active" },
+          });
+        } else {
+          await prisma.subscription.create({
+            data: { tenantId: user.tenantId, plan: planId.toUpperCase(), status: "active" },
+          });
+        }
       }
     }
     return NextResponse.json({ ok: true });
@@ -23,3 +29,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Webhook error" }, { status: 400 });
   }
 }
+
