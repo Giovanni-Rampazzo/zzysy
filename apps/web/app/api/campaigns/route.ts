@@ -10,7 +10,7 @@ export async function GET() {
   const tenantId = (session.user as any).tenantId;
   const campaigns = await prisma.campaign.findMany({
     where: { tenantId },
-    include: { _count: { select: { pieces: true } } },
+    include: { _count: { select: { pieces: true } }, client: { select: { id: true, name: true } } },
     orderBy: { createdAt: "desc" },
   });
 
