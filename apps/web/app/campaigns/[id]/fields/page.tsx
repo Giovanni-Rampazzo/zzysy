@@ -115,18 +115,19 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
 
             {fields.map((f, idx) => (
               <div key={idx} style={{border:b,borderRadius:"12px",padding:"20px",marginBottom:"16px",background:"#FFF"}}>
-                <div style={{display:"flex",gap:"12px",marginBottom:"12px",alignItems:"flex-start"}}>
-                  <div style={{flex:1}}>
-                    <label style={{fontSize:"0.72rem",fontWeight:700,color:"#888",display:"block",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Label</label>
-                    <input value={f.label} onChange={e=>updateField(idx,"label",e.target.value)} style={inp} placeholder="Nome do campo"/>
+                <div style={{display:"flex",gap:"12px",marginBottom:"12px",alignItems:"center"}}>
+                  <div style={{flex:1,display:"flex",alignItems:"center",gap:"8px"}}>
+                    <span style={{fontSize:"0.72rem",fontWeight:700,color:"#E45804",textTransform:"uppercase",letterSpacing:"0.05em",background:"#FFF3EC",padding:"3px 8px",borderRadius:"99px",border:"1px solid #E45804"}}>
+                      {TYPE_LABELS[f.type]||f.type}
+                    </span>
+                    <input value={f.label} onChange={e=>updateField(idx,"label",e.target.value)}
+                      style={{flex:1,padding:"6px 10px",border:"1px solid #E5E5E5",borderRadius:"8px",fontSize:"0.875rem",outline:"none",fontFamily:"'DM Sans',sans-serif"}}
+                      placeholder="Nome do campo (ex: Título principal)"/>
                   </div>
-                  <div style={{width:"160px"}}>
-                    <label style={{fontSize:"0.72rem",fontWeight:700,color:"#888",display:"block",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Tipo</label>
-                    <select value={f.type} onChange={e=>updateField(idx,"type",e.target.value)}
-                      style={{...inp,width:"160px"}}>
-                      {TYPES.map(t=><option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-                    </select>
-                  </div>
+                  <select value={f.type} onChange={e=>updateField(idx,"type",e.target.value)}
+                    style={{padding:"6px 10px",border:"1px solid #E5E5E5",borderRadius:"8px",fontSize:"0.8rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:"#888"}}>
+                    {TYPES.map(t=><option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+                  </select>
                   <button onClick={()=>removeField(idx)} style={{marginTop:"20px",background:"none",border:"none",cursor:"pointer",color:"#CCC",fontSize:"1.1rem",padding:"4px"}}
                     onMouseEnter={e=>(e.currentTarget as HTMLElement).style.color="#E53935"}
                     onMouseLeave={e=>(e.currentTarget as HTMLElement).style.color="#CCC"}>🗑</button>
@@ -149,9 +150,9 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
                     <label style={{fontSize:"0.72rem",fontWeight:700,color:"#888",display:"block",marginBottom:"4px",textTransform:"uppercase",letterSpacing:"0.05em"}}>Conteúdo</label>
                     {f.type==="text" || f.type==="custom" ? (
                       <textarea value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} rows={3}
-                        style={{...inp,resize:"vertical"}} placeholder="Digite o conteúdo..."/>
+                        style={{...inp,resize:"vertical"}} placeholder={"Digite o conteúdo para: "+f.label}/>
                     ) : (
-                      <input value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} style={inp} placeholder="Digite o conteúdo..."/>
+                      <input value={f.value||""} onChange={e=>updateField(idx,"value",e.target.value)} style={inp} placeholder={"Digite o conteúdo para: "+f.label}/>
                     )}
                   </div>
                 )}
