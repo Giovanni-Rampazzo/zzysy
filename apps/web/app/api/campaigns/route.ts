@@ -1,34 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const tenantId = (session.user as any).tenantId;
+  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  if (!user) return NextResponse.json([]);
+  const clientId = req.nextUrl.searchParams.get("clientId");
   const campaigns = await prisma.campaign.findMany({
-    where: { tenantId },
-    include: { _count: { select: { pieces: true } }, client: { select: { id: true, name: true } } },
+    where: { tenantId: user.tenantId, ...(clientId ? { clientId } : {}) },
     orderBy: { createdAt: "desc" },
+    include: {
+      client: { select: { id: true, name: true } },
+      _count: { select: { medias: true } },
+      fields: { orderBy: { order: "asc" } },
+    },
   });
-
   return NextResponse.json(campaigns);
 }
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const body = await req.json();
-  const { name } = body;
-  if (!name) return NextResponse.json({ error: "Nome obrigatório." }, { status: 400 });
-
-  const tenantId = (session.user as any).tenantId;
+  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const { name, clientId } = await req.json();
+  if (!name?.trim()) return NextResponse.json({ error: "Nome obrigatorio" }, { status: 400 });
   const campaign = await prisma.campaign.create({
-    data: { name, tenantId, ...(body.clientId ? { clientId: body.clientId } : {}) },
+    data: { tenantId: user.tenantId, name, ...(clientId ? { clientId } : {}) },
+    include: { client: { select: { id: true, name: true } }, _count: { select: { medias: true } } },
   });
-
-  return NextResponse.json(campaign, { status: 201 });
+  return NextResponse.json(campaign);
 }
