@@ -530,7 +530,10 @@ function EditorPageInner() {
         const isText = obj.type==="i-text"||obj.type==="text"||obj.type==="IText";
         const isImage = obj.type==="image";
         if (isText && tIdx<textFields.length) {
-          obj.set({text: textFields[tIdx++].value});
+          const newText = textFields[tIdx++].value;
+          obj.set('text', newText);
+          if (typeof obj.initDimensions === 'function') obj.initDimensions();
+          obj.dirty = true;
         }
         if (isImage && iIdx<imageFields.length) {
           const url = imageFields[iIdx++].imageUrl;
