@@ -163,6 +163,8 @@ model Piece {
 
   campaign Campaign  @relation(fields: [campaignId], references: [id])
   delivery Delivery? @relation(fields: [deliveryId], references: [id])
+
+  @@unique([campaignId, format])
 }
 
 enum PieceStatus {
