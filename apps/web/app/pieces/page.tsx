@@ -370,7 +370,7 @@ function PieceCard({ piece, selected, onSelect, onEdit, onDelete, onDuplicate, o
       </div>
       <PiecePreview key={piece.id+"-"+(piece.updatedAt||"0")} piece={piece} onClick={onEdit} />
       <div style={{ padding:"12px 14px",flexShrink:0 }}>
-        <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name.includes(" — ") ? piece.name.substring(piece.name.indexOf(" — ") + 3) : piece.name}>{piece.name.includes(" — ") ? piece.name.substring(piece.name.indexOf(" — ") + 3) : piece.name}</div>
+        <div style={{ fontSize:"0.85rem",fontWeight:700,color:colors.text,marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }} title={piece.name.includes(" — ") ? piece.name.split(" — ").pop()! : piece.name}>{piece.name.includes(" — ") ? piece.name.split(" — ").pop()! : piece.name}</div>
         <div style={{ fontSize:"0.72rem",color:colors.textMuted,marginBottom:"10px" }}>{piece.format} · {new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</div>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
           <select value={piece.status} onChange={e=>{e.stopPropagation();onStatusChange(e.target.value);}}
@@ -492,13 +492,18 @@ function PiecesPageInner() {
               <div style={{display:"flex",alignItems:"center",gap:"12px"}}><button onClick={()=>router.push("/campaigns")} style={{background:"none",border:"none",cursor:"pointer",color:"#888",fontSize:"0.85rem",fontWeight:600,padding:0}}>← Campanhas</button><h1 style={{ fontSize:"1.5rem",fontWeight:900,color:colors.text,margin:0,letterSpacing:"-0.03em" }}>Peças</h1>{filterCampaign&&<button onClick={()=>{ window.location.href="/editor?campaign="+filterCampaign+"&fromPieces="+filterCampaign; }} style={{padding:"5px 12px",background:"#F5C400",border:"none",borderRadius:"6px",fontSize:"0.78rem",fontWeight:700,cursor:"pointer"}}>✏️ Editar Matriz</button>}</div>
               <p style={{ fontSize:"0.875rem",color:colors.textMuted,margin:0 }}>{filtered.length} peça{filtered.length!==1?"s":""}{selected.length>0?` · ${selected.length} selecionada${selected.length!==1?"s":""}`:""}</p>
             </div>
-            <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}} style={{ padding:"10px 16px",background:selectMode?"#FFF":"#111",color:selectMode?"#E53935":"#FFF",border:"1.5px solid "+(selectMode?"#E5E5E5":"#111"),borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>{selectMode?"✕ Cancelar":"⬆ Exportar"}</button>
-            {selected.length>0 && (
-              <button onClick={()=>setShowExport(true)}
-                style={{ padding:"10px 20px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:"8px" }}>
-                ⬆ Exportar {selected.length} peça{selected.length!==1?"s":""}
+            <div style={{ display:"flex",gap:"8px",alignItems:"center" }}>
+              {selectMode && selected.length>0 && (
+                <button onClick={()=>setShowExport(true)}
+                  style={{ padding:"10px 20px",background:"#F5C400",color:"#111",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+                  ⬆ Exportar {selected.length} peça{selected.length!==1?"s":""}
+                </button>
+              )}
+              <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}}
+                style={{ padding:"10px 16px",background:selectMode?"#FFF":"#111",color:selectMode?"#E53935":"#FFF",border:"1.5px solid "+(selectMode?"#E5E5E5":"#111"),borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+                {selectMode?"✕ Cancelar":"⬆ Exportar"}
               </button>
-            )}
+            </div>
           </div>
           <div style={{ display:"flex",gap:"10px",paddingBottom:"20px",flexWrap:"wrap",alignItems:"center" }}>
             <button onClick={()=>setView("grid")} title="Grade" style={{ width:"32px",height:"32px",border:"1.5px solid "+(view==="grid"?"#111":colors.border),borderRadius:"8px",background:view==="grid"?"#111":"#FFF",color:view==="grid"?"#FFF":"#888",cursor:"pointer",fontSize:"1rem",display:"flex",alignItems:"center",justifyContent:"center" }}>⊞</button>
@@ -565,8 +570,8 @@ function PiecesPageInner() {
                               <td style={{ padding:"10px 12px",verticalAlign:"middle" }}>
                                 <input type="checkbox" checked={selected.includes(piece.id)} onChange={()=>toggleSelect(piece.id)} style={{ cursor:"pointer",accentColor:"#111",width:"16px",height:"16px",display:"block" }}/>
                               </td>
-                              <td style={{ padding:"10px 12px",width:"60px" }}><div style={{ width:"48px",height:"36px",background:"#F7F7F7",borderRadius:"4px",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer" }} onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}>🎨</div></td>
-                              <td style={{ padding:"10px 12px",fontSize:"0.85rem",fontWeight:600,color:"#111",maxWidth:"200px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{piece.name}</td>
+                              <td style={{ padding:"10px 12px",width:"80px" }}><div style={{ width:"72px",height:"48px",overflow:"hidden",borderRadius:"4px",cursor:"pointer" }} onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)}><PiecePreview piece={piece} onClick={()=>router.push("/editor?pieceId="+piece.id+"&format="+piece.format)} /></div></td>
+                              <td style={{ padding:"10px 12px",fontSize:"0.85rem",fontWeight:600,color:"#111",maxWidth:"200px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{piece.name.includes(" — ") ? piece.name.split(" — ").pop()! : piece.name}</td>
                               <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{piece.format}</td>
                               <td style={{ padding:"10px 12px",fontSize:"0.8rem",color:"#888" }}>{new Date(piece.updatedAt).toLocaleDateString("pt-BR")}</td>
                               <td style={{ padding:"10px 12px" }}><span style={{ padding:"2px 8px",borderRadius:"99px",fontSize:"0.7rem",fontWeight:700,background:STATUS_COLOR[piece.status]+"22",color:STATUS_COLOR[piece.status] }}>{STATUS_LABEL[piece.status]}</span></td>
