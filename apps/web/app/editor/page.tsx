@@ -531,7 +531,7 @@ function EditorPageInner() {
         <button onClick={undo} disabled={!canUndo} title="Desfazer (Ctrl+Z)" style={{...btn,opacity:canUndo?1:0.35,cursor:canUndo?"pointer":"not-allowed",padding:"5px 10px"}}>↩</button>
         <button onClick={redo} disabled={!canRedo} title="Refazer (Ctrl+Shift+Z)" style={{...btn,opacity:canRedo?1:0.35,cursor:canRedo?"pointer":"not-allowed",padding:"5px 10px"}}>↪</button>
         <div style={sep}/>
-        <button onClick={save} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:saved?"#34A853":"#111",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",transition:"background 0.2s"}}>
+        <button onClick={save} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:saved?"#34A853":"#E45804",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer",transition:"background 0.2s"}}>
           {saving?"Salvando...":saved?"✓ Salvo":"Salvar"}
         </button>
         {!isPiece && (
@@ -539,7 +539,7 @@ function EditorPageInner() {
             <button onClick={()=>{ window.location.href="/pieces?campaignId="+(activeCampaignId??campaignId??""); }} style={{padding:"6px 16px",border:"1.5px solid #E5E5E5",borderRadius:"8px",background:"#FFF",color:"#111",fontSize:"0.8rem",fontWeight:600,cursor:"pointer"}}>
               Ver Peças
             </button>
-            <button onClick={()=>setShowExportDialog(true)} style={{padding:"6px 20px",border:"none",borderRadius:"8px",background:"#F5C400",color:"#111",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
+            <button onClick={()=>setShowExportDialog(true)} style={{padding:"6px 20px",border:"none",borderRadius:"8px",background:"#E45804",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
               Gerar Peças →
             </button>
           </>
@@ -550,7 +550,7 @@ function EditorPageInner() {
           </button>
         )}
         {isPiece && (
-          <button onClick={()=>{ window.location.href="/pieces?campaignId="+(activeCampaignId??"")+"&export="+pieceId; }} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#111",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
+          <button onClick={()=>{ window.location.href="/pieces?campaignId="+(activeCampaignId??"")+"&export="+pieceId; }} style={{padding:"6px 16px",border:"none",borderRadius:"8px",background:"#E45804",color:"#FFF",fontSize:"0.8rem",fontWeight:700,cursor:"pointer"}}>
             ⬆ Exportar
           </button>
         )}
