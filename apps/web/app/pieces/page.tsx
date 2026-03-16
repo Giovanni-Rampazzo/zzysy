@@ -514,7 +514,7 @@ function PiecesPageInner() {
           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"20px" }}>
             <div>
               <div style={{display:"flex",alignItems:"center",gap:"12px"}}><button onClick={()=>router.push("/campaigns")} style={{background:"none",border:"none",cursor:"pointer",color:"#888",fontSize:"0.85rem",fontWeight:600,padding:0}}>← Campanhas</button><h1 style={{ fontSize:"1.5rem",fontWeight:900,color:colors.text,margin:0,letterSpacing:"-0.03em" }}>Peças</h1>{filterCampaign&&<button onClick={()=>{ window.location.href="/editor?campaign="+filterCampaign+"&fromPieces="+filterCampaign; }} style={{padding:"5px 12px",background:"#F5C400",border:"none",borderRadius:"6px",fontSize:"0.78rem",fontWeight:700,cursor:"pointer"}}>✏️ Editar Matriz</button>}</div>
-              <p style={{ fontSize:"0.875rem",color:colors.textMuted,margin:0 }}>{filtered.length} peça{filtered.length!==1?"s":""}{selected.length>0?` · ${selected.length} selecionada${selected.length!==1?"s":""}`:""}</p>
+              <p style={{ fontSize:"0.875rem",color:colors.textMuted,margin:0 }}>{filtered.length} peça{filtered.length!==1?"s":""}{selected.length>0?" · "+selected.length+" selecionada"+(selected.length!==1?"s":""):""}</p>
             </div>
             <div style={{ display:"flex",gap:"8px",alignItems:"center" }}>
               {selectMode && selected.length>0 && (
