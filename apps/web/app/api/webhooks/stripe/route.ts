@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
     case "customer.subscription.deleted": {
       const sub = event.data.object as any;
       await prisma.subscription.updateMany({
-        where: { stripeSubscriptionId: sub.id },
         data: {
           status: sub.status.toUpperCase(),
           currentPeriodEnd: new Date(sub.current_period_end * 1000),
