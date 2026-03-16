@@ -1,8 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { plans } from "@/lib/plans-config";
+
+type BillingInfo = {
+  plan?: string;
+  status?: string;
+  currentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
+};
+
 export default function BillingPage() {
   const router = useRouter();
   const [billing, setBilling] = useState<BillingInfo | null>(null);
@@ -10,6 +17,7 @@ export default function BillingPage() {
   const [canceling, setCanceling] = useState(false);
   useEffect(() => { fetch("/api/billing").then(r => r.json()).then(data => { setBilling(data); setLoading(false); }); }, []);
   const currentPlan = plans.find(p => p.id === billing?.plan?.toLowerCase()) ?? plans[0];
+  const isFree = !billing?.plan || billing.plan.toLowerCase() === "free";
   const handleCancel = async () => {
     if (!confirm("Tem certeza?")) return;
     setCanceling(true);
