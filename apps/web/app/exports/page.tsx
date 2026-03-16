@@ -121,7 +121,7 @@ function DeliveryCard({ delivery, onStatusChange, onDelete, view }: {
   const deleteSelected = async () => {
     if (!confirm(`Deletar ${selected.length} exportação${selected.length!==1?'ões':''}?`)) return;
     await Promise.all(selected.map((id:string) => fetch("/api/exports/"+id, {method:"DELETE"})));
-    setExports((p:any[])=>p.filter((x:any)=>!selected.includes(x.id)));
+    setDeliveries((p:Delivery[])=>p.filter((x:Delivery)=>!selected.includes(x.id)));
     setSelected([]);
     setSelectMode(false);
   };
