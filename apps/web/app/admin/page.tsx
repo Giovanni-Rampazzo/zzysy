@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 const PLANS = ["FREE","STARTER","PRO","AGENCY","ENTERPRISE"];
 const planColors: Record<string,string> = { FREE:"#E5E5E5", STARTER:"#4285F4", PRO:"#F5C400", AGENCY:"#34A853", ENTERPRISE:"#111" };
 
-type User = { id:string; name:string|null; email:string; plan:string; blocked:boolean; createdAt:string; tenant:{name:string;slug:string}; _count:{sessions:number} };
+type User = { id:string; name:string|null; email:string; plan:string;// blocked:boolean; createdAt:string; tenant:{name:string;slug:string}; _count:{sessions:number} };
 type Metrics = { totalUsers:number; totalCampaigns:number; totalPieces:number; mrr:number; paying:number; usersByPlan:{plan:string;count:number}[]; recentUsers:User[] };
 
 export default function AdminPage() {
@@ -168,7 +168,7 @@ export default function AdminPage() {
                         </td>
                         <td style={{ padding:"12px 16px", color:"#888", fontSize:"0.8rem" }}>{new Date(u.createdAt).toLocaleDateString("pt-BR")}</td>
                         <td style={{ padding:"12px 16px" }}>
-                          <button onClick={()=>updateUser(u.id,{blocked:!u.blocked})}
+                          <button onClick={()=>updateUser(u.id,{// blocked:!u.blocked})}
                             style={{ padding:"5px 12px", border:`1px solid ${u.blocked?"#34A853":"#E53935"}`, borderRadius:"6px", background:"transparent", color:u.blocked?"#34A853":"#E53935", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
                             {u.blocked?"Desbloquear":"Bloquear"}
                           </button>
