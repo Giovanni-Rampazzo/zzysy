@@ -7,8 +7,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { fieldId } = await params;
-  const body = await req.json();
-  const { label, type, value, imageUrl, order } = body;
+  const { label, type, value, imageUrl, order } = await req.json();
   const field = await prisma.campaignField.update({ where: { id: fieldId }, data: { label, type, value, imageUrl, order } });
   return NextResponse.json(field);
 }
