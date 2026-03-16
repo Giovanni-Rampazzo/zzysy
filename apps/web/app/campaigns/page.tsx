@@ -16,6 +16,15 @@ export default function CampaignsPage() {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string|null>(null);
+  const [editingId, setEditingId] = useState<string|null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  const renameCamera = async (id: string, name: string) => {
+    if (!name.trim()) return;
+    await fetch("/api/campaigns/"+id, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name})});
+    setCampaigns(prev=>prev.map(c=>c.id===id?{...c,name}:c));
+    setEditingId(null);
+  };
 
   useEffect(() => {
     fetch("/api/campaigns").then(r=>r.json()).then(data=>{ setCampaigns(data); setLoading(false); });
@@ -93,7 +102,18 @@ export default function CampaignsPage() {
                 onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#111"; (e.currentTarget as HTMLElement).style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
                 onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#E5E5E5"; (e.currentTarget as HTMLElement).style.boxShadow="none"; }}>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px" }}>
-                  <h3 style={{ fontSize:"0.95rem",fontWeight:700,color:"#111",margin:0,flex:1 }}>{c.name}</h3>
+                  {editingId===c.id ? (
+                    <input autoFocus value={editingName}
+                      onChange={e=>setEditingName(e.target.value)}
+                      onBlur={()=>renameCamera(c.id, editingName)}
+                      onKeyDown={e=>{if(e.key==="Enter")renameCamera(c.id,editingName);if(e.key==="Escape")setEditingId(null);}}
+                      onClick={e=>e.stopPropagation()}
+                      style={{fontSize:"0.95rem",fontWeight:700,color:"#111",margin:0,flex:1,border:"none",borderBottom:"2px solid #E45804",outline:"none",background:"transparent",padding:"0",fontFamily:"'DM Sans',sans-serif",width:"100%"}}/>
+                  ) : (
+                    <h3 onClick={e=>{e.stopPropagation();setEditingId(c.id);setEditingName(c.name);}}
+                      title="Clique para renomear"
+                      style={{fontSize:"0.95rem",fontWeight:700,color:"#111",margin:0,flex:1,cursor:"text"}}>{c.name}</h3>
+                  )}
                   <button onClick={e=>{e.stopPropagation();handleDelete(c.id);}} disabled={deletingId===c.id}
                     style={{ background:"none",border:"none",cursor:"pointer",color:"#CCC",fontSize:"1rem",padding:"0 0 0 8px" }}
                     onMouseEnter={e=>(e.currentTarget as HTMLElement).style.color="#E53935"}
@@ -102,7 +122,7 @@ export default function CampaignsPage() {
                   </button>
                 </div>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                  <span style={{ fontSize:"0.8rem",color:"#AAA" }}>Criada em {new Date(c.createdAt).toLocaleDateString("pt-BR")}</span>
+                  <span style={{ fontSize:"0.8rem",color:"#AAA" }}>Criada em {new Date(c.updatedAt).toLocaleDateString("pt-BR")}</span>
                   <span style={{ fontSize:"0.75rem",fontWeight:600,color:"#888",background:"#F7F7F7",padding:"3px 8px",borderRadius:"99px" }}>{c._count.pieces} peça{c._count.pieces!==1?"s":""}</span>
                 </div>
                 <div style={{ display:"flex",gap:"8px",marginTop:"14px" }} onClick={e=>e.stopPropagation()}>
