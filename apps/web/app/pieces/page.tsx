@@ -155,9 +155,9 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
 
                   const textContent=(obj.text||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
                   const baseStyle={ font:{name:psName}, fontSize:safeFontSize, fillColor:{r:cr,g:cg,b:cb}, fauxBold:isBold, fauxItalic:isItalic };
-                  const fabricStyles=obj.styles||[];
+                  const fabricStyles=obj.styles||{};
                   const styleRuns: any[]=[];
-                  if (!fabricStyles.length) {
+                  if (Object.keys(fabricStyles).length===0) {
                     styleRuns.push({ length:textContent.length, style:baseStyle });
                   } else {
                     let runStart=0, prevKey='', prevSt=baseStyle, lIdx=0, cIdx=0;

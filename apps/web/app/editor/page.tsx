@@ -223,7 +223,7 @@ function EditorPageInner() {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [textProps, setTextProps] = useState({fontSize:16,fontFamily:"DM Sans",fill:"#111111",fontWeight:"400",textAlign:"left"});
+  const [textProps, setTextProps] = useState({fontSize:16,fontFamily:"DM Sans",fill:"#111111",fontWeight:"400",textAlign:"left",baselineShift:0,lineHeight:1.16});
   const [shapeColor, setShapeColor] = useState("#4285F4");
   const [activeCampaignId, setActiveCampaignId] = useState<string|null>(campaignId);
 
@@ -307,7 +307,7 @@ function EditorPageInner() {
           if (charStyle.fill) fill = charStyle.fill;
           if (charStyle.fontWeight) fontWeight = String(charStyle.fontWeight);
         }
-        setTextProps({fontSize:obj.fontSize,fontFamily:obj.fontFamily??"DM Sans",fill,fontWeight,textAlign:obj.textAlign??"left"});
+        setTextProps({fontSize:obj.fontSize,fontFamily:obj.fontFamily??"DM Sans",fill,fontWeight,textAlign:obj.textAlign??"left",baselineShift:obj.deltaY??0,lineHeight:obj.lineHeight??1.16});
       }
       if (obj.fill&&typeof obj.fill==="string"&&!obj.fontSize) setShapeColor(obj.fill);
     };
@@ -492,7 +492,7 @@ function EditorPageInner() {
       const [w,h] = fmt.split("x").map(Number);
       const scaled = scaleJsonToFormat(json,canvasSize.w,canvasSize.h,w,h);
       const label = ALL_FORMATS.find(f=>f.value===fmt)?.label??fmt;
-      return fetch("/api/pieces",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({campaignId:cid,name:`${campaignName} — ${label}`,format:fmt,data:scaled,upsert:true})});
+      return fetch("/api/pieces",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({campaignId:cid,name:label,format:fmt,data:scaled,upsert:true})});
     }));
     setGenerating(false); setShowExportDialog(false);
     router.push(`/pieces?campaignId=${cid}`);
@@ -656,6 +656,21 @@ function EditorPageInner() {
                         {a==="left"?"←":a==="center"?"≡":"→"}
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                <div style={{display:"flex",gap:"8px"}}>
+                  <div style={{flex:1}}>
+                    <label style={{fontSize:"0.72rem",color:"#888",display:"block",marginBottom:"3px"}}>Baseline</label>
+                    <input type="number" value={textProps.baselineShift??0} min={-500} max={500}
+                      onChange={e=>updateTextProp("deltaY",Number(e.target.value))}
+                      style={{width:"100%",padding:"5px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",fontSize:"0.8rem",boxSizing:"border-box"}}/>
+                  </div>
+                  <div style={{flex:1}}>
+                    <label style={{fontSize:"0.72rem",color:"#888",display:"block",marginBottom:"3px"}}>Entrelinha</label>
+                    <input type="number" value={textProps.lineHeight??1.16} min={0.5} max={5} step={0.05}
+                      onChange={e=>updateTextProp("lineHeight",Number(e.target.value))}
+                      style={{width:"100%",padding:"5px 8px",border:"1px solid #E5E5E5",borderRadius:"6px",fontSize:"0.8rem",boxSizing:"border-box"}}/>
                   </div>
                 </div>
 
