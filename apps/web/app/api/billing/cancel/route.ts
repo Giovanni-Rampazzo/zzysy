@@ -11,9 +11,7 @@ export async function POST() {
   if (!session?.user?.email) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user?.stripeSubscriptionId) return NextResponse.json({ error: "Sem assinatura ativa" }, { status: 400 });
 
-  await stripe.subscriptions.update(user.stripeSubscriptionId, { cancel_at_period_end: true });
 
   return NextResponse.json({ success: true });
 }
