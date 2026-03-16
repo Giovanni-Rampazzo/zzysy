@@ -459,7 +459,7 @@ function PiecesPageInner() {
     setPieces(p=>p.map(x=>x.id===id?{...x,status:status as Piece["status"]}:x));
   }
   async function deleteSelected() {
-    if (!confirm(`Deletar ${selected.length} peça${selected.length!==1?'s':''}?`)) return;
+    if (!confirm('Deletar '+selected.length+' peca(s)?')) return;
     await Promise.all(selected.map(id => fetch("/api/pieces/"+id, {method:"DELETE"})));
     setPieces(p=>p.filter(x=>!selected.includes(x.id)));
     setSelected([]);
