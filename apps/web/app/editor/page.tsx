@@ -531,7 +531,8 @@ function EditorPageInner() {
         const isText = obj.type==="i-text"||obj.type==="text"||obj.type==="IText";
         const isImage = obj.type==="image";
         if (isText && tIdx<textFields.length) {
-          const newText = textFields[tIdx++].value || "";
+          const field = textFields[tIdx++];
+          const newText = field.value || field.label || "";
           (obj as any).set('text', newText);
           if (typeof (obj as any).initDimensions === 'function') (obj as any).initDimensions();
           (obj as any).dirty = true;
