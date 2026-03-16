@@ -14,11 +14,11 @@ export async function POST(req: Request) {
         if (existing) {
           await prisma.subscription.update({
             where: { id: existing.id },
-            data: { plan: planId.toUpperCase(), status: "active" },
+            data: { plan: planId.toUpperCase(), status: "ACTIVE" },
           });
         } else {
           await prisma.subscription.create({
-            data: { tenantId: user.tenantId, plan: planId.toUpperCase(), status: "active" },
+            data: { tenantId: user.tenantId, plan: planId.toUpperCase(), status: "ACTIVE" },
           });
         }
       }
