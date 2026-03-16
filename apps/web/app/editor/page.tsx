@@ -547,7 +547,8 @@ function EditorPageInner() {
           (obj as any).setElement(imgEl);
         }
       }
-      canvas.renderAll();
+      canvas.requestRenderAll();
+      setTimeout(()=>canvas.requestRenderAll(), 100);
       setIsDirty(true);
       // Atualizar nome da campanha
       const c = allCampaigns.find(x=>x.id===toCampaignId);
@@ -629,9 +630,12 @@ function EditorPageInner() {
           </>
         )}
         {isPiece && (
-          <select onChange={e=>e.target.value&&applyFieldsToCanvas(e.target.value)} defaultValue="" disabled={applyingFields}
-            style={{padding:"6px 12px",border:"1.5px solid #E45804",borderRadius:"8px",fontSize:"0.8rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:"#E45804",fontWeight:700,cursor:"pointer",background:"#FFF",height:"36px",boxSizing:"border-box"}}>
-            <option value="">Aplicar campanha...</option>
+          <select
+            value=""
+            onChange={e=>{ if(e.target.value) { applyFieldsToCanvas(e.target.value); e.target.value=""; } }}
+            disabled={applyingFields}
+            style={{padding:"6px 12px",border:"1.5px solid #E45804",borderRadius:"8px",fontSize:"0.8rem",outline:"none",fontFamily:"'DM Sans',sans-serif",color:applyingFields?"#aaa":"#E45804",fontWeight:700,cursor:"pointer",background:"#FFF",height:"36px",boxSizing:"border-box"}}>
+            <option value="">{applyingFields?"Aplicando...":"Aplicar campanha..."}</option>
             {allCampaigns.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         )}
