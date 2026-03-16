@@ -105,6 +105,7 @@ export default function CampaignsPage() {
                 onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#111"; (e.currentTarget as HTMLElement).style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
                 onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#E5E5E5"; (e.currentTarget as HTMLElement).style.boxShadow="none"; }}>
                 <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px" }}>
+                  {(c as any).client && <p style={{fontSize:"0.72rem",color:"#888",margin:"0 0 4px",fontWeight:500}}>👥 {(c as any).client.name}</p>}
                   {editingId===c.id ? (
                     <input autoFocus value={editingName}
                       onChange={e=>setEditingName(e.target.value)}
