@@ -524,16 +524,20 @@ function EditorPageInner() {
       }
       const textFields = fields.filter(f=>f.type!=="image" && f.value);
       const imageFields = fields.filter(f=>f.type==="image" && f.imageUrl);
+      console.log("fields total:", fields.length, "text:", textFields.length, "image:", imageFields.length);
       const objects = canvas.getObjects() as any[];
+      console.log("objects:", objects.map((o:any)=>o.type+"="+o.text?.substring(0,20)));
       let tIdx=0, iIdx=0;
       for (const obj of objects) {
         const isText = obj.type==="i-text"||obj.type==="text"||obj.type==="IText";
         const isImage = obj.type==="image";
+        console.log("obj type:", obj.type, "isText:", isText, "tIdx:", tIdx);
         if (isText && tIdx<textFields.length) {
           const newText = textFields[tIdx++].value;
-          obj.set('text', newText);
-          if (typeof obj.initDimensions === 'function') obj.initDimensions();
-          obj.dirty = true;
+          console.log("Setting text:", newText);
+          (obj as any).set('text', newText);
+          if (typeof (obj as any).initDimensions === 'function') (obj as any).initDimensions();
+          (obj as any).dirty = true;
         }
         if (isImage && iIdx<imageFields.length) {
           const url = imageFields[iIdx++].imageUrl;
