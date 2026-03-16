@@ -446,6 +446,12 @@ function PiecesPageInner() {
     await fetch("/api/pieces/"+id, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({status}) });
     setPieces(p=>p.map(x=>x.id===id?{...x,status:status as Piece["status"]}:x));
   }
+  async function deleteSelected() {
+    if (!confirm(`Deletar ${selected.length} peça${selected.length!==1?'s':''}?`)) return;
+    await Promise.all(selected.map(id => fetch("/api/pieces/"+id, {method:"DELETE"})));
+    setPieces(p=>p.filter(x=>!selected.includes(x.id)));
+    setSelected([]);
+  }
   async function duplicatePiece(piece: Piece) {
     const res = await fetch("/api/pieces", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({campaignId:piece.campaign.id, name:piece.name+" (cópia)", format:piece.format, data:piece.data??{}}) });
     const created = await res.json();
@@ -500,10 +506,16 @@ function PiecesPageInner() {
             </div>
             <div style={{ display:"flex",gap:"8px",alignItems:"center" }}>
               {selectMode && selected.length>0 && (
-                <button onClick={()=>setShowExport(true)}
-                  style={{ padding:"10px 20px",background:"#F5C400",color:"#111",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
-                  ⬆ Exportar {selected.length} peça{selected.length!==1?"s":""}
-                </button>
+                <>
+                  <button onClick={()=>setShowExport(true)}
+                    style={{ padding:"10px 20px",background:"#F5C400",color:"#111",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+                    ⬆ Exportar {selected.length} peça{selected.length!==1?"s":""}
+                  </button>
+                  <button onClick={deleteSelected}
+                    style={{ padding:"10px 16px",background:"#E53935",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+                    🗑 Apagar {selected.length}
+                  </button>
+                </>
               )}
               <button onClick={()=>{setSelectMode(v=>{if(v){setSelected([]);}return !v;})}}
                 style={{ padding:"10px 16px",background:selectMode?"#FFF":"#111",color:selectMode?"#E53935":"#FFF",border:"1.5px solid "+(selectMode?"#E5E5E5":"#111"),borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
