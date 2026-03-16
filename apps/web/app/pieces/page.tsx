@@ -179,7 +179,17 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                     if(runStart<textContent.length)styleRuns.push({length:textContent.length-runStart,style:prevSt});
                     if(!styleRuns.length)styleRuns.push({length:textContent.length,style:baseStyle});
                   }
-                  psdLayers.push({ name, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
+                  // Renderizar texto como imageData para preview correto no Photoshop
+                  objects.forEach((o:any,idx2:number)=>{o.visible=idx2===oi;});
+                  fc.renderAll();
+                  await new Promise<void>(res2=>setTimeout(res2,30));
+                  fc.renderAll();
+                  const nativeEl2=(fc as any).lowerCanvasEl as HTMLCanvasElement;
+                  const tmp2=document.createElement('canvas');
+                  tmp2.width=canvW;tmp2.height=canvH;
+                  tmp2.getContext('2d')!.drawImage(nativeEl2,0,0);
+                  const textImgData=tmp2.getContext('2d')!.getImageData(0,0,canvW,canvH);
+                  psdLayers.push({ name, imageData:textImgData, top:0, left:0, bottom:canvH, right:canvW, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
                 } else {
                   // layer pixel para shapes/imagens
                   objects.forEach((o:any,idx:number)=>{o.visible=idx===oi;});
