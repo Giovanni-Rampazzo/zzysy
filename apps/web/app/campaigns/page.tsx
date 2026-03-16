@@ -14,6 +14,9 @@ export default function CampaignsPage() {
   const [sortOrder, setSortOrder] = useState<"desc"|"asc">("desc");
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newClientId, setNewClientId] = useState("");
+  const [clients, setClients] = useState<{id:string;name:string}[]>([]);
+  useEffect(()=>{ fetch("/api/clients").then(r=>r.json()).then(d=>setClients(Array.isArray(d)?d:[])); },[]);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string|null>(null);
   const [editingId, setEditingId] = useState<string|null>(null);
@@ -48,7 +51,7 @@ export default function CampaignsPage() {
   const handleCreate = async () => {
     if (!newName.trim()) return;
     setCreating(true);
-    const res = await fetch("/api/campaigns",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:newName.trim()})});
+    const res = await fetch("/api/campaigns",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:newName.trim(),clientId:newClientId||undefined})});
     if (res.ok) { const data=await res.json(); setCampaigns([{...data,_count:{pieces:0}},...campaigns]); setShowModal(false); setNewName(""); }
     setCreating(false);
   };
