@@ -40,18 +40,32 @@ export default function FieldsPage({ params }: { params: Promise<{ id: string }>
 
   const saveAll = async () => {
     setSaving(true);
-    for (let i=0; i<fields.length; i++) {
-      const f = {...fields[i], order:i};
-      if (f.id) {
-        await fetch("/api/campaigns/"+campaignId+"/fields/"+f.id, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(f)});
-      } else {
-        const r = await fetch("/api/campaigns/"+campaignId+"/fields", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(f)});
-        const saved = await r.json();
-        setFields(prev=>prev.map((x,idx)=>idx===i?{...x,id:saved.id}:x));
+    try {
+      const updated: Field[] = [...fields];
+      for (let i=0; i<fields.length; i++) {
+        const f = {...fields[i], order:i};
+        if (f.id) {
+          await fetch("/api/campaigns/"+campaignId+"/fields/"+f.id, {
+            method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(f)
+          });
+        } else {
+          const res = await fetch("/api/campaigns/"+campaignId+"/fields", {
+            method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(f)
+          });
+          if (res.ok) {
+            const saved = await res.json();
+            updated[i] = {...f, id:saved.id};
+          }
+        }
       }
+      setFields(updated);
+      alert("Campos salvos!");
+    } catch(e) {
+      console.error("Erro ao salvar:", e);
+      alert("Erro ao salvar campos.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    alert("Campos salvos!");
   };
 
   const handleImageUpload = async (idx: number, file: File) => {
