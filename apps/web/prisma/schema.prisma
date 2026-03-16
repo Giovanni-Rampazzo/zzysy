@@ -142,9 +142,9 @@ model Delivery {
 // ─── ASSINATURAS ─────────────────────────────────────────────────
 model Subscription {
   id        String   @id @default(cuid())
-  tenantId  String
-  plan      String
-  status    String
+  tenantId  String   @unique
+  plan      String   @default("FREE")
+  status    String   @default("inactive")
   stripeId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
