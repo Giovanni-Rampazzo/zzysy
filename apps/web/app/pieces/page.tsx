@@ -191,30 +191,20 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const textImgData=tmp2.getContext('2d')!.getImageData(0,0,canvW,canvH);
                   psdLayers.push({ name, imageData:textImgData, top:0, left:0, bottom:canvH, right:canvW, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
                 } else {
-                  // layer pixel — captura objeto individual com posição correta
+                  // layer pixel — toDataURL com objeto isolado
                   objects.forEach((o:any,idx2:number)=>{o.visible=idx2===oi;});
                   (fc as any).backgroundColor='transparent';
                   fc.renderAll();
                   await new Promise<void>(res=>setTimeout(res,200));
                   fc.renderAll();
-                  // Calcular bounding box real do objeto
-                  const objFab=objects[oi] as any;
-                  const scX2=objFab.scaleX||1, scY2=objFab.scaleY||1;
-                  const oW=Math.round((objFab.width||100)*scX2);
-                  const oH=Math.round((objFab.height||100)*scY2);
-                  const cx2=objFab.left||0, cy2=objFab.top||0;
-                  const ox2=objFab.originX||'left', oy2=objFab.originY||'top';
-                  const oLeft=Math.round(ox2==='center'?cx2-oW/2:ox2==='right'?cx2-oW:cx2);
-                  const oTop=Math.round(oy2==='center'?cy2-oH/2:oy2==='bottom'?cy2-oH:cy2);
-                  const oRight=Math.min(canvW,oLeft+oW);
-                  const oBottom=Math.min(canvH,oTop+oH);
-                  // Capturar só a área do objeto
-                  const tmpObj=document.createElement('canvas');
-                  tmpObj.width=oW; tmpObj.height=oH;
-                  const srcCanvas=(fc as any).lowerCanvasEl as HTMLCanvasElement;
-                  tmpObj.getContext('2d')!.drawImage(srcCanvas,oLeft,oTop,oW,oH,0,0,oW,oH);
-                  const imgData=tmpObj.getContext('2d')!.getImageData(0,0,oW,oH);
-                  psdLayers.push({name,imageData:imgData,top:oTop,left:oLeft,bottom:oBottom,right:oRight});
+                  const dataUrlLayer=fc.toDataURL({format:'png',multiplier:1});
+                  const imgElLayer=new Image();
+                  await new Promise<void>(res=>{imgElLayer.onload=()=>res();imgElLayer.src=dataUrlLayer;});
+                  const tmpLayer=document.createElement('canvas');
+                  tmpLayer.width=canvW; tmpLayer.height=canvH;
+                  tmpLayer.getContext('2d')!.drawImage(imgElLayer,0,0,canvW,canvH);
+                  const imgData=tmpLayer.getContext('2d')!.getImageData(0,0,canvW,canvH);
+                  psdLayers.push({name,imageData:imgData,top:0,left:0,bottom:canvH,right:canvW});
                 }
               }
 
