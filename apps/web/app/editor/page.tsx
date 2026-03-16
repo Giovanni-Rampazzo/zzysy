@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Canvas, IText, Rect, Circle, FabricImage } from "fabric";
+import { Canvas, IText, Rect, Circle, FabricImage, Point } from "fabric";
 
 type LayerType = "title"|"subtitle"|"body"|"subtext"|"cta"|"image"|"rect"|"circle";
 interface Layer { id: string; type: LayerType; name: string; visible: boolean; locked: boolean; }
@@ -336,7 +336,7 @@ function EditorPageInner() {
       zoom *= 0.999 ** delta;
       if (zoom > 5) zoom = 5;
       if (zoom < 0.1) zoom = 0.1;
-      canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+      canvas.zoomToPoint(new Point(opt.e.offsetX, opt.e.offsetY), zoom);
       opt.e.preventDefault();
       opt.e.stopPropagation();
       // Atualizar o display de zoom
