@@ -6,19 +6,20 @@ export async function POST(req: Request) {
     const body = await req.json();
     const session = body?.data?.object;
     const email = session?.customer_details?.email ?? session?.customer_email;
-    const planId = session?.metadata?.planId;
-    if (email && planId) {
+    const planName = session?.metadata?.planId;
+    if (email && planName) {
       const user = await prisma.user.findUnique({ where: { email } });
-      if (user) {
+      const plan = await prisma.plan.findFirst({ where: { name: planName.toUpperCase() } });
+      if (user && plan) {
         const existing = await prisma.subscription.findFirst({ where: { tenantId: user.tenantId } });
         if (existing) {
           await prisma.subscription.update({
             where: { id: existing.id },
-            data: { plan: planId.toUpperCase(), status: "ACTIVE" },
+            data: { planId: plan.id, status: "ACTIVE", currentPeriodStart: new Date(), currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
           });
         } else {
           await prisma.subscription.create({
-            data: { tenantId: user.tenantId, plan: planId.toUpperCase(), status: "ACTIVE" },
+            data: { tenantId: user.tenantId, planId: plan.id, status: "ACTIVE", currentPeriodStart: new Date(), currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
           });
         }
       }
