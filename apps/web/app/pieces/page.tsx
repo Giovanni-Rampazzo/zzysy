@@ -463,6 +463,49 @@ function PiecesPageInner() {
       setPieces(list);
       setLoading(false);
       setRefreshKey(k=>k+1);
+
+      // Aplicar matriz apenas em peças sem data criadas nos últimos 5 minutos
+      if (filterCampaign && list.length > 0) {
+        const now = Date.now();
+        const newEmpty = list.filter((p: any) =>
+          (!p.data || Object.keys(p.data).length === 0) &&
+          (now - new Date(p.createdAt).getTime() < 5 * 60 * 1000)
+        );
+        if (newEmpty.length > 0) {
+          const matrixRes = await fetch(`/api/campaigns/${filterCampaign}/matrix`);
+          if (!matrixRes.ok) return;
+          const matrix = await matrixRes.json();
+          if (!matrix?.data || Object.keys(matrix.data).length === 0) return;
+          const matW = matrix.data.width || 1080;
+          const matH = matrix.data.height || 1080;
+          const scale = (j: any, ow: number, oh: number, nw: number, nh: number) => {
+            const f = Math.min(nw/ow, nh/oh);
+            const ox = (nw - ow*f)/2, oy = (nh - oh*f)/2;
+            const s = JSON.parse(JSON.stringify(j));
+            s.width = nw; s.height = nh;
+            s.objects = (s.objects||[]).map((o: any) => ({
+              ...o, left:(o.left||0)*f+ox, top:(o.top||0)*f+oy,
+              scaleX:(o.scaleX||1)*f, scaleY:(o.scaleY||1)*f,
+              ...(o.fontSize ? {fontSize: Math.round(o.fontSize*f)} : {})
+            }));
+            return s;
+          };
+          await Promise.all(newEmpty.map(async (p: any) => {
+            const [pw, ph] = p.format.split("x").map(Number);
+            if (!pw || !ph) return;
+            const scaled = scale(matrix.data, matW, matH, pw, ph);
+            const res = await fetch(`/api/pieces/${p.id}`, {
+              method: "PATCH", headers: {"Content-Type":"application/json"},
+              body: JSON.stringify({data: scaled})
+            });
+            if (res.ok) {
+              const updated = await res.json();
+              setPieces(prev => prev.map(x => x.id === p.id ? {...x, data: updated.data} : x));
+              setRefreshKey(k=>k+1);
+            }
+          }));
+        }
+      }
     });
   }, [filterCampaign]);
 
