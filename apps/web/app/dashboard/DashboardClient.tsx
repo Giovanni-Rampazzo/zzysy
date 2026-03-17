@@ -195,7 +195,7 @@ export default function DashboardClient() {
         ) : (
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(260px, 1fr))",gap:"16px" }}>
             {campaigns.map(c=>(
-              <CampaignCard key={c.id} campaign={c} onClick={()=>router.push(`/editor?campaign=${c.id}`)} />
+              <CampaignCard key={c.id} campaign={c} onDelete={()=>deleteCampaign(c.id)} onClick={()=>router.push(`/editor?campaign=${c.id}`)} />
             ))}
           </div>
         )}
