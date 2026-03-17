@@ -132,10 +132,37 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  tenant     Tenant          @relation(fields: [tenantId], references: [id])
   matrix     Matrix?
   pieces     Piece[]
   deliveries Delivery[]
+  fields     CampaignField[]
+}
+
+
+// ─── CAMPOS DA CAMPANHA ──────────────────────────────────────────
+model CampaignField {
+  id          String    @id @default(cuid())
+  campaignId  String
+  type        FieldType
+  label       String
+  value       String?   @db.Text
+  imageUrl    String?   @db.Text
+  order       Int       @default(0)
+  layerId     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+enum FieldType {
+  TITULO
+  SUBTITULO
+  TEXTO
+  CTA
+  IMAGEM
+  LOGOMARCA
 }
 
 // ─── MATRIZ ──────────────────────────────────────────────────────
