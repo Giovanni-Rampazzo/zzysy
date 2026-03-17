@@ -466,10 +466,9 @@ function PiecesPageInner() {
 
       // Aplicar matriz apenas em peças sem data criadas nos últimos 5 minutos
       if (filterCampaign && list.length > 0) {
-        const now = Date.now();
+        // Aplicar em todas as peças sem data que estão visíveis na lista
         const newEmpty = list.filter((p: any) =>
-          (!p.data || Object.keys(p.data).length === 0) &&
-          (now - new Date(p.createdAt).getTime() < 5 * 60 * 1000)
+          !p.data || Object.keys(p.data).length === 0
         );
         if (newEmpty.length > 0) {
           const matrixRes = await fetch(`/api/campaigns/${filterCampaign}/matrix`);
