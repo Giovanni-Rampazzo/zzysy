@@ -7,6 +7,12 @@ import { useSession, signOut } from "next-auth/react";
 function Logo({ small = false }: { small?: boolean }) {
   const size = small ? "1.2rem" : "1.5rem";
   const dotSize = small ? "4px" : "5px";
+  const deleteCampaign = async (id: string) => {
+    if (!confirm("Deletar campanha?")) return;
+    await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
+    setCampaigns(prev => prev.filter(c => c.id !== id));
+  };
+
   return (
     <div style={{ display:"flex",alignItems:"center",gap:"1px",fontFamily:"'DM Sans', sans-serif",fontWeight:900,fontSize:size,letterSpacing:"-0.04em",color:colors.text }}>
       ZZ
