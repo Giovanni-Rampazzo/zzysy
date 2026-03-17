@@ -800,7 +800,7 @@ function EditorPageInner() {
                     addText("personalizado" as LayerType, f.label, 48, "400");
                   }
                   setShowFieldsMenu(false);
-                }} style={{display:"block",width:"100%",textAlign:"left",padding:"8px 12px",border:"none",borderRadius:"6px",background:"transparent",cursor:"pointer",fontSize:"0.82rem",color:"#111",display:"flex",alignItems:"center",gap:"8px"}}>
+                }} style={{display:"block",width:"100%",textAlign:"left",padding:"8px 12px",border:"none",borderRadius:"6px",background:"transparent",cursor:"pointer",fontSize:"0.82rem",color:"#111"}}>
                   <span>{f.type==="IMAGEM"||f.type==="LOGOMARCA"?"🖼":"T"}</span>
                   {f.label}
                 </button>
