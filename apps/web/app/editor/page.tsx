@@ -199,6 +199,7 @@ function EditorPageInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<Canvas|null>(null);
   const canvasAreaRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [layers, setLayers] = useState<Layer[]>([]);
   const [campaignName, setCampaignName] = useState("");
   const [allCampaigns, setAllCampaigns] = useState<{id:string;name:string}[]>([]);
