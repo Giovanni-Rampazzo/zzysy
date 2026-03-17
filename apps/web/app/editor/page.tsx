@@ -512,6 +512,33 @@ function EditorPageInner() {
         // Salva apenas a matriz — peças são atualizadas via "Aplicar nas Peças" nos Itens
         const res=await fetch(`/api/campaigns/${cid}/matrix`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:json})});
         if(!res.ok)throw new Error();
+
+        // Sincronizar textos dos layers com os fields da campanha
+        try {
+          const fieldsRes = await fetch(`/api/campaigns/${cid}/fields`);
+          if (fieldsRes.ok) {
+            const existingFields = await fieldsRes.json();
+            const textObjects = (json.objects||[]).filter((o:any)=>
+              o.type==="i-text"||o.type==="text"||o.type==="IText"
+            );
+            if (Array.isArray(existingFields) && textObjects.length > 0) {
+              const updates = existingFields
+                .filter((f:any) => f.type!=="IMAGEM" && f.type!=="LOGOMARCA")
+                .map((f:any, idx:number) => ({
+                  id: f.id,
+                  value: textObjects[idx]?.text ?? f.value ?? ""
+                }))
+                .filter((_:any, idx:number) => textObjects[idx]);
+              if (updates.length > 0) {
+                await fetch(`/api/campaigns/${cid}/fields`, {
+                  method: "PATCH",
+                  headers: {"Content-Type":"application/json"},
+                  body: JSON.stringify({ fields: updates })
+                });
+              }
+            }
+          }
+        } catch(e) { console.warn("fields sync failed", e); }
       }
       setSaved(true); setIsDirty(false);
     } catch(e){alert("Erro ao salvar.");} finally{setSaving(false);}
