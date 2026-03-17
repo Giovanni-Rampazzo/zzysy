@@ -26,12 +26,12 @@ function LayerItem({ layer, selected, onSelect, onToggleVisible, onToggleLock }:
 }
 
 const textTypes = [
-  { type:"titulo" as LayerType, label:"Título", fontSize:48, fontWeight:"900" },
-  { type:"subtitulo" as LayerType, label:"Subtítulo", fontSize:28, fontWeight:"700" },
-  { type:"texto_principal" as LayerType, label:"Texto Principal", fontSize:18, fontWeight:"400" },
-  { type:"texto_secundario" as LayerType, label:"Texto Secundário", fontSize:14, fontWeight:"400" },
-  { type:"cta" as LayerType, label:"CTA", fontSize:16, fontWeight:"700" },
-  { type:"www" as LayerType, label:"WWW", fontSize:12, fontWeight:"400" },
+  { type:"titulo" as LayerType, label:"Título", fontSize:120, fontWeight:"900" },
+  { type:"subtitulo" as LayerType, label:"Subtítulo", fontSize:72, fontWeight:"700" },
+  { type:"texto_principal" as LayerType, label:"Texto Principal", fontSize:48, fontWeight:"400" },
+  { type:"texto_secundario" as LayerType, label:"Texto Secundário", fontSize:36, fontWeight:"400" },
+  { type:"cta" as LayerType, label:"CTA", fontSize:42, fontWeight:"700" },
+  { type:"www" as LayerType, label:"WWW", fontSize:28, fontWeight:"400" },
 ];
 
 const CHANNELS = [
@@ -416,7 +416,9 @@ function EditorPageInner() {
     const id = `layer_${Date.now()}`;
     const defaults: Record<string,string> = {title:"Título da campanha",subtitle:"Subtítulo aqui",body:"Texto corrido",subtext:"Subtexto",cta:"SAIBA MAIS"};
     const padding = Math.max(6,Math.round(canvasSize.w*0.05));
-    let fs = Math.max(10,Math.round(fontSize*Math.sqrt(canvasSize.w*canvasSize.h)/1080));
+    // Escalar fontSize proporcionalmente ao canvas (base: 1080x1080)
+    const canvasBase = Math.sqrt(canvasSize.w * canvasSize.h);
+    let fs = Math.max(10, Math.round(fontSize * canvasBase / 1080));
     const text = new IText(defaults[type]??label,{left:padding,top:padding,fontSize:fs,fontWeight,fontFamily:"DM Sans, sans-serif",fill:"#111111",textAlign:"left"});
     (text as any).layerId = id; canvas.add(text);
     for (let i=0;i<40;i++){canvas.renderAll();if(text.getBoundingRect().width<=canvasSize.w-padding*2)break;fs=Math.max(10,fs-1);text.set({fontSize:fs});if(fs<=10)break;}
