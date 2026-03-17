@@ -119,7 +119,7 @@ export default function CampaignItemsPage() {
         const f = textFields[tIdx++];
         // Preserva TODA formatação (font, size, color, align, lineHeight, charSpacing, styles)
         // Limpa styles por caractere para evitar conflito com texto novo
-        return { ...obj, text: f.value, styles: {} };
+        return { ...obj, text: f.value };
       }
       if (isImage && iIdx < imageFields.length) {
         const f = imageFields[iIdx++];
