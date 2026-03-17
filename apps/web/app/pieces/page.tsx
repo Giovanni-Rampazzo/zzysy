@@ -96,6 +96,12 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
               psdLayers.push({ name: 'Background', imageData: bgCtx.getImageData(0,0,canvW,canvH), top:0, left:0, bottom:canvH, right:canvW });
               (fc as any).backgroundColor = 'transparent';
 
+              // Garantir zoom=1 para export correto
+              const origZoom = fc.getZoom();
+              fc.setZoom(1);
+              fc.setDimensions({width:canvW, height:canvH});
+              fc.requestRenderAll();
+
               for (let oi = 0; oi < objects.length; oi++) {
                 const obj = objects[oi] as any;
                 const name = obj.text?.substring(0,40) || obj.layerId || obj.type || 'layer';
@@ -216,6 +222,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
 
               objects.forEach((o:any,idx:number)=>{o.visible=origVisible[idx];});
               (fc as any).backgroundColor=origBg;
+              fc.setZoom(origZoom);
               fc.renderAll();
               const buffer=writePsd({width:canvW,height:canvH,children:psdLayers});
               folder.file(`${safeName}.psd`,buffer);
