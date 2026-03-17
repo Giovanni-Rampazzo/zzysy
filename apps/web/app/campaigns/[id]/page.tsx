@@ -148,13 +148,6 @@ export default function CampaignItemsPage() {
     setShowPreview(false);
     router.push(`/pieces?campaignId=${campaignId}`);
   };
-        const f = imageFields[iIdx++];
-        return { ...obj, src: f.imageUrl, _element: undefined };
-      }
-      return obj;
-    });
-    return updated;
-  };
 
   const addCustomField = async (type: FieldType) => {
     const res = await fetch(`/api/campaigns/${campaignId}/fields`, {
