@@ -66,6 +66,12 @@ function CampaignCard({ campaign, onClick }: { campaign: any; onClick: () => voi
         <a href={"/pieces?campaignId="+campaign.id} style={{ flex:1,padding:"7px 0",background:"#F7F7F7",color:"#555",border:"1px solid #E5E5E5",borderRadius:"6px",fontSize:"0.78rem",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center" }}>
           🖼 Peças
         </a>
+        <button onClick={e=>{e.stopPropagation();deleteCampaign(campaign.id,campaign.name);}}
+          style={{ padding:"7px 10px",background:"#FFF",color:"#CCC",border:"1px solid #E5E5E5",borderRadius:"6px",fontSize:"0.85rem",cursor:"pointer" }}
+          onMouseEnter={e=>(e.currentTarget as HTMLElement).style.color="#E53935"}
+          onMouseLeave={e=>(e.currentTarget as HTMLElement).style.color="#CCC"}>
+          🗑
+        </button>
       </div>
     </div>
   );
