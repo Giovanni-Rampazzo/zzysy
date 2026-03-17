@@ -471,8 +471,35 @@ function EditorPageInner() {
     const cid = activeCampaignId??campaignId; setSaving(true);
     const json = getCanvasJson(canvas,canvasSize.w,canvasSize.h);
     try {
-      if (pieceId) { const res=await fetch(`/api/pieces/${pieceId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:json})}); if(!res.ok)throw new Error(); }
-      else if (cid) { const res=await fetch(`/api/campaigns/${cid}/matrix`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:json})}); if(!res.ok)throw new Error(); }
+      if (pieceId) {
+        // Salvando uma peça individual
+        const res=await fetch(`/api/pieces/${pieceId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:json})});
+        if(!res.ok)throw new Error();
+      } else if (cid) {
+        // Salvando a matriz — salva e propaga para todas as peças DRAFT
+        const res=await fetch(`/api/campaigns/${cid}/matrix`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:json})});
+        if(!res.ok)throw new Error();
+        // Buscar peças existentes e atualizar as que estão em DRAFT
+        const piecesRes = await fetch(`/api/pieces?campaignId=${cid}`);
+        if (piecesRes.ok) {
+          const pieces = await piecesRes.json();
+          if (Array.isArray(pieces)) {
+            await Promise.all(pieces
+              .filter((p: any) => p.status === "DRAFT")
+              .map(async (p: any) => {
+                const [pw, ph] = p.format.split("x").map(Number);
+                if (!pw || !ph) return;
+                const scaled = scaleJsonToFormat(json, canvasSize.w, canvasSize.h, pw, ph);
+                return fetch(`/api/pieces/${p.id}`, {
+                  method: "PATCH",
+                  headers: {"Content-Type":"application/json"},
+                  body: JSON.stringify({data: scaled})
+                });
+              })
+            );
+          }
+        }
+      }
       setSaved(true); setIsDirty(false);
     } catch(e){alert("Erro ao salvar.");} finally{setSaving(false);}
   },[campaignId,activeCampaignId,pieceId,canvasSize]);
