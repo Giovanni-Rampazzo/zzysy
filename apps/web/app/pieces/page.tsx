@@ -465,50 +465,55 @@ function PiecesPageInner() {
       setRefreshKey(k=>k+1);
 
       // Auto-aplicar matriz nas peças sem data (criadas com schema antigo)
-      if (filterCampaign && list.length > 0) {
-        const emptyPieces = list.filter((p: any) => !p.data || Object.keys(p.data).length === 0);
-        if (emptyPieces.length > 0) {
+      const emptyPieces = list.filter((p: any) => !p.data || Object.keys(p.data).length === 0);
+      if (emptyPieces.length > 0) {
+        // Agrupar por campanha
+        const byCampaign: Record<string, any[]> = {};
+        emptyPieces.forEach((p: any) => {
+          if (!byCampaign[p.campaignId]) byCampaign[p.campaignId] = [];
+          byCampaign[p.campaignId].push(p);
+        });
+        if (Object.keys(byCampaign).length > 0) {
           try {
-            const matrixRes = await fetch(`/api/campaigns/${filterCampaign}/matrix`);
-            if (matrixRes.ok) {
+            await Promise.all(Object.entries(byCampaign).map(async ([cid, cPieces]) => {
+              const matrixRes = await fetch(`/api/campaigns/${cid}/matrix`);
+              if (!matrixRes.ok) return;
               const matrix = await matrixRes.json();
-              if (matrix?.data && Object.keys(matrix.data).length > 0) {
-                // Importar scaleJsonToFormat inline
-                const scaleJson = (json: any, origW: number, origH: number, newW: number, newH: number) => {
-                  const factor = Math.min(newW/origW, newH/origH);
-                  const offsetX = (newW - origW*factor)/2;
-                  const offsetY = (newH - origH*factor)/2;
-                  const scaled = JSON.parse(JSON.stringify(json));
-                  scaled.width = newW; scaled.height = newH;
-                  scaled.objects = (scaled.objects||[]).map((obj: any) => ({
-                    ...obj,
-                    left: (obj.left||0)*factor + offsetX,
-                    top: (obj.top||0)*factor + offsetY,
-                    scaleX: (obj.scaleX||1)*factor,
-                    scaleY: (obj.scaleY||1)*factor,
-                    fontSize: obj.fontSize ? Math.round(obj.fontSize*factor) : undefined,
-                  }));
-                  return scaled;
-                };
-                const matW = matrix.data.width || 1080;
-                const matH = matrix.data.height || 1080;
-                await Promise.all(emptyPieces.map(async (p: any) => {
-                  const [pw, ph] = p.format.split("x").map(Number);
-                  if (!pw || !ph) return;
-                  const scaled = scaleJson(matrix.data, matW, matH, pw, ph);
-                  const res = await fetch(`/api/pieces/${p.id}`, {
-                    method: "PATCH",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({data: scaled})
-                  });
-                  if (res.ok) {
-                    const updated = await res.json();
-                    setPieces(prev => prev.map(x => x.id === p.id ? {...x, data: updated.data} : x));
-                    setRefreshKey(k=>k+1);
-                  }
+              if (!matrix?.data || Object.keys(matrix.data).length === 0) return;
+              const scaleJson = (json: any, origW: number, origH: number, newW: number, newH: number) => {
+                const factor = Math.min(newW/origW, newH/origH);
+                const offsetX = (newW - origW*factor)/2;
+                const offsetY = (newH - origH*factor)/2;
+                const scaled = JSON.parse(JSON.stringify(json));
+                scaled.width = newW; scaled.height = newH;
+                scaled.objects = (scaled.objects||[]).map((obj: any) => ({
+                  ...obj,
+                  left: (obj.left||0)*factor + offsetX,
+                  top: (obj.top||0)*factor + offsetY,
+                  scaleX: (obj.scaleX||1)*factor,
+                  scaleY: (obj.scaleY||1)*factor,
+                  fontSize: obj.fontSize ? Math.round(obj.fontSize*factor) : undefined,
                 }));
-              }
-            }
+                return scaled;
+              };
+              const matW = matrix.data.width || 1080;
+              const matH = matrix.data.height || 1080;
+              await Promise.all(cPieces.map(async (p: any) => {
+                const [pw, ph] = p.format.split("x").map(Number);
+                if (!pw || !ph) return;
+                const scaled = scaleJson(matrix.data, matW, matH, pw, ph);
+                const res = await fetch(`/api/pieces/${p.id}`, {
+                  method: "PATCH",
+                  headers: {"Content-Type": "application/json"},
+                  body: JSON.stringify({data: scaled})
+                });
+                if (res.ok) {
+                  const updated = await res.json();
+                  setPieces(prev => prev.map(x => x.id === p.id ? {...x, data: updated.data} : x));
+                  setRefreshKey(k=>k+1);
+                }
+              }));
+            }));
           } catch(e) { console.error("Auto-apply matrix failed:", e); }
         }
       }
