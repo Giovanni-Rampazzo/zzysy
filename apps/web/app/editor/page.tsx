@@ -198,7 +198,7 @@ function EditorPageInner() {
   const pieceId = searchParams.get("pieceId");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<Canvas|null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasAreaRef = useRef<HTMLDivElement>(null);
   const [layers, setLayers] = useState<Layer[]>([]);
   const [campaignName, setCampaignName] = useState("");
   const [allCampaigns, setAllCampaigns] = useState<{id:string;name:string}[]>([]);
@@ -333,10 +333,17 @@ function EditorPageInner() {
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
     canvas.on("text:selection:changed",(e:any)=>{ if(e.target) sync(e.target); });
 
-    // Zoom apenas com Cmd/Ctrl + scroll. Scroll simples rola a página.
+    // Zoom apenas com Cmd/Ctrl + scroll. Scroll simples rola o container.
     canvas.on("mouse:wheel", (opt: any) => {
       const e = opt.e;
-      if (!e.metaKey && !e.ctrlKey) return; // scroll normal — não interceptar
+      if (!e.metaKey && !e.ctrlKey) {
+        // Propagar scroll para o container pai
+        const area = canvasAreaRef.current;
+        if (area) { area.scrollTop += e.deltaY; area.scrollLeft += e.deltaX; }
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       const delta = e.deltaY;
@@ -760,7 +767,7 @@ function EditorPageInner() {
 
       {/* CANVAS + PAINEL */}
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",overflow:"auto",background:"#EBEBEB",position:"relative"}}>
+        <div ref={canvasAreaRef} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",overflow:"auto",background:"#EBEBEB",position:"relative"}}>
           {!isPiece && (
             <div style={{position:"absolute",top:"16px",left:"50%",transform:"translateX(-50%)",pointerEvents:"none",zIndex:1}}>
               <div style={{background:"rgba(245,196,0,0.15)",border:"1px solid #F5C400",borderRadius:"8px",padding:"5px 14px",fontSize:"0.75rem",fontWeight:600,color:"#8a6f00",whiteSpace:"nowrap"}}>
