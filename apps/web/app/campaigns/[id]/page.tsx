@@ -77,57 +77,77 @@ export default function CampaignItemsPage() {
   const applyToAllPieces = async () => {
     setApplying(true);
 
-    // Aplicar fields diretamente em cada peça DRAFT
-    // preservando toda formatação — só troca o conteúdo do texto/imagem
+    const textFields = fields.filter(f => !IS_IMAGE(f.type) && f.value);
+    const imageFields = fields.filter(f => IS_IMAGE(f.type) && f.imageUrl);
+
+    if (textFields.length === 0 && imageFields.length === 0) {
+      setApplying(false);
+      setShowPreview(false);
+      return;
+    }
+
     const draftPieces = pieces.filter(p => p.status === "DRAFT");
+
+    // Usar Fabric no browser para trocar só o texto — preserva styles/formatação
+    const { Canvas } = await import("fabric");
+
     await Promise.all(draftPieces.map(async (p: any) => {
       if (!p.data || Object.keys(p.data).length === 0) return;
-      const updated = applyFieldsToJson(p.data, fields);
+
+      // Criar canvas temporário invisível
+      const el = document.createElement("canvas");
+      el.width = p.data.width || 1080;
+      el.height = p.data.height || 1080;
+      el.style.display = "none";
+      document.body.appendChild(el);
+
+      const fc = new Canvas(el);
+      await new Promise<void>(res => {
+        fc.loadFromJSON(p.data, () => { fc.renderAll(); res(); });
+      });
+
+      // Trocar texto nos objetos na ordem — só o texto, Fabric preserva tudo
+      let tIdx = 0, iIdx = 0;
+      fc.getObjects().forEach((obj: any) => {
+        const isText = obj.type === "i-text" || obj.type === "text" || obj.type === "IText";
+        const isImage = obj.type === "image";
+        if (isText && tIdx < textFields.length) {
+          const f = textFields[tIdx++];
+          // set via Fabric API — preserva lineHeight, charSpacing, textAlign, etc
+          obj.set("text", f.value || "");
+        }
+        if (isImage && iIdx < imageFields.length) {
+          // imagens: apenas atualizar src no JSON diretamente
+          iIdx++;
+        }
+      });
+
+      fc.renderAll();
+      const updatedJson = fc.toJSON(["layerId"]);
+      fc.dispose();
+      document.body.removeChild(el);
+
+      // Para imagens: atualizar src no JSON serializado
+      let iIdx2 = 0;
+      updatedJson.objects = updatedJson.objects.map((obj: any) => {
+        if ((obj.type === "image") && iIdx2 < imageFields.length) {
+          const f = imageFields[iIdx2++];
+          return { ...obj, src: f.imageUrl, _element: undefined };
+        }
+        return obj;
+      });
+
       return fetch(`/api/pieces/${p.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: updated })
+        body: JSON.stringify({ data: updatedJson })
       });
     }));
-
-    // Também atualizar a matriz com os valores dos fields
-    const matrixRes = await fetch(`/api/campaigns/${campaignId}/matrix`);
-    const matrix = await matrixRes.json();
-    if (matrix?.data) {
-      const updatedMatrix = applyFieldsToJson(matrix.data, fields);
-      await fetch(`/api/campaigns/${campaignId}/matrix`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: updatedMatrix })
-      });
-    }
 
     setApplying(false);
     setShowPreview(false);
     router.push(`/pieces?campaignId=${campaignId}`);
   };
-
-  const applyFieldsToJson = (jsonData: any, fields: Field[]) => {
-    const updated = JSON.parse(JSON.stringify(jsonData));
-    const textFields = fields.filter(f => !IS_IMAGE(f.type) && f.value);
-    const imageFields = fields.filter(f => IS_IMAGE(f.type) && f.imageUrl);
-    let tIdx = 0, iIdx = 0;
-    updated.objects = (updated.objects || []).map((obj: any) => {
-      const isText = obj.type === "i-text" || obj.type === "text" || obj.type === "IText";
-      const isImage = obj.type === "image";
-      if (isText && tIdx < textFields.length) {
-        const f = textFields[tIdx++];
-        const newText = f.value || "";
-        // Preserva todas as propriedades visuais base do objeto
-        // Limpa styles por caractere (são relativos ao texto antigo e causam bugs)
-        // Mantém textAlign, lineHeight, charSpacing, fontSize, fontFamily, fill, fontWeight
-        return {
-          ...obj,
-          text: newText,
-          styles: [],  // limpa estilos por caractere — evita desalinhamento
-        };
-      }
-      if (isImage && iIdx < imageFields.length) {
         const f = imageFields[iIdx++];
         return { ...obj, src: f.imageUrl, _element: undefined };
       }
