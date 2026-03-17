@@ -188,7 +188,7 @@ model Piece {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
-  campaign Campaign  @relation(fields: [campaignId], references: [id])
+  campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   delivery Delivery? @relation(fields: [deliveryId], references: [id])
 }
 
@@ -208,7 +208,7 @@ model Delivery {
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 
-  campaign Campaign @relation(fields: [campaignId], references: [id])
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   pieces   Piece[]
 }
 

@@ -26,6 +26,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const campaign = await prisma.campaign.findFirst({ where: { id, tenantId: user.tenantId } });
   if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Deletar peças, matrix e fields primeiro (cascade manual para garantir)
+  await prisma.piece.deleteMany({ where: { campaignId: id } });
+  await prisma.campaignField.deleteMany({ where: { campaignId: id } });
+  await prisma.matrix.deleteMany({ where: { campaignId: id } });
   await prisma.campaign.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
