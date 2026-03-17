@@ -333,18 +333,19 @@ function EditorPageInner() {
     canvas.on("selection:cleared",()=>{setSelectedId(null);setSelectedType(null);});
     canvas.on("text:selection:changed",(e:any)=>{ if(e.target) sync(e.target); });
 
-    // Zoom com scroll do mouse
+    // Zoom apenas com Cmd/Ctrl + scroll. Scroll simples rola a página.
     canvas.on("mouse:wheel", (opt: any) => {
-      const delta = opt.e.deltaY;
-      let zoom = canvas.getZoom();
-      zoom *= 0.999 ** delta;
-      if (zoom > 5) zoom = 5;
-      if (zoom < 0.1) zoom = 0.1;
-      canvas.zoomToPoint(new Point(opt.e.offsetX, opt.e.offsetY), zoom);
-      opt.e.preventDefault();
-      opt.e.stopPropagation();
-      // Atualizar o display de zoom
-      setZoom(zoom);
+      const e = opt.e;
+      if (!e.metaKey && !e.ctrlKey) return; // scroll normal — não interceptar
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY;
+      let z = canvas.getZoom();
+      z *= 0.999 ** delta;
+      if (z > 5) z = 5;
+      if (z < 0.05) z = 0.05;
+      canvas.zoomToPoint(new Point(e.offsetX, e.offsetY), z);
+      setZoom(z);
     });
     canvas.on("object:modified",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
     canvas.on("object:added",()=>{ if(!isApplyingHistoryRef.current){setIsDirty(true);setSaved(false);pushHistory();} });
