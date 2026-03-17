@@ -123,7 +123,7 @@ export default function CampaignItemsPage() {
       });
 
       fc.renderAll();
-      const updatedJson = fc.toJSON(["layerId"]);
+      const updatedJson = fc.toJSON();
       fc.dispose();
       document.body.removeChild(el);
 
