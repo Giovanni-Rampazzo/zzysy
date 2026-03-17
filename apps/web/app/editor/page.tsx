@@ -425,13 +425,24 @@ function EditorPageInner() {
     const canvas = fabricRef.current; if (!canvas) return;
     const id = `layer_${Date.now()}`;
     const defaults: Record<string,string> = {title:"Título da campanha",subtitle:"Subtítulo aqui",body:"Texto corrido",subtext:"Subtexto",cta:"SAIBA MAIS"};
-    const padding = Math.max(6,Math.round(canvasSize.w*0.05));
     // Escalar fontSize proporcionalmente ao canvas (base: 1080x1080)
     const canvasBase = Math.sqrt(canvasSize.w * canvasSize.h);
     let fs = Math.max(10, Math.round(fontSize * canvasBase / 1080));
-    const text = new IText(defaults[type]??label,{left:padding,top:padding,fontSize:fs,fontWeight,fontFamily:"DM Sans, sans-serif",fill:"#111111",textAlign:"left"});
+    // Entrar centralizado horizontalmente e a 20% do topo
+    const topPos = Math.round(canvasSize.h * 0.20);
+    const text = new IText(defaults[type]??label,{
+      left: canvasSize.w / 2,
+      top: topPos,
+      originX: "center",
+      originY: "top",
+      fontSize: fs,
+      fontWeight,
+      fontFamily: "DM Sans, sans-serif",
+      fill: "#111111",
+      textAlign: "center"
+    });
     (text as any).layerId = id; canvas.add(text);
-    for (let i=0;i<40;i++){canvas.renderAll();if(text.getBoundingRect().width<=canvasSize.w-padding*2)break;fs=Math.max(10,fs-1);text.set({fontSize:fs});if(fs<=10)break;}
+    for (let i=0;i<40;i++){canvas.renderAll();if(text.getBoundingRect().width<=canvasSize.w*0.9)break;fs=Math.max(10,fs-1);text.set({fontSize:fs});if(fs<=10)break;}
     canvas.setActiveObject(text); canvas.renderAll();
     setLayers(prev=>[...prev,{id,type,name:label,visible:true,locked:false}]);
     setSelectedId(id); setShowTextMenu(false);
