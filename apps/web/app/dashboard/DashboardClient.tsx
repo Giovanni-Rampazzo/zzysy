@@ -44,7 +44,7 @@ function StatCard({ label, value, accent, href }: { label: string; value: number
 
 function CampaignCard({ campaign, onClick }: { campaign: any; onClick: () => void }) {
   return (
-    <div onClick={onClick} style={{ background:"#FFF",border:"1px solid #E5E5E5",borderRadius:"12px",padding:"20px",cursor:"pointer",transition:"border-color 0.15s, box-shadow 0.15s",fontFamily:"'DM Sans', sans-serif" }}
+    <div style={{ background:"#FFF",border:"1px solid #E5E5E5",borderRadius:"12px",padding:"20px",transition:"border-color 0.15s, box-shadow 0.15s",fontFamily:"'DM Sans', sans-serif" }}
       onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#111"; (e.currentTarget as HTMLElement).style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
       onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#E5E5E5"; (e.currentTarget as HTMLElement).style.boxShadow="none"; }}>
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px" }}>
@@ -53,9 +53,20 @@ function CampaignCard({ campaign, onClick }: { campaign: any; onClick: () => voi
           {campaign._count?.pieces ?? 0} peça{(campaign._count?.pieces ?? 0)!==1?"s":""}
         </span>
       </div>
-      <p style={{ fontSize:"0.8rem",color:"#AAAAAA",margin:0 }}>
+      <p style={{ fontSize:"0.8rem",color:"#AAAAAA",margin:"0 0 14px" }}>
         Criada em {new Date(campaign.createdAt).toLocaleDateString("pt-BR")}
       </p>
+      <div style={{ display:"flex",gap:"8px" }}>
+        <button onClick={()=>onClick()} style={{ flex:1,padding:"7px 0",background:"#111",color:"#FFF",border:"none",borderRadius:"6px",fontSize:"0.78rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif" }}>
+          ✏️ Editor
+        </button>
+        <a href={"/campaigns/"+campaign.id} style={{ flex:1,padding:"7px 0",background:"#F5C400",color:"#111",border:"none",borderRadius:"6px",fontSize:"0.78rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center" }}>
+          📋 Itens
+        </a>
+        <a href={"/pieces?campaignId="+campaign.id} style={{ flex:1,padding:"7px 0",background:"#F7F7F7",color:"#555",border:"1px solid #E5E5E5",borderRadius:"6px",fontSize:"0.78rem",fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center" }}>
+          🖼 Peças
+        </a>
+      </div>
     </div>
   );
 }
