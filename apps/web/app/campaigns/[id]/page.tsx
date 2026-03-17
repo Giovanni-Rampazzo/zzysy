@@ -107,8 +107,8 @@ export default function CampaignItemsPage() {
     router.push(`/pieces?campaignId=${campaignId}`);
   };
 
-  const applyFieldsToJson = (json: any, fields: Field[]) => {
-    const updated = JSON.parse(JSON.stringify(json));
+  const applyFieldsToJson = (jsonData: any, fields: Field[]) => {
+    const updated = JSON.parse(JSON.stringify(jsonData));
     const textFields = fields.filter(f => !IS_IMAGE(f.type) && f.value);
     const imageFields = fields.filter(f => IS_IMAGE(f.type) && f.imageUrl);
     let tIdx = 0, iIdx = 0;
@@ -117,9 +117,15 @@ export default function CampaignItemsPage() {
       const isImage = obj.type === "image";
       if (isText && tIdx < textFields.length) {
         const f = textFields[tIdx++];
-        // Preserva TODA formatação (font, size, color, align, lineHeight, charSpacing, styles)
-        // Limpa styles por caractere para evitar conflito com texto novo
-        return { ...obj, text: f.value };
+        const newText = f.value || "";
+        // Preserva todas as propriedades visuais base do objeto
+        // Limpa styles por caractere (são relativos ao texto antigo e causam bugs)
+        // Mantém textAlign, lineHeight, charSpacing, fontSize, fontFamily, fill, fontWeight
+        return {
+          ...obj,
+          text: newText,
+          styles: [],  // limpa estilos por caractere — evita desalinhamento
+        };
       }
       if (isImage && iIdx < imageFields.length) {
         const f = imageFields[iIdx++];
