@@ -236,6 +236,7 @@ function EditorPageInner() {
   const isApplyingHistoryRef = useRef(false);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const clipboardRef = useRef<any>(null);
   const syncHistory = () => { setCanUndo(historyIndexRef.current>0); setCanRedo(historyIndexRef.current<historyRef.current.length-1); };
 
   const pushHistory = useCallback(() => {
@@ -613,6 +614,50 @@ function EditorPageInner() {
       if (ctrl&&e.key==="s"){e.preventDefault();save();}
       if (ctrl&&e.key==="z"&&!e.shiftKey){e.preventDefault();undo();}
       if ((ctrl&&e.shiftKey&&e.key==="z")||(ctrl&&e.key==="y")){e.preventDefault();redo();}
+      if (ctrl&&e.key==="c"&&!isEditing) {
+        const canvas = fabricRef.current; if (!canvas) return;
+        const obj = canvas.getActiveObject(); if (!obj) return;
+        (obj as any).clone((cloned: any) => { clipboardRef.current = cloned; });
+      }
+      if (ctrl&&e.key==="v"&&!isEditing) {
+        const canvas = fabricRef.current; if (!canvas||!clipboardRef.current) return;
+        clipboardRef.current.clone((cloned: any) => {
+          canvas.discardActiveObject();
+          cloned.set({ left: (cloned.left||0)+20, top: (cloned.top||0)+20, evented: true });
+          const id = `layer_${Date.now()}`;
+          cloned.layerId = id;
+          if (cloned.type === 'activeSelection') {
+            cloned.canvas = canvas;
+            cloned.forEachObject((obj: any) => { canvas.add(obj); });
+            cloned.setCoords();
+          } else {
+            canvas.add(cloned);
+          }
+          canvas.setActiveObject(cloned);
+          canvas.requestRenderAll();
+          const t = (cloned.type||"").toLowerCase();
+          const name = cloned.text ? cloned.text.substring(0,20) : t==="rect" ? "Retângulo" : t==="circle" ? "Círculo" : "Imagem";
+          setLayers(prev=>[...prev, {id, type: t as any, name, visible:true, locked:false}]);
+          pushHistory();
+        });
+      }
+      if (ctrl&&e.key==="d"&&!isEditing) {
+        e.preventDefault();
+        const canvas = fabricRef.current; if (!canvas) return;
+        const obj = canvas.getActiveObject(); if (!obj) return;
+        (obj as any).clone((cloned: any) => {
+          cloned.set({ left: (cloned.left||0)+20, top: (cloned.top||0)+20 });
+          const id = `layer_${Date.now()}`;
+          cloned.layerId = id;
+          canvas.add(cloned);
+          canvas.setActiveObject(cloned);
+          canvas.requestRenderAll();
+          const t = (cloned.type||"").toLowerCase();
+          const name = cloned.text ? cloned.text.substring(0,20) : t==="rect" ? "Retângulo" : t==="circle" ? "Círculo" : "Imagem";
+          setLayers(prev=>[...prev, {id, type: t as any, name, visible:true, locked:false}]);
+          pushHistory();
+        });
+      }
     };
     window.addEventListener("keydown",handler);
     return () => window.removeEventListener("keydown",handler);
