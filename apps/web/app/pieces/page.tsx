@@ -189,7 +189,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   ctx2dText.clearRect(0,0,canvW,canvH);
                   ctx2dText.drawImage(nativeEl2,0,0,nativeEl2.width,nativeEl2.height,0,0,canvW,canvH);
                   const textImgData=ctx2dText.getImageData(0,0,canvW,canvH);
-                  psdLayers.push({ name, imageData:textImgData, top:0, left:0, bottom:canvH, right:canvW, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
+                  psdLayers.push({ name, imageData:textImgData, top:objTop, left:objLeft, bottom:objTop+objH, right:objLeft+objW, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
                 } else {
                   // layer pixel — toDataURL com objeto isolado
                   objects.forEach((o:any,idx2:number)=>{o.visible=idx2===oi;});
