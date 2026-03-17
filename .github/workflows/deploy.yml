@@ -1,10 +1,9 @@
-name: Deploy to Vercel
+name: No-op
 on:
   push:
     branches: [main]
 jobs:
-  deploy:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Deploy
-        run: curl -s -X POST "${{ secrets.VERCEL_HOOK }}"
+      - run: echo "Vercel deploys automatically via GitHub integration"
