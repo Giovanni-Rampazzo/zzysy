@@ -193,21 +193,22 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const textImgData=ctx2dText.getImageData(0,0,canvW,canvH);
                   psdLayers.push({ name, imageData:textImgData, top:objTop, left:objLeft, bottom:objTop+objH, right:objLeft+objW, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
                 } else {
-                  // layer pixel — toDataURL com objeto isolado
+                  // layer pixel — renderiza objeto isolado e captura via toDataURL
                   objects.forEach((o:any,idx2:number)=>{o.visible=idx2===oi;});
                   (fc as any).backgroundColor='transparent';
                   fc.renderAll();
-                  await new Promise<void>(res=>setTimeout(res,200));
+                  await new Promise<void>(res=>setTimeout(res,150));
                   fc.renderAll();
-                  const dataUrlLayer=fc.toDataURL({format:'png',multiplier:1});
+                  // toDataURL com multiplier garante resolução correta independente de devicePixelRatio
+                  const dataUrlLayer=fc.toDataURL({format:'png',multiplier:1,width:canvW,height:canvH});
                   const imgElLayer=new Image();
                   await new Promise<void>(res=>{imgElLayer.onload=()=>res();imgElLayer.src=dataUrlLayer;});
-                  // drawImage com dimensão natural → estica para canvW x canvH (corrige Retina 2x)
                   const tmpLayer=document.createElement('canvas');
                   tmpLayer.width=canvW; tmpLayer.height=canvH;
                   const ctx2d=tmpLayer.getContext('2d')!;
-                  ctx2d.clearRect(0,0,canvW,canvH); // limpar antes de desenhar
-                  ctx2d.drawImage(imgElLayer,0,0,imgElLayer.naturalWidth,imgElLayer.naturalHeight,0,0,canvW,canvH);
+                  ctx2d.clearRect(0,0,canvW,canvH);
+                  // Desenhar na resolução lógica (não física) para evitar escala Retina
+                  ctx2d.drawImage(imgElLayer,0,0,canvW,canvH);
                   const imgData=ctx2d.getImageData(0,0,canvW,canvH);
                   psdLayers.push({name,imageData:imgData,top:0,left:0,bottom:canvH,right:canvW});
                 }
