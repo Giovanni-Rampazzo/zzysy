@@ -144,12 +144,6 @@ export default function DashboardClient() {
     setCampaigns((prev: any[]) => prev.filter((c: any) => c.id !== id));
   };
 
-  const deleteCampaign = async (id: string) => {
-    if (!confirm("Deletar campanha?")) return;
-    await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
-    setCampaigns((prev: any[]) => prev.filter((c: any) => c.id !== id));
-  };
-
   const user = session?.user as any;
 
   return (
