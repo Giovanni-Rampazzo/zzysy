@@ -1,4 +1,4 @@
-"use client"; // v2
+"use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
