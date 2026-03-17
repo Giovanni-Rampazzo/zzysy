@@ -1,9 +1,0 @@
-name: No-op
-on:
-  push:
-    branches: [main]
-jobs:
-  noop:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Vercel deploys automatically via GitHub integration"
