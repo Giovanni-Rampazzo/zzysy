@@ -234,6 +234,15 @@ function EditorPageInner() {
   const [campaignFields, setCampaignFields] = useState<any[]>([]);
   const [showFieldsMenu, setShowFieldsMenu] = useState(false);
 
+  // Carregar fields da campanha — funciona tanto na matriz quanto na peça
+  useEffect(() => {
+    const cid = campaignId || activeCampaignId;
+    if (!cid) return;
+    fetch(`/api/campaigns/${cid}/fields`).then(r=>r.ok?r.json():null).then(res=>{
+      if (Array.isArray(res)) setCampaignFields(res);
+    });
+  }, [campaignId, activeCampaignId]);
+
   // ─── UNDO/REDO ───────────────────────────────────────────────
   const historyRef = useRef<string[]>([]);
   const historyIndexRef = useRef<number>(-1);
@@ -381,9 +390,6 @@ function EditorPageInner() {
         const c = list.find((x:any)=>x.id===campaignId);
         if (c) setCampaignName(c.name);
       }
-    });
-    fetch(`/api/campaigns/${campaignId}/fields`).then(r=>r.ok?r.json():null).then(res=>{
-      if (Array.isArray(res)) setCampaignFields(res);
     });
     fetch(`/api/campaigns/${campaignId}/matrix`).then(r=>r.ok?r.json():null).then(res=>{
       const data = res?.data; if (!data) return;
@@ -760,9 +766,15 @@ function EditorPageInner() {
               {campaignFields.map((f:any)=>(
                 <button key={f.id} onClick={()=>{
                   const isImg = f.type==="IMAGEM"||f.type==="LOGOMARCA";
-                  if (!isImg) addText("personalizado" as LayerType, f.label, 48, "400");
+                  if (isImg) {
+                    // Abrir file picker para imagem/logo
+                    fileInputRef.current?.click();
+                  } else {
+                    addText("personalizado" as LayerType, f.label, 48, "400");
+                  }
                   setShowFieldsMenu(false);
-                }} style={{display:"block",width:"100%",textAlign:"left",padding:"8px 12px",border:"none",borderRadius:"6px",background:"transparent",cursor:"pointer",fontSize:"0.82rem",color:"#111"}}>
+                }} style={{display:"block",width:"100%",textAlign:"left",padding:"8px 12px",border:"none",borderRadius:"6px",background:"transparent",cursor:"pointer",fontSize:"0.82rem",color:"#111",display:"flex",alignItems:"center",gap:"8px"}}>
+                  <span>{f.type==="IMAGEM"||f.type==="LOGOMARCA"?"🖼":"T"}</span>
                   {f.label}
                 </button>
               ))}
