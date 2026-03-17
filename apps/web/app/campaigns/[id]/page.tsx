@@ -31,10 +31,15 @@ export default function CampaignItemsPage() {
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    fetch(`/api/campaigns/${campaignId}/fields`).then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setFields(data);
-      setLoading(false);
-    });
+    if (!campaignId) return;
+    fetch(`/api/campaigns/${campaignId}/fields`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setFields(data);
+        else setFields([]);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
     fetch("/api/campaigns").then(r => r.json()).then(list => {
       const c = Array.isArray(list) ? list.find((x: any) => x.id === campaignId) : null;
       if (c) setCampaignName(c.name);
@@ -43,6 +48,7 @@ export default function CampaignItemsPage() {
       if (Array.isArray(data)) setPieces(data);
     });
   }, [campaignId]);
+
 
   const update = (id: string, patch: Partial<Field>) =>
     setFields(prev => prev.map(f => f.id === id ? { ...f, ...patch } : f));
