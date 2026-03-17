@@ -76,36 +76,31 @@ export default function CampaignItemsPage() {
 
   const applyToAllPieces = async () => {
     setApplying(true);
-    // Buscar matriz
-    const matrixRes = await fetch(`/api/campaigns/${campaignId}/matrix`);
-    const matrix = await matrixRes.json();
-    if (!matrix?.data) { setApplying(false); return; }
 
-    const matW = matrix.data.width || 1080;
-    const matH = matrix.data.height || 1080;
-
-    // Aplicar fields na matriz
-    const updatedMatrix = applyFieldsToJson(matrix.data, fields);
-
-    // Salvar matriz atualizada
-    await fetch(`/api/campaigns/${campaignId}/matrix`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: updatedMatrix })
-    });
-
-    // Escalar e salvar em cada peça DRAFT
+    // Aplicar fields diretamente em cada peça DRAFT
+    // preservando toda formatação — só troca o conteúdo do texto/imagem
     const draftPieces = pieces.filter(p => p.status === "DRAFT");
     await Promise.all(draftPieces.map(async (p: any) => {
-      const [pw, ph] = p.format.split("x").map(Number);
-      if (!pw || !ph) return;
-      const scaled = scaleJson(updatedMatrix, matW, matH, pw, ph);
+      if (!p.data || Object.keys(p.data).length === 0) return;
+      const updated = applyFieldsToJson(p.data, fields);
       return fetch(`/api/pieces/${p.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: scaled })
+        body: JSON.stringify({ data: updated })
       });
     }));
+
+    // Também atualizar a matriz com os valores dos fields
+    const matrixRes = await fetch(`/api/campaigns/${campaignId}/matrix`);
+    const matrix = await matrixRes.json();
+    if (matrix?.data) {
+      const updatedMatrix = applyFieldsToJson(matrix.data, fields);
+      await fetch(`/api/campaigns/${campaignId}/matrix`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: updatedMatrix })
+      });
+    }
 
     setApplying(false);
     setShowPreview(false);
@@ -122,12 +117,12 @@ export default function CampaignItemsPage() {
       const isImage = obj.type === "image";
       if (isText && tIdx < textFields.length) {
         const f = textFields[tIdx++];
-        // Preserva TODA formatação — só troca o conteúdo do texto
-        return { ...obj, text: f.value };
+        // Preserva TODA formatação (font, size, color, align, lineHeight, charSpacing, styles)
+        // Limpa styles por caractere para evitar conflito com texto novo
+        return { ...obj, text: f.value, styles: {} };
       }
       if (isImage && iIdx < imageFields.length) {
         const f = imageFields[iIdx++];
-        // Preserva posição/tamanho — só troca a imagem
         return { ...obj, src: f.imageUrl, _element: undefined };
       }
       return obj;
