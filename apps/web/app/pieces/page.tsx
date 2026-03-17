@@ -114,6 +114,8 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   const bbox = obj.getBoundingRect ? obj.getBoundingRect(true) : { left: obj.left||0, top: obj.top||0, width: (obj.width||100)*scX, height: (obj.height||30)*scY };
                   const objLeft=Math.round(bbox.left);
                   const objTop=Math.round(bbox.top);
+                  const objW=Math.round(bbox.width);
+                  const objH=Math.round(bbox.height);
 
                   // fonte
                   const rawFamily=(obj.fontFamily||'Arial').replace(/,.*$/,'').trim();
