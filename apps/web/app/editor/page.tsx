@@ -32,6 +32,7 @@ const textTypes = [
   { type:"texto_secundario" as LayerType, label:"Texto Secundário", fontSize:36, fontWeight:"400" },
   { type:"cta" as LayerType, label:"CTA", fontSize:42, fontWeight:"700" },
   { type:"www" as LayerType, label:"WWW", fontSize:28, fontWeight:"400" },
+  { type:"personalizado" as LayerType, label:"Texto Livre", fontSize:48, fontWeight:"400" },
 ];
 
 const CHANNELS = [
@@ -230,6 +231,8 @@ function EditorPageInner() {
   const [textProps, setTextProps] = useState({fontSize:16,fontFamily:"DM Sans",fill:"#111111",fontWeight:"400",textAlign:"left",charSpacing:0,lineHeight:1.16});
   const [shapeColor, setShapeColor] = useState("#4285F4");
   const [activeCampaignId, setActiveCampaignId] = useState<string|null>(campaignId);
+  const [campaignFields, setCampaignFields] = useState<any[]>([]);
+  const [showFieldsMenu, setShowFieldsMenu] = useState(false);
 
   // ─── UNDO/REDO ───────────────────────────────────────────────
   const historyRef = useRef<string[]>([]);
@@ -378,6 +381,9 @@ function EditorPageInner() {
         const c = list.find((x:any)=>x.id===campaignId);
         if (c) setCampaignName(c.name);
       }
+    });
+    fetch(`/api/campaigns/${campaignId}/fields`).then(r=>r.ok?r.json():null).then(res=>{
+      if (Array.isArray(res)) setCampaignFields(res);
     });
     fetch(`/api/campaigns/${campaignId}/matrix`).then(r=>r.ok?r.json():null).then(res=>{
       const data = res?.data; if (!data) return;
@@ -764,6 +770,25 @@ function EditorPageInner() {
         <button onClick={()=>addShape("rect")} style={btn}>▭ Rect</button>
         <button onClick={()=>addShape("circle")} style={btn}>○ Círculo</button>
         <button onClick={()=>fileInputRef.current?.click()} style={btn}>🖼 Imagem</button>
+        <div style={{position:"relative"}}>
+          <button onClick={()=>setShowFieldsMenu(v=>!v)} style={btn}>📋 Campo</button>
+          {showFieldsMenu && (
+            <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,background:"#FFF",border:"1px solid #E5E5E5",borderRadius:"10px",boxShadow:"0 4px 16px rgba(0,0,0,0.1)",padding:"6px",zIndex:100,minWidth:"180px"}}>
+              {campaignFields.length === 0 && (
+                <div style={{padding:"8px 12px",fontSize:"0.8rem",color:"#AAA"}}>Sem campos cadastrados</div>
+              )}
+              {campaignFields.map((f:any)=>(
+                <button key={f.id} onClick={()=>{
+                  const isImg = f.type==="IMAGEM"||f.type==="LOGOMARCA";
+                  if (!isImg) addText("personalizado" as LayerType, f.label, 48, "400");
+                  setShowFieldsMenu(false);
+                }} style={{display:"block",width:"100%",textAlign:"left",padding:"8px 12px",border:"none",borderRadius:"6px",background:"transparent",cursor:"pointer",fontSize:"0.82rem",color:"#111"}}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <input ref={fileInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)addImage(f);}}/>
         {selectedId && <button onClick={deleteSelected} style={{...btn,color:"#E53935"}}>🗑 Apagar</button>}
         <div style={{flex:1}}/>

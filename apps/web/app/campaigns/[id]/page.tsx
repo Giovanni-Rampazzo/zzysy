@@ -122,15 +122,27 @@ export default function CampaignItemsPage() {
       const isImage = obj.type === "image";
       if (isText && tIdx < textFields.length) {
         const f = textFields[tIdx++];
+        // Preserva TODA formatação — só troca o conteúdo do texto
         return { ...obj, text: f.value };
       }
       if (isImage && iIdx < imageFields.length) {
         const f = imageFields[iIdx++];
-        return { ...obj, src: f.imageUrl };
+        // Preserva posição/tamanho — só troca a imagem
+        return { ...obj, src: f.imageUrl, _element: undefined };
       }
       return obj;
     });
     return updated;
+  };
+
+  const addCustomField = async (type: FieldType) => {
+    const res = await fetch(`/api/campaigns/${campaignId}/fields`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, label: TYPE_LABEL[type] })
+    });
+    const newField = await res.json();
+    if (newField.id) setFields(prev => [...prev, newField]);
   };
 
   const scaleJson = (json: any, origW: number, origH: number, newW: number, newH: number) => {
@@ -239,6 +251,17 @@ export default function CampaignItemsPage() {
                 )}
               </div>
             ))}
+          {/* Adicionar campo */}
+          <div style={{ maxWidth: "720px", display: "flex", gap: "10px", paddingTop: "8px" }}>
+            <button onClick={() => addCustomField("TEXTO")}
+              style={{ padding: "8px 16px", background: "#FFF", border: "1.5px dashed #E5E5E5", borderRadius: "8px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", color: "#888" }}>
+              + Texto
+            </button>
+            <button onClick={() => addCustomField("IMAGEM")}
+              style={{ padding: "8px 16px", background: "#FFF", border: "1.5px dashed #E5E5E5", borderRadius: "8px", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", color: "#888" }}>
+              + Imagem
+            </button>
+          </div>
           </div>
         </div>
       </div>
