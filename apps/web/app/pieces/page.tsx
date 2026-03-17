@@ -115,13 +115,15 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   else if (rawFill.startsWith('rgb')) { const m=rawFill.match(/[0-9]+/g); if(m&&m.length>=3) hexFill=[m[0],m[1],m[2]].map((n:string)=>parseInt(n).toString(16).padStart(2,'0')).join(''); }
                   const cr=parseInt(hexFill.substring(0,2),16), cg=parseInt(hexFill.substring(2,4),16), cb=parseInt(hexFill.substring(4,6),16);
 
-                  // dimensões e posição reais — usar getBoundingRect para posição exata
+                  // dimensões e posição reais — calcular a partir das propriedades do objeto
                   const scX=obj.scaleX||1, scY=obj.scaleY||1;
-                  const bbox = obj.getBoundingRect ? obj.getBoundingRect(true) : { left: obj.left||0, top: obj.top||0, width: (obj.width||100)*scX, height: (obj.height||30)*scY };
-                  const objLeft=Math.round(bbox.left);
-                  const objTop=Math.round(bbox.top);
-                  const objW=Math.round(bbox.width);
-                  const objH=Math.round(bbox.height);
+                  // calcObjLeft/Top: posição real no canvas (zoom=1) levando em conta originX/Y
+                  const objW = Math.round((obj.width||100)*scX);
+                  const objH = Math.round((obj.height||30)*scY);
+                  const cx = obj.left||0, cy = obj.top||0;
+                  const ox = obj.originX||'left', oy = obj.originY||'top';
+                  const objLeft = Math.round(ox==='center' ? cx-objW/2 : ox==='right' ? cx-objW : cx);
+                  const objTop  = Math.round(oy==='center' ? cy-objH/2 : oy==='bottom' ? cy-objH : cy);
 
                   // fonte
                   const rawFamily=(obj.fontFamily||'Arial').replace(/,.*$/,'').trim();
@@ -197,7 +199,7 @@ function ExportDialog({ pieces, campaignId, campaignName, onClose }: {
                   ctx2dText.clearRect(0,0,canvW,canvH);
                   ctx2dText.drawImage(nativeEl2,0,0,nativeEl2.width,nativeEl2.height,0,0,canvW,canvH);
                   const textImgData=ctx2dText.getImageData(0,0,canvW,canvH);
-                  psdLayers.push({ name, imageData:textImgData, top:objTop, left:objLeft, bottom:objTop+objH, right:objLeft+objW, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
+                  psdLayers.push({ name, imageData:textImgData, top:0, left:0, bottom:canvH, right:canvW, text:{ text:textContent, transform:[1,0,0,1,objLeft,objTop], style:baseStyle, styleRuns, paragraphStyle:{justification:obj.textAlign==='center'?'center':obj.textAlign==='right'?'right':'left'} } });
                 } else {
                   // layer pixel — renderiza objeto isolado e captura via toDataURL
                   objects.forEach((o:any,idx2:number)=>{o.visible=idx2===oi;});
