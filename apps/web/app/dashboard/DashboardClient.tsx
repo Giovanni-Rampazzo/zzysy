@@ -2,9 +2,8 @@
 import { colors } from "@/lib/theme";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
-// ─── LOGO ────────────────────────────────────────────────────────
 function Logo({ small = false }: { small?: boolean }) {
   const size = small ? "1.2rem" : "1.5rem";
   const dotSize = small ? "4px" : "5px";
@@ -23,7 +22,6 @@ function Logo({ small = false }: { small?: boolean }) {
   );
 }
 
-// ─── SIDEBAR ─────────────────────────────────────────────────────
 const navItems = [
   { label:"Campanhas", href:"/campaigns", icon:"📁" },
   { label:"Editor",    href:"/editor",    icon:"✏️" },
@@ -32,48 +30,9 @@ const navItems = [
   { label:"Assinatura",href:"/dashboard/billing", icon:"💎" },
 ];
 
-export function Sidebar({ active }: { active: string }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const w = collapsed ? "60px" : "220px";
-
-  return (
-    <aside style={{ width:w,height:"100vh",overflowY:"auto",background:colors.surface,borderRight:"1px solid #E5E5E5",display:"flex",flexDirection:"column",padding:"24px 0",boxSizing:"border-box",position:"fixed",top:0,left:0,transition:"width 0.2s ease",zIndex:50 }}>
-      
-      {/* Logo + toggle */}
-      <div style={{ padding:"0 12px 32px",display:"flex",alignItems:"center",justifyContent:collapsed?"center":"space-between" }}>
-        {!collapsed && (
-          <a href="/dashboard" style={{ textDecoration:"none" }}><Logo /></a>
-        )}
-        <button onClick={()=>setCollapsed(v=>!v)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:"1rem",color:"#888",padding:"4px",borderRadius:"6px",lineHeight:1 }} title={collapsed?"Expandir":"Recolher"}>
-          {collapsed ? "→" : "←"}
-        </button>
-      </div>
-
-      {/* Nav */}
-      <nav style={{ flex:1,display:"flex",flexDirection:"column",gap:"2px",padding:"0 8px" }}>
-        {navItems.map(item=>(
-          <a key={item.href} href={item.href} title={collapsed?item.label:undefined} style={{ display:"flex",alignItems:"center",gap:collapsed?"0":"10px",padding:"9px 12px",borderRadius:"8px",fontSize:"0.875rem",fontWeight:active===item.href?700:400,color:active===item.href?colors.text:"#666666",background:active===item.href?"#EBEBEB":"transparent",textDecoration:"none",fontFamily:"'DM Sans', sans-serif",justifyContent:collapsed?"center":"flex-start",transition:"background 0.1s" }}>
-            <span style={{ fontSize:"1rem",flexShrink:0 }}>{item.icon}</span>
-            {!collapsed && item.label}
-          </a>
-        ))}
-      </nav>
-
-      {/* Sair */}
-      <div style={{ padding:"16px 8px 0",borderTop:"1px solid #E5E5E5",margin:"0 8px" }}>
-        <button onClick={()=>signOut({callbackUrl:"/login"})} title={collapsed?"Sair":undefined} style={{ width:"100%",padding:"9px 12px",borderRadius:"8px",border:"none",background:"transparent",color:"#888888",fontSize:"0.875rem",fontFamily:"'DM Sans', sans-serif",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:collapsed?"0":"10px",justifyContent:collapsed?"center":"flex-start" }}>
-          <span>🚪</span>
-          {!collapsed && " Sair"}
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-// ─── STAT CARD ───────────────────────────────────────────────────
 function StatCard({ label, value, accent, href }: { label: string; value: number | string; accent: string; href?: string }) {
   const content = (
-    <div style={{ background:colors.primaryText,border:"1px solid #E5E5E5",borderRadius:"12px",padding:"24px",display:"flex",flexDirection:"column",gap:"8px" }}>
+    <div style={{ background:"#FFF",border:"1px solid #E5E5E5",borderRadius:"12px",padding:"24px",display:"flex",flexDirection:"column",gap:"8px" }}>
       <span style={{ width:"8px",height:"8px",borderRadius:"50%",background:accent,display:"block" }} />
       <span style={{ fontSize:"2rem",fontWeight:900,color:colors.text,fontFamily:"'DM Sans', sans-serif",letterSpacing:"-0.03em" }}>{value}</span>
       <span style={{ fontSize:"0.8rem",color:"#888888",fontFamily:"'DM Sans', sans-serif",textTransform:"uppercase",letterSpacing:"0.05em" }}>{label}</span>
@@ -83,16 +42,15 @@ function StatCard({ label, value, accent, href }: { label: string; value: number
   return content;
 }
 
-// ─── CAMPAIGN CARD ───────────────────────────────────────────────
 function CampaignCard({ campaign, onClick }: { campaign: any; onClick: () => void }) {
   return (
-    <div onClick={onClick} style={{ background:colors.primaryText,border:"1px solid #E5E5E5",borderRadius:"12px",padding:"20px",cursor:"pointer",transition:"border-color 0.15s, box-shadow 0.15s",fontFamily:"'DM Sans', sans-serif" }}
-      onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor=colors.text; (e.currentTarget as HTMLElement).style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
-      onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor=colors.border; (e.currentTarget as HTMLElement).style.boxShadow="none"; }}>
+    <div onClick={onClick} style={{ background:"#FFF",border:"1px solid #E5E5E5",borderRadius:"12px",padding:"20px",cursor:"pointer",transition:"border-color 0.15s, box-shadow 0.15s",fontFamily:"'DM Sans', sans-serif" }}
+      onMouseEnter={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#111"; (e.currentTarget as HTMLElement).style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"; }}
+      onMouseLeave={e=>{ (e.currentTarget as HTMLElement).style.borderColor="#E5E5E5"; (e.currentTarget as HTMLElement).style.boxShadow="none"; }}>
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"12px" }}>
         <h3 style={{ fontSize:"0.95rem",fontWeight:700,color:colors.text,margin:0 }}>{campaign.name}</h3>
-        <span style={{ fontSize:"0.75rem",fontWeight:600,color:"#888888",background:colors.surface,padding:"3px 8px",borderRadius:"99px" }}>
-          {campaign._count.pieces} peça{campaign._count.pieces!==1?"s":""}
+        <span style={{ fontSize:"0.75rem",fontWeight:600,color:"#888888",background:"#F7F7F7",padding:"3px 8px",borderRadius:"99px" }}>
+          {campaign._count?.pieces ?? 0} peça{(campaign._count?.pieces ?? 0)!==1?"s":""}
         </span>
       </div>
       <p style={{ fontSize:"0.8rem",color:"#AAAAAA",margin:0 }}>
@@ -102,90 +60,128 @@ function CampaignCard({ campaign, onClick }: { campaign: any; onClick: () => voi
   );
 }
 
-// ─── MODAL CRIAR CAMPANHA ────────────────────────────────────────
 function CreateCampaignModal({ onClose, onCreate }: { onClose: () => void; onCreate: (name: string) => void }) {
   const [name, setName] = useState("");
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100 }}>
-      <div style={{ background:colors.primaryText,borderRadius:"16px",padding:"32px",width:"100%",maxWidth:"400px",fontFamily:"'DM Sans', sans-serif",boxShadow:"0 8px 24px rgba(0,0,0,0.12)" }}>
+      <div style={{ background:"#FFF",borderRadius:"16px",padding:"32px",width:"100%",maxWidth:"400px",fontFamily:"'DM Sans', sans-serif",boxShadow:"0 8px 24px rgba(0,0,0,0.12)" }}>
         <h2 style={{ fontSize:"1.25rem",fontWeight:700,color:colors.text,margin:"0 0 24px" }}>Nova campanha</h2>
         <label style={{ display:"block",fontSize:"0.8rem",fontWeight:600,color:colors.text,marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.05em" }}>Nome</label>
-        <input autoFocus value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&name.trim()&&onCreate(name.trim())} placeholder="Ex: Campanha Verão 2026"
+        <input autoFocus value={name} onChange={e=>setName(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&name.trim()&&onCreate(name.trim())}
+          placeholder="Ex: Campanha Verão 2026"
           style={{ width:"100%",padding:"12px 14px",border:"1px solid #E5E5E5",borderRadius:"8px",fontSize:"0.95rem",color:colors.text,outline:"none",boxSizing:"border-box",marginBottom:"24px",fontFamily:"'DM Sans', sans-serif" }}
-          onFocus={e=>e.target.style.borderColor=colors.text} onBlur={e=>e.target.style.borderColor=colors.border} />
+        />
         <div style={{ display:"flex",gap:"8px" }}>
-          <button onClick={onClose} style={{ flex:1,padding:"11px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"transparent",color:"#666666",fontSize:"0.875rem",fontFamily:"'DM Sans', sans-serif",cursor:"pointer",fontWeight:600 }}>Cancelar</button>
-          <button onClick={()=>name.trim()&&onCreate(name.trim())} disabled={!name.trim()} style={{ flex:1,padding:"11px",border:"none",borderRadius:"8px",background:name.trim()?colors.text:"#CCCCCC",color:colors.primaryText,fontSize:"0.875rem",fontFamily:"'DM Sans', sans-serif",cursor:name.trim()?"pointer":"not-allowed",fontWeight:700 }}>Criar</button>
+          <button onClick={onClose} style={{ flex:1,padding:"11px",border:"1px solid #E5E5E5",borderRadius:"8px",background:"transparent",color:"#666",fontSize:"0.875rem",fontFamily:"'DM Sans', sans-serif",cursor:"pointer",fontWeight:600 }}>Cancelar</button>
+          <button onClick={()=>name.trim()&&onCreate(name.trim())} disabled={!name.trim()}
+            style={{ flex:1,padding:"11px",border:"none",borderRadius:"8px",background:name.trim()?"#111":"#CCC",color:"#FFF",fontSize:"0.875rem",fontFamily:"'DM Sans', sans-serif",cursor:name.trim()?"pointer":"not-allowed",fontWeight:700 }}>
+            Criar
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── MAIN ────────────────────────────────────────────────────────
-export default function DashboardClient({ user, campaigns: initialCampaigns, totalPieces }: {
-  user: any; campaigns: any[]; totalPieces: number;
-}) {
+export default function DashboardClient() {
   const router = useRouter();
-  const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const { data: session, status } = useSession();
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [totalPieces, setTotalPieces] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
-  const sidebarW = collapsed ? "60px" : "220px";
-
-  const refreshCampaigns = () => { fetch("/api/campaigns").then(r=>r.json()).then(data=>{ if (Array.isArray(data)) setCampaigns(data); }); };
-  useEffect(()=>{ refreshCampaigns(); window.addEventListener("focus",refreshCampaigns); return ()=>window.removeEventListener("focus",refreshCampaigns); },[]);
-
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const sidebarW = collapsed ? "60px" : "220px";
+
+  useEffect(() => {
+    if (status === "unauthenticated") { router.replace("/login"); return; }
+    if (status !== "authenticated") return;
+    Promise.all([
+      fetch("/api/campaigns").then(r=>r.json()),
+      fetch("/api/pieces").then(r=>r.json()),
+    ]).then(([camps, pieces]) => {
+      if (Array.isArray(camps)) setCampaigns(camps);
+      if (Array.isArray(pieces)) setTotalPieces(pieces.length);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [status]);
 
   const handleCreate = async (name: string) => {
     setCreating(true);
     const res = await fetch("/api/campaigns",{ method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name}) });
-    if (res.ok) { const data=await res.json(); setCampaigns([{...data,_count:{pieces:0}},...campaigns]); setShowModal(false); }
+    if (res.ok) { const data=await res.json(); setCampaigns(prev=>[{...data,_count:{pieces:0}},...prev]); setShowModal(false); }
     setCreating(false);
   };
 
-  return (
-    <div style={{ display:"flex",height:"100vh",overflowY:"auto",background:colors.primaryText,fontFamily:"'DM Sans', sans-serif" }}>
+  if (status === "loading" || loading) return (
+    <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",fontFamily:"'DM Sans', sans-serif",color:"#888" }}>
+      Carregando...
+    </div>
+  );
 
+  const user = session?.user as any;
+
+  return (
+    <div style={{ display:"flex",height:"100vh",background:"#FFF",fontFamily:"'DM Sans', sans-serif" }}>
       {/* SIDEBAR */}
-      <aside style={{ width:sidebarW,height:"100vh",overflowY:"auto",background:colors.surface,borderRight:"1px solid #E5E5E5",display:"flex",flexDirection:"column",padding:"24px 0",boxSizing:"border-box",position:"fixed",top:0,left:0,transition:"width 0.2s ease",zIndex:50,flexShrink:0 }}>
+      <aside style={{ width:sidebarW,height:"100vh",background:"#F7F7F7",borderRight:"1px solid #E5E5E5",display:"flex",flexDirection:"column",padding:"24px 0",position:"fixed",top:0,left:0,boxSizing:"border-box",transition:"width 0.2s ease",zIndex:50 }}>
         <div style={{ padding:"0 12px 32px",display:"flex",alignItems:"center",justifyContent:collapsed?"center":"space-between" }}>
           {!collapsed && <a href="/dashboard" style={{ textDecoration:"none" }}><Logo /></a>}
-          <button onClick={()=>setCollapsed(v=>!v)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:"1rem",color:"#888",padding:"4px",borderRadius:"6px",lineHeight:1 }} title={collapsed?"Expandir":"Recolher"}>
+          <button onClick={()=>setCollapsed(v=>!v)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:"1rem",color:"#888",padding:"4px",borderRadius:"6px" }}>
             {collapsed?"→":"←"}
           </button>
         </div>
         <nav style={{ flex:1,display:"flex",flexDirection:"column",gap:"2px",padding:"0 8px" }}>
           {navItems.map(item=>(
-            <a key={item.href} href={item.href} title={collapsed?item.label:undefined} style={{ display:"flex",alignItems:"center",gap:collapsed?"0":"10px",padding:"9px 12px",borderRadius:"8px",fontSize:"0.875rem",fontWeight:item.href==="/dashboard"?700:400,color:item.href==="/dashboard"?colors.text:"#666666",background:item.href==="/dashboard"?"#EBEBEB":"transparent",textDecoration:"none",fontFamily:"'DM Sans', sans-serif",justifyContent:collapsed?"center":"flex-start",transition:"background 0.1s" }}>
+            <a key={item.href} href={item.href} style={{ display:"flex",alignItems:"center",gap:collapsed?"0":"10px",padding:"9px 12px",borderRadius:"8px",fontSize:"0.875rem",fontWeight:item.href==="/dashboard"?700:400,color:item.href==="/dashboard"?"#111":"#666",background:item.href==="/dashboard"?"#EBEBEB":"transparent",textDecoration:"none",justifyContent:collapsed?"center":"flex-start" }}>
               <span style={{ fontSize:"1rem",flexShrink:0 }}>{item.icon}</span>
               {!collapsed && item.label}
             </a>
           ))}
         </nav>
         <div style={{ padding:"16px 8px 0",borderTop:"1px solid #E5E5E5",margin:"0 8px" }}>
-          <button onClick={()=>signOut({callbackUrl:"/login"})} title={collapsed?"Sair":undefined} style={{ width:"100%",padding:"9px 12px",borderRadius:"8px",border:"none",background:"transparent",color:"#888888",fontSize:"0.875rem",fontFamily:"'DM Sans', sans-serif",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:collapsed?"0":"10px",justifyContent:collapsed?"center":"flex-start" }}>
+          <button onClick={()=>signOut({callbackUrl:"/login"})} style={{ width:"100%",padding:"9px 12px",borderRadius:"8px",border:"none",background:"transparent",color:"#888",fontSize:"0.875rem",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:collapsed?"0":"10px",justifyContent:collapsed?"center":"flex-start" }}>
             <span>🚪</span>{!collapsed&&" Sair"}
           </button>
         </div>
       </aside>
 
       {/* MAIN */}
-      <main style={{ marginLeft:sidebarW,flex:1,padding:"40px 48px",transition:"margin-left 0.2s ease" }}>
+      <main style={{ marginLeft:sidebarW,flex:1,padding:"40px 48px",transition:"margin-left 0.2s ease",overflowY:"auto" }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"40px" }}>
           <div>
             <h1 style={{ fontSize:"1.5rem",fontWeight:900,color:colors.text,margin:"0 0 4px",letterSpacing:"-0.03em" }}>Dashboard</h1>
-            <p style={{ fontSize:"0.875rem",color:"#888888",margin:0 }}>Olá, {(user as any)?.name||"Admin"} 👋</p>
+            <p style={{ fontSize:"0.875rem",color:"#888",margin:0 }}>Olá, {user?.name||"Admin"} 👋</p>
           </div>
-          <button onClick={()=>setShowModal(true)} style={{ display:"flex",alignItems:"center",gap:"8px",padding:"11px 20px",background:colors.text,color:colors.primaryText,border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans', sans-serif" }}>
+          <button onClick={()=>setShowModal(true)} style={{ padding:"11px 20px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
             + Nova campanha
           </button>
         </div>
+
         <div style={{ display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:"16px",marginBottom:"40px" }}>
           <StatCard label="Campanhas" value={campaigns.length} accent="#4285F4" href="/campaigns" />
           <StatCard label="Peças" value={totalPieces} accent="#34A853" href="/pieces" />
           <StatCard label="Este mês" value={campaigns.filter(c=>new Date(c.createdAt)>new Date(Date.now()-30*24*60*60*1000)).length} accent="#F5C400" />
         </div>
+
+        {campaigns.length === 0 ? (
+          <div style={{ textAlign:"center",padding:"80px 0",color:"#888" }}>
+            <div style={{ fontSize:"2.5rem",marginBottom:"16px" }}>📁</div>
+            <div style={{ fontWeight:700,marginBottom:"8px" }}>Nenhuma campanha ainda</div>
+            <div style={{ fontSize:"0.875rem",marginBottom:"24px" }}>Crie sua primeira campanha para começar.</div>
+            <button onClick={()=>setShowModal(true)} style={{ padding:"12px 28px",background:"#111",color:"#FFF",border:"none",borderRadius:"8px",fontSize:"0.875rem",fontWeight:700,cursor:"pointer" }}>
+              + Nova campanha
+            </button>
+          </div>
+        ) : (
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(260px, 1fr))",gap:"16px" }}>
+            {campaigns.map(c=>(
+              <CampaignCard key={c.id} campaign={c} onClick={()=>router.push(`/editor?campaign=${c.id}`)} />
+            ))}
+          </div>
+        )}
       </main>
 
       {showModal && <CreateCampaignModal onClose={()=>setShowModal(false)} onCreate={handleCreate} />}
