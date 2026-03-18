@@ -17,29 +17,30 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   users         User[]
-  campaigns     Campaign[]
+  clients       Client[]
   subscriptions Subscription[]
+  mediaFormats  MediaFormat[]
 }
 
 // ─── USUÁRIOS ────────────────────────────────────────────────────
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  plan      String   @default("FREE")
+  id                   String   @id @default(cuid())
+  name                 String?
+  email                String   @unique
+  password             String
+  role                 Role     @default(USER)
+  plan                 String   @default("FREE")
   stripeCustomerId     String?
   stripeSubscriptionId String?
   blocked              Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  accounts  Account[]
-  sessions  Session[]
+  accounts Account[]
+  sessions Session[]
 }
 
 enum Role {
@@ -124,56 +125,78 @@ enum SubscriptionStatus {
   TRIALING
 }
 
+// ─── CLIENTES DA AGÊNCIA ─────────────────────────────────────────
+model Client {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  contact   String?
+  email     String?
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  campaigns Campaign[]
+}
+
 // ─── CAMPANHAS ───────────────────────────────────────────────────
 model Campaign {
   id        String   @id @default(cuid())
   name      String
-  tenantId  String
+  clientId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant     Tenant          @relation(fields: [tenantId], references: [id])
-  matrix     Matrix?
+  client     Client          @relation(fields: [clientId], references: [id])
+  keyVision  KeyVision?
   pieces     Piece[]
   deliveries Delivery[]
-  fields     CampaignField[]
+  assets     CampaignAsset[]
 }
 
-
-// ─── CAMPOS DA CAMPANHA ──────────────────────────────────────────
-model CampaignField {
-  id          String    @id @default(cuid())
-  campaignId  String
-  type        FieldType
-  label       String
-  value       String?   @db.Text
-  imageUrl    String?   @db.Text
-  order       Int       @default(0)
-  layerId     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+// ─── ASSETS DA CAMPANHA ──────────────────────────────────────────
+model CampaignAsset {
+  id         String    @id @default(cuid())
+  campaignId String
+  type       AssetType
+  label      String
+  value      String?   @db.Text
+  imageUrl   String?   @db.Text
+  order      Int       @default(0)
+  layerId    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
-enum FieldType {
+enum AssetType {
   TITULO
   SUBTITULO
   TEXTO
+  TEXTO_APOIO
   CTA
-  IMAGEM
+  PERSONA
+  PRODUTO
+  FUNDO
   LOGOMARCA
+  CUSTOM_TEXT
+  CUSTOM_IMAGE
 }
 
-// ─── MATRIZ ──────────────────────────────────────────────────────
-model Matrix {
+// ─── KEY VISION ──────────────────────────────────────────────────
+model KeyVision {
   id         String   @id @default(cuid())
   campaignId String   @unique
   data       Json
+  width      Int      @default(1920)
+  height     Int      @default(1080)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  campaign Campaign @relation(fields: [campaignId], references: [id])
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
 // ─── PEÇAS ───────────────────────────────────────────────────────
@@ -183,6 +206,9 @@ model Piece {
   deliveryId String?
   name       String
   format     String
+  width      Int
+  height     Int
+  dpi        Int         @default(72)
   data       Json
   status     PieceStatus @default(DRAFT)
   createdAt  DateTime    @default(now())
@@ -204,12 +230,14 @@ model Delivery {
   id         String         @id @default(cuid())
   campaignId String
   number     Int
+  totalSize  Int?
   status     DeliveryStatus @default(DRAFT)
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   pieces   Piece[]
+  files    DeliveryFile[]
 }
 
 enum DeliveryStatus {
@@ -217,4 +245,40 @@ enum DeliveryStatus {
   REVIEW
   APPROVED
   SENT
+}
+
+// ─── ARQUIVOS DA ENTREGA ─────────────────────────────────────────
+model DeliveryFile {
+  id         String   @id @default(cuid())
+  deliveryId String
+  name       String
+  extension  String
+  url        String   @db.Text
+  size       Int
+  createdAt  DateTime @default(now())
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+}
+
+// ─── FORMATOS DE MÍDIA ───────────────────────────────────────────
+model MediaFormat {
+  id        String        @id @default(cuid())
+  tenantId  String?
+  vehicle   String
+  media     String
+  format    String
+  width     Int
+  height    Int
+  dpi       Int
+  category  MediaCategory
+  isDefault Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+}
+
+enum MediaCategory {
+  DIGITAL
+  OFFLINE
 }
