@@ -5,45 +5,42 @@ import { usePathname } from "next/navigation"
 
 const links = [
   { href: "/dashboard", label: "Clientes" },
-  { href: "/pecas", label: "Peças" },
-  { href: "/midias", label: "Mídias" },
-  { href: "/aprovacao", label: "Aprovação" },
-  { href: "/entregas", label: "Entregas" },
+  { href: "/pieces", label: "Peças" },
+  { href: "/medias", label: "Mídias" },
+  { href: "/approvals", label: "Aprovação" },
+  { href: "/deliveries", label: "Entregas" },
 ]
 
-export function TopNav() {
-  const { data: session } = useSession()
+export default function TopNav() {
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   return (
-    <nav className="h-[52px] bg-[#111] flex items-center px-6 gap-7 flex-shrink-0 z-50">
-      <span className="text-[#F5C400] font-bold text-[15px] tracking-[2px] mr-4">ZZOSY</span>
-      {links.map(l => (
+    <nav style={{height:52,background:"#111111",display:"flex",alignItems:"center",padding:"0 24px",gap:28,flexShrink:0,zIndex:50}}>
+      <span style={{color:"#F5C400",fontWeight:700,fontSize:15,letterSpacing:2,marginRight:8}}>ZZOSY</span>
+      {links.map(link => (
         <Link
-          key={l.href}
-          href={l.href}
-          className={`text-[12px] font-medium pb-[2px] border-b-2 transition-colors ${
-            pathname.startsWith(l.href)
-              ? "text-white border-[#F5C400]"
-              : "text-[#777] border-transparent hover:text-white"
-          }`}
+          key={link.href}
+          href={link.href}
+          style={{
+            color: pathname?.startsWith(link.href) ? "#ffffff" : "#777777",
+            textDecoration: "none",
+            fontSize: 12,
+            fontWeight: 500,
+            paddingBottom: 2,
+            borderBottom: pathname?.startsWith(link.href) ? "2px solid #F5C400" : "2px solid transparent",
+          }}
         >
-          {l.label}
+          {link.label}
         </Link>
       ))}
-      <div className="flex-1" />
-      <Link
-        href="/account"
-        className={`text-[12px] font-medium pb-[2px] border-b-2 transition-colors ${
-          pathname === "/account" ? "text-white border-[#F5C400]" : "text-[#777] border-transparent hover:text-white"
-        }`}
-      >
+      <div style={{flex:1}} />
+      <Link href="/account" style={{color: pathname?.startsWith("/account") ? "#ffffff" : "#777777", textDecoration:"none", fontSize:12, fontWeight:500}}>
         Account
       </Link>
       <div
-        className="w-7 h-7 rounded-full bg-[#F5C400] flex items-center justify-center text-[11px] font-bold text-black cursor-pointer"
         onClick={() => signOut({ callbackUrl: "/login" })}
-        title="Sair"
+        style={{width:28,height:28,borderRadius:"50%",background:"#F5C400",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#111111",cursor:"pointer"}}
       >
         {session?.user?.name?.[0]?.toUpperCase() ?? "G"}
       </div>
