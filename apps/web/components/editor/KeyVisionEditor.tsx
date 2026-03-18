@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { GeneratePiecesModal } from "./GeneratePiecesModal"
 import { LayerPanel } from "./LayerPanel"
@@ -19,6 +19,7 @@ const BG_ID = "__background__"
 export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const router = useRouter()
   const canvasElRef = useRef<HTMLCanvasElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const fabricRef = useRef<any>(null)
   const bgRectRef = useRef<any>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
@@ -31,7 +32,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [canvasReady, setCanvasReady] = useState(false)
   const saveTimer = useRef<any>()
 
-  // 1. Load campaign data
   useEffect(() => {
     fetch(`/api/campaigns/${campaignId}`)
       .then(r => r.json())
@@ -41,10 +41,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       })
   }, [campaignId])
 
-  // 2. Init Fabric after campaign loaded AND canvas element exists
   useEffect(() => {
     if (!campaign || !canvasElRef.current || fabricRef.current) return
-
     let alive = true
 
     ;(async () => {
@@ -58,7 +56,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.setZoom(zoom)
       fabricRef.current = fc
 
-      // Create white background rect
+      // Background layer
       const bg = new Rect({
         left: 0, top: 0, width: CANVAS_W, height: CANVAS_H,
         fill: "#ffffff",
@@ -74,7 +72,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.add(bg)
       fc.sendObjectToBack(bg)
 
-      // Events
       fc.on("selection:created", (e: any) => setSelectedObj(e.selected?.[0] ?? null))
       fc.on("selection:updated", (e: any) => setSelectedObj(e.selected?.[0] ?? null))
       fc.on("selection:cleared", () => setSelectedObj(null))
@@ -97,17 +94,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                 left: obj.left ?? 80, top: obj.top ?? 80,
                 fontSize: obj.fontSize ?? 80,
                 fontFamily: obj.fontFamily ?? "Arial",
-                fill: obj.fill ?? "#111",
                 fontWeight: obj.fontWeight ?? "normal",
+                fill: obj.fill ?? "#111",
                 scaleX: obj.scaleX ?? 1, scaleY: obj.scaleY ?? 1,
-                angle: obj.angle ?? 0,
-                editable: false,
+                angle: obj.angle ?? 0, editable: false,
               })
               ;(t as any).layerId = obj.layerId
               ;(t as any).layerLabel = obj.layerLabel
               ;(t as any).locked = obj.locked
               fc.add(t)
-            } else if (obj.type === "rect") {
+            } else if (obj.type === "rect" && !obj.isBackground) {
               const r = new Rect({
                 left: obj.left ?? 100, top: obj.top ?? 100,
                 width: obj.width ?? 400, height: obj.height ?? 300,
@@ -134,7 +130,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       alive = false
       if (fabricRef.current) { fabricRef.current.dispose(); fabricRef.current = null }
     }
-  }, [campaign]) // runs when campaign is loaded
+  }, [campaign])
 
   function refreshLayers(fc: any) {
     const objs = fc.getObjects().map((o: any, i: number) => ({
@@ -156,8 +152,10 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         if ((o as any).isBackground) return { type:"rect", layerId:BG_ID, layerLabel:"Background", isBackground:true, fill:o.fill, left:0, top:0, width:CANVAS_W, height:CANVAS_H }
         return {
           type: o.type, layerId:(o as any).layerId, layerLabel:(o as any).layerLabel, locked:(o as any).locked,
-          left:o.left, top:o.top, scaleX:o.scaleX, scaleY:o.scaleY, angle:o.angle, fill:o.fill,
-          ...(o.type==="i-text"||o.type==="IText" ? { text:(o as any).text, fontSize:o.fontSize, fontFamily:o.fontFamily, fontWeight:o.fontWeight } : { width:o.width, height:o.height, stroke:o.stroke, strokeWidth:o.strokeWidth, strokeDashArray:o.strokeDashArray })
+          left: o.left, top: o.top, scaleX: o.scaleX, scaleY: o.scaleY, angle: o.angle, fill: o.fill,
+          ...(o.type==="i-text"||o.type==="IText"
+            ? { text:(o as any).text, fontSize:o.fontSize, fontFamily:o.fontFamily, fontWeight:o.fontWeight }
+            : { width:o.width, height:o.height, stroke:o.stroke, strokeWidth:o.strokeWidth, strokeDashArray:o.strokeDashArray })
         }
       })
       await fetch(`/api/campaigns/${campaignId}/key-vision`, {
@@ -184,8 +182,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       ;(r as any).locked = false
       fc.add(r); fc.setActiveObject(r)
     } else {
-      const txt = asset.value?.trim() ? asset.value : `{{ ${asset.label} }}`
-      const t = new IText(txt, { left:80,top:80,fontSize:100,fontFamily:"Arial",fill:"#111111",editable:false })
+      // Usar valor real do asset, não placeholder
+      const displayText = asset.value?.trim() ? asset.value : `{{ ${asset.label} }}`
+      const t = new IText(displayText, {
+        left:80, top:80, fontSize:100,
+        fontFamily:"Arial", fontWeight:"normal",
+        fill:"#111111", editable:false,
+      })
       ;(t as any).layerId = asset.id
       ;(t as any).layerLabel = asset.label
       ;(t as any).locked = true
@@ -223,17 +226,14 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   function updateBgColor(color: string) {
-    const fc = fabricRef.current
     const bg = bgRectRef.current
-    if (!fc || !bg) return
+    const fc = fabricRef.current
+    if (!bg || !fc) return
     bg.set("fill", color)
     fc.renderAll()
     schedSave(fc)
-    // Update selectedObj to trigger re-render in PropertiesPanel
-    setSelectedObj({ ...bg, fill: color })
+    setSelectedObj((prev: any) => prev ? { ...prev, fill: color } : prev)
   }
-
-  const S = { btn: { background:"transparent",border:"none",cursor:"pointer",color:"#888",fontSize:18,lineHeight:1,padding:"0 4px" } as React.CSSProperties }
 
   if (!campaign) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1a1a1a",color:"#888",fontSize:14}}>
@@ -241,15 +241,21 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     </div>
   )
 
+  const btnStyle = {background:"transparent",border:"none",cursor:"pointer",color:"#888",fontSize:18,lineHeight:1,padding:"0 4px"} as React.CSSProperties
+
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",background:"#111"}}>
       {/* Topbar */}
       <div style={{height:48,background:"#111",borderBottom:"1px solid #222",display:"flex",alignItems:"center",padding:"0 16px",gap:12,flexShrink:0}}>
-        <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{...S.btn,fontSize:13,color:"#666"}}>← {campaign.name}</button>
+        <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{...btnStyle,fontSize:13,color:"#666"}}>
+          ← {campaign.name}
+        </button>
         <div style={{flex:1}}/>
         {saving && <span style={{fontSize:11,color:"#444"}}>Salvando...</span>}
         <span style={{fontSize:11,color:"#444"}}>1920 × 1080 px</span>
-        <button onClick={() => setShowModal(true)} style={{background:"#F5C400",border:"none",borderRadius:6,padding:"6px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}>▶ Gerar Peças</button>
+        <button onClick={() => setShowModal(true)} style={{background:"#F5C400",border:"none",borderRadius:6,padding:"6px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+          ▶ Gerar Peças
+        </button>
       </div>
 
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
@@ -262,29 +268,36 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <select value={selectedAssetId} onChange={e=>setSelectedAssetId(e.target.value)}
               style={{background:"#222",color:"white",border:"1px solid #333",borderRadius:4,padding:"4px 8px",fontSize:12,fontFamily:"inherit"}}>
               {campaign.assets.map(a=>(
-                <option key={a.id} value={a.id}>{a.label}{a.value?` — "${a.value.substring(0,20)}"`:""}</option>
+                <option key={a.id} value={a.id}>
+                  {a.label}{a.value?` — "${a.value.substring(0,25)}"` : ""}
+                </option>
               ))}
             </select>
             <button onClick={addAsset} disabled={!canvasReady}
-              style={{background:canvasReady?"#F5C400":"#555",color:"#111",border:"none",padding:"5px 14px",borderRadius:4,fontSize:12,fontWeight:700,cursor:canvasReady?"pointer":"not-allowed"}}>
+              style={{background:canvasReady?"#F5C400":"#444",color:"#111",border:"none",padding:"5px 14px",borderRadius:4,fontSize:12,fontWeight:700,cursor:canvasReady?"pointer":"not-allowed"}}>
               + Adicionar
             </button>
             <div style={{flex:1}}/>
-            <button onClick={()=>changeZoom(-0.1)} style={S.btn}>−</button>
+            <button onClick={()=>changeZoom(-0.1)} style={btnStyle}>−</button>
             <span style={{fontSize:11,color:"#555",minWidth:40,textAlign:"center"}}>{Math.round(zoom*100)}%</span>
-            <button onClick={()=>changeZoom(+0.1)} style={S.btn}>+</button>
-            <button onClick={undo} style={{...S.btn,padding:"0 8px"}}>↩</button>
+            <button onClick={()=>changeZoom(+0.1)} style={btnStyle}>+</button>
+            <button onClick={undo} style={{...btnStyle,padding:"0 8px"}}>↩</button>
           </div>
 
-          {/* Canvas */}
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",padding:32}}>
-            <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
+          {/* Canvas — centralizado com flexbox */}
+          <div ref={wrapRef} style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:40}}>
+            <div style={{display:"inline-block",boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
               <canvas ref={canvasElRef}/>
             </div>
           </div>
         </div>
 
-        <PropertiesPanel selectedObj={selectedObj} fabricRef={fabricRef} onUpdate={schedSave} onBgColorChange={updateBgColor}/>
+        <PropertiesPanel
+          selectedObj={selectedObj}
+          fabricRef={fabricRef}
+          onUpdate={schedSave}
+          onBgColorChange={updateBgColor}
+        />
       </div>
 
       {showModal && (
