@@ -1,10 +1,10 @@
-import { TopNav } from "./TopNav"
+import TopNav from "@/components/TopNav"
 
 export function PageShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       <TopNav />
-      <main className="flex-1 overflow-y-auto bg-[#F5F5F0]">
+      <main style={{ flex: 1, overflowY: "auto", background: "#F5F5F0" }}>
         {children}
       </main>
     </div>
