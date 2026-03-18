@@ -22,64 +22,51 @@ interface Props {
 
 export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerated }: Props) {
   const [formats, setFormats] = useState<MediaFormat[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
-    fetch("/api/medias").then(r => r.json()).then(d => {
-      setFormats(d)
-      setLoading(false)
-    })
+    fetch("/api/medias").then(r => r.json()).then(d => { setFormats(d); setLoading(false) })
   }, [])
 
+  function isSelected(id: string) { return selected.includes(id) }
+
   function toggle(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
   function toggleAll(category: "DIGITAL" | "OFFLINE") {
     const ids = formats.filter(f => f.category === category).map(f => f.id)
-    setSelected(prev => {
-      const next = new Set(prev)
-      const allSelected = ids.every(id => next.has(id))
-      ids.forEach(id => allSelected ? next.delete(id) : next.add(id))
-      return next
-    })
+    const allSelected = ids.every(id => selected.includes(id))
+    if (allSelected) {
+      setSelected(prev => prev.filter(id => !ids.includes(id)))
+    } else {
+      setSelected(prev => [...prev, ...ids.filter(id => !prev.includes(id))])
+    }
   }
 
   async function generate() {
-    if (selected.size === 0) return
+    if (selected.length === 0) return
     setGenerating(true)
 
-    const fc = fabricRef.current
-    if (!fc) return
+    const selectedFormats = formats.filter(f => selected.includes(f.id))
+    const canvasData = fabricRef.current?.toJSON(["layerId", "layerLabel", "locked"]) ?? {}
 
-    // Save current canvas state first
-    const canvasData = fc.toJSON(["layerId", "layerLabel", "locked"])
-
-    const selectedFormats = formats.filter(f => selected.has(f.id))
-
-    // Create pieces for each selected format
-    const pieces = selectedFormats.map(f => ({
-      campaignId,
-      name: `${f.vehicle} — ${f.format}`,
-      format: `${f.vehicle} / ${f.media}`,
-      width: f.width,
-      height: f.height,
-      dpi: f.dpi,
-      data: { canvasData, sourceWidth: 1920, sourceHeight: 1080 },
-      status: "DRAFT",
-    }))
-
-    await Promise.all(pieces.map(piece =>
+    await Promise.all(selectedFormats.map(f =>
       fetch("/api/pieces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(piece),
+        body: JSON.stringify({
+          campaignId,
+          name: `${f.vehicle} — ${f.format}`,
+          format: `${f.vehicle} / ${f.media}`,
+          width: f.width,
+          height: f.height,
+          dpi: f.dpi,
+          data: { canvasData, sourceWidth: 1920, sourceHeight: 1080 },
+          status: "DRAFT",
+        }),
       })
     ))
 
@@ -103,22 +90,17 @@ export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerate
             <div className="text-center py-8 text-[#555555]">Carregando formatos...</div>
           ) : (
             <>
-              {[{ label: "Digital", data: digital, cat: "DIGITAL" }, { label: "Offline", data: offline, cat: "OFFLINE" }].map(({ label, data, cat }) => (
+              {[{ label: "Digital", data: digital, cat: "DIGITAL" as const }, { label: "Offline", data: offline, cat: "OFFLINE" as const }].map(({ label, data, cat }) => (
                 <div key={cat} className="mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-bold uppercase tracking-wider text-[#555555]">{label}</span>
-                    <button onClick={() => toggleAll(cat as any)} className="text-xs text-[#F5C400] bg-transparent border-0 cursor-pointer">
-                      {data.every(f => selected.has(f.id)) ? "Desmarcar todos" : "Selecionar todos"}
+                    <button onClick={() => toggleAll(cat)} className="text-xs text-[#F5C400] bg-transparent border-0 cursor-pointer">
+                      {data.every(f => selected.includes(f.id)) ? "Desmarcar todos" : "Selecionar todos"}
                     </button>
                   </div>
                   {data.map(f => (
-                    <label key={f.id} className="flex items-center gap-3 py-2.5 border-b border-[#2a2a2a] cursor-pointer hover:bg-[#ffffff]/5 -mx-2 px-2 rounded">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(f.id)}
-                        onChange={() => toggle(f.id)}
-                        className="w-4 h-4 cursor-pointer"
-                      />
+                    <label key={f.id} className="flex items-center gap-3 py-2.5 border-b border-[#2a2a2a] cursor-pointer hover:bg-white/5 -mx-2 px-2 rounded">
+                      <input type="checkbox" checked={isSelected(f.id)} onChange={() => toggle(f.id)} className="w-4 h-4 cursor-pointer" />
                       <span className="text-sm text-white flex-1">{f.vehicle} — {f.format}</span>
                       <span className="text-xs text-[#555555]">{f.width}×{f.height}</span>
                     </label>
@@ -130,11 +112,11 @@ export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerate
         </div>
 
         <div className="px-6 py-4 border-t border-[#333333] flex justify-between items-center">
-          <span className="text-xs text-[#555555]">{selected.size} formato(s) selecionado(s)</span>
+          <span className="text-xs text-[#555555]">{selected.length} formato(s) selecionado(s)</span>
           <div className="flex gap-3">
             <Button variant="ghost" onClick={onClose} className="text-[#888888]">Cancelar</Button>
-            <Button onClick={generate} loading={generating} disabled={selected.size === 0}>
-              ▶ Gerar {selected.size > 0 ? `${selected.size} ` : ""}peças
+            <Button onClick={generate} loading={generating} disabled={selected.length === 0}>
+              ▶ Gerar {selected.length > 0 ? `${selected.length} ` : ""}peças
             </Button>
           </div>
         </div>
