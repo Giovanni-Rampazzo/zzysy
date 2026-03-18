@@ -1,13 +1,19 @@
 "use client"
 import { useEffect, useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { TopNav } from "@/components/layout/TopNav"
+import TopNav from "@/components/TopNav"
 
-type AssetType = "TITULO"|"SUBTITULO"|"TEXTO"|"TEXTO_APOIO"|"CTA"|"PERSONA"|"PRODUTO"|"FUNDO"|"LOGOMARCA"|"CUSTOM_TEXT"|"CUSTOM_IMAGE"
+const TEXT_TYPES = ["TITULO","SUBTITULO","TEXTO","TEXTO_APOIO","CTA"]
+const IMAGE_TYPES = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA"]
+const LABELS: Record<string,string> = {
+  TITULO:"Título",SUBTITULO:"Subtítulo",TEXTO:"Texto corrido",
+  TEXTO_APOIO:"Texto apoio",CTA:"CTA",PERSONA:"Persona",
+  PRODUTO:"Produto",FUNDO:"Fundo",LOGOMARCA:"Logomarca",
+}
 
 interface Asset {
   id: string
-  type: AssetType
+  type: string
   label: string
   value: string | null
   imageUrl: string | null
@@ -20,17 +26,6 @@ interface Campaign {
   client: { id: string; name: string }
   assets: Asset[]
   keyVision: { id: string } | null
-  _count: { pieces: number }
-}
-
-const TEXT_TYPES: AssetType[] = ["TITULO","SUBTITULO","TEXTO","TEXTO_APOIO","CTA","LOGOMARCA","CUSTOM_TEXT"]
-const IMAGE_TYPES: AssetType[] = ["PERSONA","PRODUTO","FUNDO","CUSTOM_IMAGE"]
-
-const TYPE_LABELS: Record<AssetType, string> = {
-  TITULO: "Título", SUBTITULO: "Subtítulo", TEXTO: "Texto corrido",
-  TEXTO_APOIO: "Texto apoio", CTA: "CTA", PERSONA: "Persona",
-  PRODUTO: "Produto", FUNDO: "Fundo", LOGOMARCA: "Logomarca",
-  CUSTOM_TEXT: "Texto personalizado", CUSTOM_IMAGE: "Imagem personalizada",
 }
 
 export default function CampaignPage() {
@@ -39,27 +34,24 @@ export default function CampaignPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
-  useEffect(() => { fetchCampaign() }, [id])
-
-  async function fetchCampaign() {
+  async function load() {
     const res = await fetch(`/api/campaigns/${id}`)
     if (res.ok) setCampaign(await res.json())
     setLoading(false)
   }
 
-  async function updateAsset(assetId: string, field: "value" | "imageUrl", val: string) {
-    setCampaign(c => c ? ({
-      ...c,
-      assets: c.assets.map(a => a.id === assetId ? { ...a, [field]: val } : a)
-    }) : c)
+  useEffect(() => { load() }, [id])
 
+  async function updateAsset(assetId: string, field: "value" | "imageUrl", val: string) {
+    setCampaign(prev => prev ? { ...prev, assets: prev.assets.map(a => a.id === assetId ? { ...a, [field]: val } : a) } : prev)
     clearTimeout(debounceRef.current[assetId])
     debounceRef.current[assetId] = setTimeout(async () => {
       setSaving(assetId)
       await fetch(`/api/campaigns/${id}/assets/${assetId}`, {
-        method: "PATCH",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: val }),
       })
@@ -67,78 +59,71 @@ export default function CampaignPage() {
     }, 600)
   }
 
-  const inp = "w-full border border-[#E0E0E0] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#F5C400] bg-white"
+  async function addField(type: string) {
+    const label = LABELS[type] ?? "Campo"
+    const res = await fetch(`/api/campaigns/${id}/assets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, label }),
+    })
+    const asset = await res.json()
+    setCampaign(prev => prev ? { ...prev, assets: [...prev.assets, asset] } : prev)
+    setShowAdd(false)
+  }
 
-  if (loading) return (
-    <div className="flex flex-col h-screen">
-      <TopNav />
-      <div className="flex-1 flex items-center justify-center text-[#888] text-[13px]">Carregando...</div>
-    </div>
-  )
+  async function deleteAsset(assetId: string) {
+    await fetch(`/api/campaigns/${id}/assets/${assetId}`, { method: "DELETE" })
+    setCampaign(prev => prev ? { ...prev, assets: prev.assets.filter(a => a.id !== assetId) } : prev)
+  }
 
-  if (!campaign) return (
-    <div className="flex flex-col h-screen">
-      <TopNav />
-      <div className="flex-1 flex items-center justify-center text-[#888] text-[13px]">Campanha não encontrada.</div>
-    </div>
-  )
+  if (loading) return <div style={{display:"flex",flexDirection:"column",height:"100vh"}}><TopNav /><div style={{padding:32,color:"#888"}}>Carregando...</div></div>
+  if (!campaign) return <div style={{display:"flex",flexDirection:"column",height:"100vh"}}><TopNav /><div style={{padding:32,color:"#888"}}>Campanha não encontrada</div></div>
 
   const textAssets = campaign.assets.filter(a => TEXT_TYPES.includes(a.type))
   const imageAssets = campaign.assets.filter(a => IMAGE_TYPES.includes(a.type))
 
-  return (
-    <div className="flex flex-col h-screen">
-      <TopNav />
-      <div className="flex-1 overflow-y-auto p-8">
+  const inp = {width:"100%",padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit"} as React.CSSProperties
 
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-[11px] text-[#888] mb-5">
-          <span className="cursor-pointer hover:text-black" onClick={() => router.push("/dashboard")}>Clientes</span>
-          <span className="text-[#ccc]">/</span>
-          <span className="cursor-pointer hover:text-black" onClick={() => router.push(`/clients/${campaign.client.id}`)}>{campaign.client.name}</span>
-          <span className="text-[#ccc]">/</span>
-          <strong className="text-[#111]">{campaign.name}</strong>
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100vh"}}>
+      <TopNav />
+      <div style={{flex:1,overflowY:"auto",padding:32,background:"#F5F5F0"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,fontSize:11,color:"#888",marginBottom:20}}>
+          <span style={{cursor:"pointer"}} onClick={() => router.push("/dashboard")}>Clientes</span>
+          <span style={{color:"#ccc"}}>/</span>
+          <span style={{cursor:"pointer"}} onClick={() => router.push(`/clients/${campaign.client.id}`)}>{campaign.client.name}</span>
+          <span style={{color:"#ccc"}}>/</span>
+          <span style={{fontWeight:600,color:"#111"}}>{campaign.name}</span>
         </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:32}}>
           <div>
-            <h1 className="text-[22px] font-bold">{campaign.name}</h1>
-            <p className="text-[#888] text-[12px] mt-1">Assets da campanha</p>
+            <h1 style={{fontSize:22,fontWeight:700,margin:0}}>{campaign.name}</h1>
+            <p style={{fontSize:12,color:"#888",margin:"4px 0 0"}}>Assets da campanha</p>
           </div>
           <button
             onClick={() => router.push(`/editor?campaignId=${id}`)}
-            className="bg-[#F5C400] text-black font-bold text-[14px] px-6 py-2.5 rounded-md hover:bg-[#e0b000] transition-colors flex items-center gap-2"
+            style={{background:"#F5C400",border:"none",borderRadius:6,padding:"10px 24px",fontWeight:700,fontSize:14,cursor:"pointer"}}
           >
             ▶ Gerar Key Vision
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24}}>
           {/* Texto */}
-          <div className="bg-white rounded-xl border border-[#E0E0E0] p-5">
-            <div className="text-[11px] font-bold text-[#888] uppercase tracking-wider mb-4">Campos de Texto</div>
-            <div className="flex flex-col gap-4">
-              {textAssets.map(a => (
-                <div key={a.id}>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">
-                    {a.label}
-                    {saving === a.id && <span className="ml-2 text-[10px] text-[#F5C400] normal-case font-normal">salvando...</span>}
-                  </label>
-                  {a.type === "TEXTO" ? (
-                    <textarea
-                      rows={3}
-                      className={inp + " resize-none"}
-                      value={a.value ?? ""}
-                      onChange={e => updateAsset(a.id, "value", e.target.value)}
-                    />
+          <div style={{background:"white",borderRadius:10,border:"1px solid #E0E0E0",padding:24}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"#888",marginBottom:20}}>Campos de Texto</div>
+            <div style={{display:"flex",flexDirection:"column",gap:16}}>
+              {textAssets.map(asset => (
+                <div key={asset.id}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px",color:"#888"}}>{asset.label}</label>
+                    {saving === asset.id && <span style={{fontSize:10,color:"#888"}}>Salvando...</span>}
+                  </div>
+                  {asset.type === "TEXTO" ? (
+                    <textarea value={asset.value ?? ""} onChange={e => updateAsset(asset.id,"value",e.target.value)} rows={3} style={{...inp,resize:"none"}} />
                   ) : (
-                    <input
-                      className={inp}
-                      value={a.value ?? ""}
-                      onChange={e => updateAsset(a.id, "value", e.target.value)}
-                    />
+                    <input value={asset.value ?? ""} onChange={e => updateAsset(asset.id,"value",e.target.value)} style={inp} />
                   )}
                 </div>
               ))}
@@ -146,34 +131,42 @@ export default function CampaignPage() {
           </div>
 
           {/* Imagens */}
-          <div>
-            <div className="bg-white rounded-xl border border-[#E0E0E0] p-5 mb-4">
-              <div className="text-[11px] font-bold text-[#888] uppercase tracking-wider mb-4">Imagens</div>
-              <div className="flex flex-col gap-3">
-                {imageAssets.map(a => (
-                  <div key={a.id} className="bg-[#F5F5F0] border border-dashed border-[#E0E0E0] rounded-lg p-3 flex items-center gap-3">
-                    <div className="w-11 h-11 bg-[#E0E0E0] rounded-md flex items-center justify-center text-[18px] flex-shrink-0">
-                      {a.type === "PERSONA" ? "👤" : a.type === "PRODUTO" ? "🥤" : a.type === "FUNDO" ? "🖼" : "📷"}
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <div style={{background:"white",borderRadius:10,border:"1px solid #E0E0E0",padding:24}}>
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"#888",marginBottom:20}}>Imagens</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {imageAssets.map(asset => (
+                  <div key={asset.id} style={{background:"#F5F5F0",border:"1px dashed #E0E0E0",borderRadius:8,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{width:44,height:44,background:"#ddd",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
+                      {asset.type==="PERSONA"?"👤":asset.type==="PRODUTO"?"🥤":asset.type==="FUNDO"?"🖼":"🏷"}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-[13px]">{a.label}</div>
-                      <input
-                        className="w-full text-[11px] text-[#888] bg-transparent focus:outline-none mt-0.5"
-                        placeholder="Cole a URL da imagem..."
-                        value={a.imageUrl ?? ""}
-                        onChange={e => updateAsset(a.id, "imageUrl", e.target.value)}
-                      />
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:13}}>{asset.label}</div>
+                      <div style={{fontSize:11,color:"#888",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{asset.imageUrl ?? "Nenhuma imagem"}</div>
                     </div>
-                    <button className="text-[11px] font-semibold border border-[#E0E0E0] px-3 py-1.5 rounded-md hover:bg-white bg-white flex-shrink-0">
-                      Trocar
-                    </button>
+                    <button style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"4px 10px",borderRadius:5,background:"white",cursor:"pointer"}}>Trocar</button>
                   </div>
                 ))}
               </div>
             </div>
-            <button className="w-full border border-dashed border-[#E0E0E0] rounded-lg py-2.5 text-[12px] font-semibold text-[#888] hover:bg-white hover:text-black transition-colors">
-              + Adicionar campo
-            </button>
+
+            <div style={{position:"relative"}}>
+              <button
+                onClick={() => setShowAdd(!showAdd)}
+                style={{width:"100%",padding:"8px 16px",border:"1px solid #E0E0E0",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,fontWeight:600}}
+              >
+                + Adicionar campo
+              </button>
+              {showAdd && (
+                <div style={{position:"absolute",top:"100%",marginTop:4,left:0,right:0,background:"white",borderRadius:8,border:"1px solid #E0E0E0",boxShadow:"0 4px 12px rgba(0,0,0,0.1)",zIndex:10,overflow:"hidden"}}>
+                  {[["CUSTOM_TEXT","📝 Campo de texto"],["CUSTOM_IMAGE","🖼 Campo de imagem"],["LOGOMARCA","🏷 Logomarca"]].map(([type,label]) => (
+                    <button key={type} onClick={() => addField(type)} style={{width:"100%",textAlign:"left",padding:"10px 16px",fontSize:13,background:"transparent",border:"none",cursor:"pointer",display:"block"}}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
