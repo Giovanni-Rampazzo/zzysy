@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { GeneratePiecesModal } from "./GeneratePiecesModal"
 import { LayerPanel } from "./LayerPanel"
@@ -14,12 +14,13 @@ interface Campaign {
 
 const CANVAS_W = 1920
 const CANVAS_H = 1080
-const BG_LAYER_ID = "__background__"
+const BG_ID = "__background__"
 
 export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const router = useRouter()
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasElRef = useRef<HTMLCanvasElement>(null)
   const fabricRef = useRef<any>(null)
+  const bgRectRef = useRef<any>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [selectedObj, setSelectedObj] = useState<any>(null)
   const [layers, setLayers] = useState<any[]>([])
@@ -27,166 +28,141 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selectedAssetId, setSelectedAssetId] = useState("")
-  const [ready, setReady] = useState(false)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const [canvasReady, setCanvasReady] = useState(false)
+  const saveTimer = useRef<any>()
 
+  // 1. Load campaign data
   useEffect(() => {
     fetch(`/api/campaigns/${campaignId}`)
       .then(r => r.json())
-      .then(data => {
-        setCampaign(data)
-        if (data.assets?.length > 0) setSelectedAssetId(data.assets[0].id)
+      .then(d => {
+        setCampaign(d)
+        if (d.assets?.length > 0) setSelectedAssetId(d.assets[0].id)
       })
   }, [campaignId])
 
+  // 2. Init Fabric after campaign loaded AND canvas element exists
   useEffect(() => {
-    if (!canvasRef.current || fabricRef.current) return
-    let mounted = true
+    if (!campaign || !canvasElRef.current || fabricRef.current) return
 
-    async function init() {
-      const { Canvas, Rect } = await import("fabric")
+    let alive = true
 
-      const fc = new Canvas(canvasRef.current!, {
+    ;(async () => {
+      const { Canvas, Rect, IText } = await import("fabric")
+      if (!alive || !canvasElRef.current) return
+
+      const fc = new Canvas(canvasElRef.current, {
         width: Math.round(CANVAS_W * zoom),
         height: Math.round(CANVAS_H * zoom),
       })
       fc.setZoom(zoom)
-
-      // Background layer — selecionável, muda cor via PropertiesPanel
-      const bg = new Rect({
-        left: 0, top: 0,
-        width: CANVAS_W, height: CANVAS_H,
-        fill: "#ffffff",
-        selectable: true,
-        evented: true,
-        hasControls: false,
-        hasBorders: true,
-        lockMovementX: true,
-        lockMovementY: true,
-        lockScalingX: true,
-        lockScalingY: true,
-        lockRotation: true,
-      })
-      ;(bg as any).layerId = BG_LAYER_ID
-      ;(bg as any).layerLabel = "Background"
-      ;(bg as any).isBackground = true
-      fc.add(bg)
-      fc.sendObjectToBack(bg)
-      fc.renderAll()
-
       fabricRef.current = fc
 
+      // Create white background rect
+      const bg = new Rect({
+        left: 0, top: 0, width: CANVAS_W, height: CANVAS_H,
+        fill: "#ffffff",
+        selectable: true, evented: true,
+        hasControls: false, hasBorders: false,
+        lockMovementX: true, lockMovementY: true,
+        lockScalingX: true, lockScalingY: true, lockRotation: true,
+      })
+      ;(bg as any).layerId = BG_ID
+      ;(bg as any).layerLabel = "Background"
+      ;(bg as any).isBackground = true
+      bgRectRef.current = bg
+      fc.add(bg)
+      fc.sendObjectToBack(bg)
+
+      // Events
       fc.on("selection:created", (e: any) => setSelectedObj(e.selected?.[0] ?? null))
       fc.on("selection:updated", (e: any) => setSelectedObj(e.selected?.[0] ?? null))
       fc.on("selection:cleared", () => setSelectedObj(null))
-      fc.on("object:modified", () => autoSave(fc))
-      fc.on("object:added", () => refreshLayers(fc))
-      fc.on("object:removed", () => refreshLayers(fc))
+      fc.on("object:modified", () => schedSave(fc))
+      fc.on("object:added", () => alive && refreshLayers(fc))
+      fc.on("object:removed", () => alive && refreshLayers(fc))
 
       // Load saved KV
-      const kvRes = await fetch(`/api/campaigns/${campaignId}/key-vision`)
-      const kv = await kvRes.json()
-      if (kv?.data?.objects?.length > 0) {
-        // Restore saved objects on top of background
-        const { IText } = await import("fabric")
-        for (const obj of kv.data.objects) {
-          if (obj.layerId === BG_LAYER_ID) {
-            // Restore background color
-            const bgObj = fc.getObjects().find((o: any) => o.layerId === BG_LAYER_ID)
-            if (bgObj) { bgObj.set("fill", obj.fill); fc.renderAll() }
-            continue
-          }
-          if (obj.type === "i-text" || obj.type === "IText") {
-            const text = new IText(obj.text ?? "", {
-              left: obj.left, top: obj.top,
-              fontSize: obj.fontSize ?? 80,
-              fontFamily: obj.fontFamily ?? "Arial",
-              fill: obj.fill ?? "#111",
-              scaleX: obj.scaleX ?? 1,
-              scaleY: obj.scaleY ?? 1,
-              angle: obj.angle ?? 0,
-              editable: false,
-            })
-            ;(text as any).layerId = obj.layerId
-            ;(text as any).layerLabel = obj.layerLabel
-            ;(text as any).locked = obj.locked
-            fc.add(text)
-          } else if (obj.type === "rect") {
-            const r = new Rect({
-              left: obj.left, top: obj.top,
-              width: obj.width, height: obj.height,
-              fill: obj.fill ?? "#e8e8e8",
-              stroke: obj.stroke, strokeWidth: obj.strokeWidth,
-              strokeDashArray: obj.strokeDashArray,
-              scaleX: obj.scaleX ?? 1, scaleY: obj.scaleY ?? 1,
-              angle: obj.angle ?? 0,
-            })
-            ;(r as any).layerId = obj.layerId
-            ;(r as any).layerLabel = obj.layerLabel
-            ;(r as any).locked = obj.locked
-            fc.add(r)
+      try {
+        const kvRes = await fetch(`/api/campaigns/${campaignId}/key-vision`)
+        const kv = await kvRes.json()
+        if (alive && kv?.data?.objects?.length) {
+          for (const obj of kv.data.objects) {
+            if (obj.layerId === BG_ID) {
+              bg.set("fill", obj.fill ?? "#ffffff")
+              continue
+            }
+            if (obj.type === "i-text" || obj.type === "IText") {
+              const t = new IText(obj.text ?? "", {
+                left: obj.left ?? 80, top: obj.top ?? 80,
+                fontSize: obj.fontSize ?? 80,
+                fontFamily: obj.fontFamily ?? "Arial",
+                fill: obj.fill ?? "#111",
+                fontWeight: obj.fontWeight ?? "normal",
+                scaleX: obj.scaleX ?? 1, scaleY: obj.scaleY ?? 1,
+                angle: obj.angle ?? 0,
+                editable: false,
+              })
+              ;(t as any).layerId = obj.layerId
+              ;(t as any).layerLabel = obj.layerLabel
+              ;(t as any).locked = obj.locked
+              fc.add(t)
+            } else if (obj.type === "rect") {
+              const r = new Rect({
+                left: obj.left ?? 100, top: obj.top ?? 100,
+                width: obj.width ?? 400, height: obj.height ?? 300,
+                fill: obj.fill ?? "#e8e8e8",
+                stroke: obj.stroke, strokeWidth: obj.strokeWidth,
+                strokeDashArray: obj.strokeDashArray,
+                scaleX: obj.scaleX ?? 1, scaleY: obj.scaleY ?? 1,
+                angle: obj.angle ?? 0,
+              })
+              ;(r as any).layerId = obj.layerId
+              ;(r as any).layerLabel = obj.layerLabel
+              ;(r as any).locked = obj.locked
+              fc.add(r)
+            }
           }
         }
-        fc.renderAll()
-        if (mounted) refreshLayers(fc)
-      }
+      } catch {}
 
-      if (mounted) { refreshLayers(fc); setReady(true) }
-    }
+      fc.renderAll()
+      if (alive) { refreshLayers(fc); setCanvasReady(true) }
+    })()
 
-    init()
     return () => {
-      mounted = false
+      alive = false
       if (fabricRef.current) { fabricRef.current.dispose(); fabricRef.current = null }
     }
-  }, [])
+  }, [campaign]) // runs when campaign is loaded
 
   function refreshLayers(fc: any) {
-    const objs = fc.getObjects().map((obj: any, i: number) => ({
-      id: obj.layerId ?? `obj-${i}`,
-      label: obj.layerLabel ?? obj.type ?? "Layer",
-      type: obj.type,
-      locked: obj.locked ?? false,
-      isBackground: obj.isBackground ?? false,
-      obj,
+    const objs = fc.getObjects().map((o: any, i: number) => ({
+      id: o.layerId ?? `obj-${i}`,
+      label: o.layerLabel ?? o.type ?? "Layer",
+      type: o.type,
+      locked: o.locked ?? false,
+      isBackground: o.isBackground ?? false,
+      obj: o,
     }))
     setLayers([...objs].reverse())
   }
 
-  function autoSave(fc: any) {
-    clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(async () => {
+  function schedSave(fc: any) {
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(async () => {
       setSaving(true)
-      const data = {
-        objects: fc.getObjects().map((obj: any) => {
-          if ((obj as any).isBackground) {
-            return { type: "rect", layerId: BG_LAYER_ID, layerLabel: "Background", isBackground: true, fill: obj.fill, left: 0, top: 0, width: CANVAS_W, height: CANVAS_H }
-          }
-          return {
-            type: obj.type,
-            layerId: (obj as any).layerId,
-            layerLabel: (obj as any).layerLabel,
-            locked: (obj as any).locked,
-            left: obj.left, top: obj.top,
-            scaleX: obj.scaleX, scaleY: obj.scaleY,
-            angle: obj.angle,
-            fill: obj.fill,
-            ...(obj.type === "i-text" || obj.type === "IText" ? {
-              text: (obj as any).text,
-              fontSize: obj.fontSize,
-              fontFamily: obj.fontFamily,
-            } : {
-              width: obj.width, height: obj.height,
-              stroke: obj.stroke, strokeWidth: obj.strokeWidth,
-              strokeDashArray: obj.strokeDashArray,
-            })
-          }
-        })
-      }
+      const objects = fc.getObjects().map((o: any) => {
+        if ((o as any).isBackground) return { type:"rect", layerId:BG_ID, layerLabel:"Background", isBackground:true, fill:o.fill, left:0, top:0, width:CANVAS_W, height:CANVAS_H }
+        return {
+          type: o.type, layerId:(o as any).layerId, layerLabel:(o as any).layerLabel, locked:(o as any).locked,
+          left:o.left, top:o.top, scaleX:o.scaleX, scaleY:o.scaleY, angle:o.angle, fill:o.fill,
+          ...(o.type==="i-text"||o.type==="IText" ? { text:(o as any).text, fontSize:o.fontSize, fontFamily:o.fontFamily, fontWeight:o.fontWeight } : { width:o.width, height:o.height, stroke:o.stroke, strokeWidth:o.strokeWidth, strokeDashArray:o.strokeDashArray })
+        }
+      })
       await fetch(`/api/campaigns/${campaignId}/key-vision`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data }),
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ data: { objects } })
       })
       setSaving(false)
     }, 800)
@@ -194,55 +170,46 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
   async function addAsset() {
     const fc = fabricRef.current
-    if (!fc || !campaign || !ready) return
+    if (!fc || !campaign || !canvasReady) return
     const asset = campaign.assets.find(a => a.id === selectedAssetId)
     if (!asset) return
 
-    const isImage = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"].includes(asset.type)
     const { Rect, IText } = await import("fabric")
+    const isImg = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"].includes(asset.type)
 
-    if (isImage) {
-      const rect = new Rect({ left:100,top:100,width:400,height:300,fill:"#e8e8e8",stroke:"#aaa",strokeWidth:1,strokeDashArray:[8,4] })
-      ;(rect as any).layerId = asset.id
-      ;(rect as any).layerLabel = asset.label
-      ;(rect as any).locked = false
-      fc.add(rect)
+    if (isImg) {
+      const r = new Rect({ left:100,top:100,width:400,height:300,fill:"#e8e8e8",stroke:"#aaa",strokeWidth:2,strokeDashArray:[10,5] })
+      ;(r as any).layerId = asset.id
+      ;(r as any).layerLabel = asset.label
+      ;(r as any).locked = false
+      fc.add(r); fc.setActiveObject(r)
     } else {
-      const displayText = asset.value?.trim() ? asset.value : `{{ ${asset.label} }}`
-      const text = new IText(displayText, {
-        left:80, top:80, fontSize:80,
-        fontFamily:"Arial, sans-serif",
-        fill:"#111111", editable:false,
-      })
-      ;(text as any).layerId = asset.id
-      ;(text as any).layerLabel = asset.label
-      ;(text as any).locked = true
-      fc.add(text)
+      const txt = asset.value?.trim() ? asset.value : `{{ ${asset.label} }}`
+      const t = new IText(txt, { left:80,top:80,fontSize:100,fontFamily:"Arial",fill:"#111111",editable:false })
+      ;(t as any).layerId = asset.id
+      ;(t as any).layerLabel = asset.label
+      ;(t as any).locked = true
+      fc.add(t); fc.setActiveObject(t)
     }
-
     fc.renderAll()
-    autoSave(fc)
+    schedSave(fc)
   }
 
   function selectLayer(layerId: string) {
-    const fc = fabricRef.current
-    if (!fc) return
-    const obj = fc.getObjects().find((o: any) => o.layerId === layerId)
-    if (obj) { fc.setActiveObject(obj); fc.renderAll(); setSelectedObj(obj) }
+    const fc = fabricRef.current; if (!fc) return
+    const o = fc.getObjects().find((x: any) => x.layerId === layerId)
+    if (o) { fc.setActiveObject(o); fc.renderAll(); setSelectedObj(o) }
   }
 
   function deleteLayer(layerId: string) {
-    const fc = fabricRef.current
-    if (!fc) return
-    // Não permite apagar background
-    const obj = fc.getObjects().find((o: any) => o.layerId === layerId && !(o as any).isBackground)
-    if (obj) { fc.remove(obj); fc.renderAll(); autoSave(fc) }
+    const fc = fabricRef.current; if (!fc) return
+    const o = fc.getObjects().find((x: any) => x.layerId === layerId && !(x as any).isBackground)
+    if (o) { fc.remove(o); fc.renderAll(); schedSave(fc) }
   }
 
-  function updateZoom(newZoom: number) {
-    const fc = fabricRef.current
-    if (!fc) return
-    const z = Math.min(2, Math.max(0.1, newZoom))
+  function changeZoom(delta: number) {
+    const fc = fabricRef.current; if (!fc) return
+    const z = Math.min(2, Math.max(0.1, zoom + delta))
     setZoom(z)
     fc.setZoom(z)
     fc.setDimensions({ width: Math.round(CANVAS_W*z), height: Math.round(CANVAS_H*z) })
@@ -250,80 +217,80 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   function undo() {
-    const fc = fabricRef.current
-    if (!fc) return
+    const fc = fabricRef.current; if (!fc) return
     const objs = fc.getObjects().filter((o: any) => !(o as any).isBackground)
-    if (objs.length > 0) { fc.remove(objs[objs.length-1]); fc.renderAll(); autoSave(fc) }
+    if (objs.length > 0) { fc.remove(objs[objs.length-1]); fc.renderAll(); schedSave(fc) }
   }
 
+  function updateBgColor(color: string) {
+    const fc = fabricRef.current
+    const bg = bgRectRef.current
+    if (!fc || !bg) return
+    bg.set("fill", color)
+    fc.renderAll()
+    schedSave(fc)
+    // Update selectedObj to trigger re-render in PropertiesPanel
+    setSelectedObj({ ...bg, fill: color })
+  }
+
+  const S = { btn: { background:"transparent",border:"none",cursor:"pointer",color:"#888",fontSize:18,lineHeight:1,padding:"0 4px" } as React.CSSProperties }
+
   if (!campaign) return (
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1a1a1a",color:"white",fontSize:14}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1a1a1a",color:"#888",fontSize:14}}>
       Carregando editor...
     </div>
   )
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",background:"#111"}}>
-      <div style={{height:48,background:"#111",borderBottom:"1px solid #2a2a2a",display:"flex",alignItems:"center",padding:"0 16px",gap:12,flexShrink:0}}>
-        <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:13}}>
-          ← {campaign.name}
-        </button>
-        <div style={{flex:1}} />
-        {saving && <span style={{fontSize:11,color:"#555"}}>Salvando...</span>}
-        <span style={{fontSize:11,color:"#555"}}>1920 × 1080 px</span>
-        <button onClick={() => setShowModal(true)} style={{background:"#F5C400",border:"none",borderRadius:6,padding:"6px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-          ▶ Gerar Peças
-        </button>
+      {/* Topbar */}
+      <div style={{height:48,background:"#111",borderBottom:"1px solid #222",display:"flex",alignItems:"center",padding:"0 16px",gap:12,flexShrink:0}}>
+        <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{...S.btn,fontSize:13,color:"#666"}}>← {campaign.name}</button>
+        <div style={{flex:1}}/>
+        {saving && <span style={{fontSize:11,color:"#444"}}>Salvando...</span>}
+        <span style={{fontSize:11,color:"#444"}}>1920 × 1080 px</span>
+        <button onClick={() => setShowModal(true)} style={{background:"#F5C400",border:"none",borderRadius:6,padding:"6px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}>▶ Gerar Peças</button>
       </div>
 
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-        <LayerPanel layers={layers} selectedObj={selectedObj} onSelect={selectLayer} onDelete={deleteLayer} />
+        <LayerPanel layers={layers} selectedObj={selectedObj} onSelect={selectLayer} onDelete={deleteLayer}/>
 
         <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-          <div style={{height:44,background:"#1a1a1a",borderBottom:"1px solid #2a2a2a",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0}}>
-            <span style={{fontSize:12,color:"#666",fontWeight:600}}>Adicionar asset:</span>
-            <select
-              value={selectedAssetId}
-              onChange={e => setSelectedAssetId(e.target.value)}
-              style={{background:"#222",color:"white",border:"1px solid #444",borderRadius:4,padding:"4px 8px",fontSize:12,fontFamily:"inherit"}}
-            >
-              {campaign.assets.map(a => (
-                <option key={a.id} value={a.id}>
-                  {a.label}{a.value ? ` — "${a.value.substring(0,20)}"` : ""}
-                </option>
+          {/* Asset bar */}
+          <div style={{height:44,background:"#1a1a1a",borderBottom:"1px solid #222",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0}}>
+            <span style={{fontSize:12,color:"#555",fontWeight:600}}>Adicionar asset:</span>
+            <select value={selectedAssetId} onChange={e=>setSelectedAssetId(e.target.value)}
+              style={{background:"#222",color:"white",border:"1px solid #333",borderRadius:4,padding:"4px 8px",fontSize:12,fontFamily:"inherit"}}>
+              {campaign.assets.map(a=>(
+                <option key={a.id} value={a.id}>{a.label}{a.value?` — "${a.value.substring(0,20)}"`:""}</option>
               ))}
             </select>
-            <button
-              onClick={addAsset}
-              disabled={!ready}
-              style={{background:"#F5C400",color:"#111",border:"none",padding:"5px 14px",borderRadius:4,fontSize:12,fontWeight:700,cursor:"pointer",opacity:ready?1:0.5}}
-            >
+            <button onClick={addAsset} disabled={!canvasReady}
+              style={{background:canvasReady?"#F5C400":"#555",color:"#111",border:"none",padding:"5px 14px",borderRadius:4,fontSize:12,fontWeight:700,cursor:canvasReady?"pointer":"not-allowed"}}>
               + Adicionar
             </button>
-            <div style={{flex:1}} />
-            <button onClick={() => updateZoom(zoom-0.1)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:18}}>−</button>
-            <span style={{fontSize:11,color:"#666",minWidth:40,textAlign:"center"}}>{Math.round(zoom*100)}%</span>
-            <button onClick={() => updateZoom(zoom+0.1)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:18}}>+</button>
-            <button onClick={undo} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:16,padding:"0 8px"}}>↩</button>
+            <div style={{flex:1}}/>
+            <button onClick={()=>changeZoom(-0.1)} style={S.btn}>−</button>
+            <span style={{fontSize:11,color:"#555",minWidth:40,textAlign:"center"}}>{Math.round(zoom*100)}%</span>
+            <button onClick={()=>changeZoom(+0.1)} style={S.btn}>+</button>
+            <button onClick={undo} style={{...S.btn,padding:"0 8px"}}>↩</button>
           </div>
 
+          {/* Canvas */}
           <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",padding:32}}>
-            <div style={{boxShadow:"0 8px 40px rgba(0,0,0,0.6)"}}>
-              <canvas ref={canvasRef} />
+            <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
+              <canvas ref={canvasElRef}/>
             </div>
           </div>
         </div>
 
-        <PropertiesPanel selectedObj={selectedObj} fabricRef={fabricRef} onUpdate={() => autoSave(fabricRef.current)} />
+        <PropertiesPanel selectedObj={selectedObj} fabricRef={fabricRef} onUpdate={schedSave} onBgColorChange={updateBgColor}/>
       </div>
 
       {showModal && (
-        <GeneratePiecesModal
-          campaignId={campaignId}
-          fabricRef={fabricRef}
-          onClose={() => setShowModal(false)}
-          onGenerated={() => { setShowModal(false); router.push(`/pieces?campaignId=${campaignId}`) }}
-        />
+        <GeneratePiecesModal campaignId={campaignId} fabricRef={fabricRef}
+          onClose={()=>setShowModal(false)}
+          onGenerated={()=>{setShowModal(false);router.push(`/pieces?campaignId=${campaignId}`)}}/>
       )}
     </div>
   )
