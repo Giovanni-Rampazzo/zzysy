@@ -1,7 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
 import { PageShell } from "@/components/layout/PageShell"
-import { Button } from "@/components/ui/Button"
 
 interface Piece {
   id: string
@@ -10,15 +9,6 @@ interface Piece {
   width: number
   height: number
   status: string
-  campaignId: string
-  campaign?: { name: string; client: { name: string } }
-}
-
-const STATUS = {
-  DRAFT: { label: "Rascunho", color: "bg-gray-100 text-gray-600" },
-  REVIEW: { label: "Pendente", color: "bg-yellow-100 text-yellow-700" },
-  APPROVED: { label: "Aprovada", color: "bg-green-100 text-green-700" },
-  EXPORTED: { label: "Exportada", color: "bg-blue-100 text-blue-700" },
 }
 
 export default function ApprovalsPage() {
@@ -27,7 +17,7 @@ export default function ApprovalsPage() {
 
   useEffect(() => {
     fetch("/api/pieces").then(r => r.json()).then(d => {
-      setPieces(d.filter((p: Piece) => p.status === "REVIEW" || p.status === "APPROVED"))
+      setPieces(Array.isArray(d) ? d.filter((p: Piece) => p.status === "REVIEW" || p.status === "APPROVED") : [])
       setLoading(false)
     })
   }, [])
@@ -46,52 +36,49 @@ export default function ApprovalsPage() {
 
   return (
     <PageShell>
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
+      <div style={{padding:32}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:32}}>
           <div>
-            <h1 className="text-2xl font-bold">Aprovação</h1>
-            <p className="text-sm text-[#888888] mt-1">Peças aguardando aprovação do cliente</p>
+            <h1 style={{fontSize:22,fontWeight:700,margin:0}}>Aprovação</h1>
+            <p style={{fontSize:12,color:"#888",margin:"4px 0 0"}}>Peças aguardando aprovação do cliente</p>
           </div>
-          <div className="flex gap-3">
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-yellow-100 text-yellow-700">{pending.length} pendentes</span>
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-green-100 text-green-700">{approved.length} aprovadas</span>
+          <div style={{display:"flex",gap:12}}>
+            <span style={{fontSize:11,fontWeight:600,padding:"6px 12px",borderRadius:20,background:"#fef9c3",color:"#ca8a04"}}>{pending.length} pendentes</span>
+            <span style={{fontSize:11,fontWeight:600,padding:"6px 12px",borderRadius:20,background:"#dcfce7",color:"#16a34a"}}>{approved.length} aprovadas</span>
           </div>
         </div>
 
         {loading ? (
-          <div className="text-center py-16 text-[#888888]">Carregando...</div>
+          <div style={{textAlign:"center",padding:"64px 0",color:"#888"}}>Carregando...</div>
         ) : pieces.length === 0 ? (
-          <div className="text-center py-16 text-[#888888]">Nenhuma peça em aprovação</div>
+          <div style={{textAlign:"center",padding:"64px 0",color:"#888"}}>Nenhuma peça em aprovação</div>
         ) : (
-          <div className="grid grid-cols-3 gap-5">
-            {pieces.map((p) => (
-              <div key={p.id} className="bg-white rounded-xl border border-[#E0E0E0] overflow-hidden">
-                <div className="h-40 bg-[#F5F5F0] flex flex-col items-center justify-center border-b border-[#E0E0E0]">
-                  <div className="text-sm font-semibold text-[#888888]">{p.format}</div>
-                  <div className="text-xs text-[#aaaaaa] mt-1">{p.width}×{p.height}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:20}}>
+            {pieces.map(p => (
+              <div key={p.id} style={{background:"white",borderRadius:10,border:"1px solid #E0E0E0",overflow:"hidden"}}>
+                <div style={{height:160,background:"#F5F5F0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",borderBottom:"1px solid #E0E0E0"}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"#888"}}>{p.format}</div>
+                  <div style={{fontSize:11,color:"#aaa",marginTop:4}}>{p.width}×{p.height}</div>
                 </div>
-                <div className="p-4">
-                  <div className="font-semibold text-sm">{p.name}</div>
-                  <div className="text-xs text-[#888888] mt-1">{p.width}×{p.height} px</div>
-                  <div className="mt-3">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS[p.status as keyof typeof STATUS]?.color}`}>
-                      {STATUS[p.status as keyof typeof STATUS]?.label}
+                <div style={{padding:14}}>
+                  <div style={{fontWeight:600,fontSize:13}}>{p.name}</div>
+                  <div style={{fontSize:11,color:"#888",marginTop:4}}>{p.width}×{p.height} px</div>
+                  <div style={{marginTop:10}}>
+                    <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:20,background:p.status==="APPROVED"?"#dcfce7":"#fef9c3",color:p.status==="APPROVED"?"#16a34a":"#ca8a04"}}>
+                      {p.status==="APPROVED"?"Aprovada":"Pendente"}
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-2 px-4 pb-4 border-t border-[#F5F5F0] pt-3">
+                <div style={{display:"flex",gap:8,padding:"12px 14px",borderTop:"1px solid #f5f5f5",background:"#fafafa"}}>
+                  <button style={{padding:"4px 10px",border:"1px solid #E0E0E0",borderRadius:5,background:"white",cursor:"pointer",fontSize:11,fontWeight:600}}>👁 Ver</button>
                   {p.status === "REVIEW" && (
                     <>
-                      <Button variant="secondary" size="sm">👁 Ver</Button>
-                      <Button size="sm" className="ml-auto" onClick={() => updateStatus(p.id, "APPROVED")}>✓ Aprovar</Button>
-                      <Button variant="secondary" size="sm" onClick={() => updateStatus(p.id, "DRAFT")}>↩</Button>
+                      <button onClick={() => updateStatus(p.id,"APPROVED")} style={{marginLeft:"auto",padding:"4px 10px",background:"#F5C400",border:"none",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600}}>✓ Aprovar</button>
+                      <button onClick={() => updateStatus(p.id,"DRAFT")} style={{padding:"4px 10px",border:"1px solid #E0E0E0",borderRadius:5,background:"white",cursor:"pointer",fontSize:11,fontWeight:600}}>↩</button>
                     </>
                   )}
                   {p.status === "APPROVED" && (
-                    <>
-                      <Button variant="secondary" size="sm">👁 Ver</Button>
-                      <Button variant="secondary" size="sm" className="ml-auto">↓ Download</Button>
-                    </>
+                    <button style={{marginLeft:"auto",padding:"4px 10px",border:"1px solid #E0E0E0",borderRadius:5,background:"white",cursor:"pointer",fontSize:11,fontWeight:600}}>↓ Download</button>
                   )}
                 </div>
               </div>
