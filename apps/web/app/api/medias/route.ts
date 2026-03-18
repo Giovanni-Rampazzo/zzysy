@@ -1,28 +1,26 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const tenantId = (session.user as any).tenantId
-
-  const formats = await prisma.mediaFormat.findMany({
+  const medias = await prisma.mediaFormat.findMany({
     where: { OR: [{ isDefault: true }, { tenantId }] },
     orderBy: [{ category: "asc" }, { vehicle: "asc" }],
   })
-  return NextResponse.json(formats)
+  return NextResponse.json(medias)
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const tenantId = (session.user as any).tenantId
-
-  const body = await req.json()
-  const format = await prisma.mediaFormat.create({
-    data: { ...body, tenantId, isDefault: false }
+  const { vehicle, media, format, width, height, dpi, category } = await req.json()
+  const mf = await prisma.mediaFormat.create({
+    data: { tenantId, vehicle, media, format, width, height, dpi, category, isDefault: false }
   })
-  return NextResponse.json(format)
+  return NextResponse.json(mf)
 }
