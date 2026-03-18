@@ -28,6 +28,8 @@ export default function CampaignPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [editingUrl, setEditingUrl] = useState<string | null>(null)
+  const [urlInput, setUrlInput] = useState("")
   const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   async function load() {
@@ -50,6 +52,12 @@ export default function CampaignPage() {
       })
       setSaving(null)
     }, 600)
+  }
+
+  async function saveImageUrl(assetId: string) {
+    await updateAsset(assetId, "imageUrl", urlInput)
+    setEditingUrl(null)
+    setUrlInput("")
   }
 
   async function addField(type: string) {
@@ -128,20 +136,50 @@ export default function CampaignPage() {
               <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"#888",marginBottom:20}}>Imagens</div>
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 {imageAssets.map(asset => (
-                  <div key={asset.id} style={{background:"#F5F5F0",border:"1px dashed #E0E0E0",borderRadius:8,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
-                    <div style={{width:44,height:44,background:"#ddd",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
-                      {ICONS[asset.type] ?? "🖼"}
+                  <div key={asset.id}>
+                    <div style={{background:"#F5F5F0",border:"1px dashed #E0E0E0",borderRadius:8,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
+                      {/* Preview ou ícone */}
+                      <div style={{width:44,height:44,background:"#ddd",borderRadius:6,overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>
+                        {asset.imageUrl ? (
+                          <img src={asset.imageUrl} alt={asset.label} style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                        ) : (
+                          ICONS[asset.type] ?? "🖼"
+                        )}
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:600,fontSize:13}}>{asset.label}</div>
+                        <div style={{fontSize:11,color:"#888",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                          {asset.imageUrl ?? "Nenhuma imagem"}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:6}}>
+                        <button
+                          onClick={() => { setEditingUrl(asset.id); setUrlInput(asset.imageUrl ?? "") }}
+                          style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"4px 10px",borderRadius:5,background:"white",cursor:"pointer"}}
+                        >
+                          URL
+                        </button>
+                        {!IMAGE_TYPES.includes(asset.type) && (
+                          <button onClick={() => deleteAsset(asset.id)} style={{fontSize:11,border:"none",padding:"4px 8px",borderRadius:5,background:"#fee2e2",color:"#dc2626",cursor:"pointer"}}>✕</button>
+                        )}
+                      </div>
                     </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:13}}>{asset.label}</div>
-                      <div style={{fontSize:11,color:"#888",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{asset.imageUrl ?? "Nenhuma imagem"}</div>
-                    </div>
-                    <div style={{display:"flex",gap:6}}>
-                      <button style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"4px 10px",borderRadius:5,background:"white",cursor:"pointer"}}>Trocar</button>
-                      {!IMAGE_TYPES.includes(asset.type) && (
-                        <button onClick={() => deleteAsset(asset.id)} style={{fontSize:11,fontWeight:600,border:"none",padding:"4px 8px",borderRadius:5,background:"#fee2e2",color:"#dc2626",cursor:"pointer"}}>✕</button>
-                      )}
-                    </div>
+
+                    {/* URL input inline */}
+                    {editingUrl === asset.id && (
+                      <div style={{marginTop:6,display:"flex",gap:6}}>
+                        <input
+                          value={urlInput}
+                          onChange={e => setUrlInput(e.target.value)}
+                          placeholder="Cole a URL da imagem aqui..."
+                          autoFocus
+                          style={{...inp,flex:1,fontSize:12}}
+                          onKeyDown={e => { if(e.key==="Enter") saveImageUrl(asset.id); if(e.key==="Escape") setEditingUrl(null) }}
+                        />
+                        <button onClick={() => saveImageUrl(asset.id)} style={{padding:"6px 12px",background:"#F5C400",border:"none",borderRadius:5,fontWeight:600,fontSize:12,cursor:"pointer"}}>✓</button>
+                        <button onClick={() => setEditingUrl(null)} style={{padding:"6px 10px",border:"1px solid #E0E0E0",borderRadius:5,background:"white",fontSize:12,cursor:"pointer"}}>✕</button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
