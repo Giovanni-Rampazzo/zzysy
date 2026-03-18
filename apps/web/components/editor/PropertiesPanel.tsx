@@ -1,114 +1,128 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 
 interface Props {
   selectedObj: any
   fabricRef: React.RefObject<any>
+  onUpdate?: () => void
 }
 
-export function PropertiesPanel({ selectedObj, fabricRef }: Props) {
-  const [props, setProps] = useState({
-    x: 0, y: 0, w: 0, h: 0,
-    fontSize: 72, fontWeight: "normal",
-    fill: "#111111",
-  })
+export function PropertiesPanel({ selectedObj, fabricRef, onUpdate }: Props) {
+  const [fill, setFill] = useState("#ffffff")
+  const [fontSize, setFontSize] = useState(80)
+  const [fontWeight, setFontWeight] = useState("normal")
+  const [x, setX] = useState(0)
+  const [y, setY] = useState(0)
+  const [w, setW] = useState(0)
+  const [h, setH] = useState(0)
 
   useEffect(() => {
     if (!selectedObj) return
-    setProps({
-      x: Math.round(selectedObj.left ?? 0),
-      y: Math.round(selectedObj.top ?? 0),
-      w: Math.round(selectedObj.width * (selectedObj.scaleX ?? 1)),
-      h: Math.round(selectedObj.height * (selectedObj.scaleY ?? 1)),
-      fontSize: selectedObj.fontSize ?? 72,
-      fontWeight: selectedObj.fontWeight ?? "normal",
-      fill: selectedObj.fill ?? "#111111",
-    })
+    setFill(selectedObj.fill ?? "#ffffff")
+    setFontSize(selectedObj.fontSize ?? 80)
+    setFontWeight(selectedObj.fontWeight ?? "normal")
+    setX(Math.round(selectedObj.left ?? 0))
+    setY(Math.round(selectedObj.top ?? 0))
+    setW(Math.round((selectedObj.width ?? 0) * (selectedObj.scaleX ?? 1)))
+    setH(Math.round((selectedObj.height ?? 0) * (selectedObj.scaleY ?? 1)))
   }, [selectedObj])
 
-  function updateObj(key: string, value: any) {
+  function update(key: string, value: any) {
     if (!selectedObj || !fabricRef.current) return
-    setProps(p => ({ ...p, [key]: value }))
-    if (key === "x") selectedObj.set("left", Number(value))
-    else if (key === "y") selectedObj.set("top", Number(value))
-    else if (key === "fontSize") selectedObj.set("fontSize", Number(value))
-    else if (key === "fill") selectedObj.set("fill", value)
-    else if (key === "fontWeight") selectedObj.set("fontWeight", value)
+    if (key === "fill") { setFill(value); selectedObj.set("fill", value) }
+    else if (key === "fontSize") { setFontSize(+value); selectedObj.set("fontSize", +value) }
+    else if (key === "fontWeight") { setFontWeight(value); selectedObj.set("fontWeight", value) }
+    else if (key === "x") { setX(+value); selectedObj.set("left", +value) }
+    else if (key === "y") { setY(+value); selectedObj.set("top", +value) }
     fabricRef.current.renderAll()
+    onUpdate?.()
   }
 
-  const isLocked = selectedObj?.locked === true
+  const isBackground = selectedObj?.isBackground === true
   const isText = selectedObj?.type === "i-text" || selectedObj?.type === "IText"
+  const isLocked = selectedObj?.locked === true
+
+  const sectionTitle = {fontSize:10,fontWeight:700,textTransform:"uppercase" as const,letterSpacing:"0.8px",color:"#555",marginBottom:10}
+  const inputStyle = {width:"100%",background:"#111",border:"1px solid #333",color:"white",fontSize:12,padding:"5px 8px",borderRadius:4,fontFamily:"inherit",outline:"none"} as React.CSSProperties
 
   return (
-    <div className="w-[220px] bg-[#1a1a1a] border-l border-[#2a2a2a] flex flex-col flex-shrink-0 overflow-y-auto">
-      <div className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-[#555555] border-b border-[#2a2a2a]">
+    <div style={{width:220,background:"#1a1a1a",borderLeft:"1px solid #2a2a2a",display:"flex",flexDirection:"column",flexShrink:0,overflowY:"auto"}}>
+      <div style={{padding:"12px 16px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.8px",color:"#555",borderBottom:"1px solid #2a2a2a"}}>
         Propriedades
       </div>
 
       {!selectedObj ? (
-        <div className="text-xs text-[#444444] text-center py-8 px-4">
+        <div style={{fontSize:11,color:"#444",textAlign:"center",padding:"32px 16px"}}>
           Selecione um elemento no canvas
         </div>
+      ) : isBackground ? (
+        /* === BACKGROUND: só mostra color picker em destaque === */
+        <div style={{padding:16}}>
+          <div style={{...sectionTitle,color:"#F5C400"}}>🎨 Cor do Background</div>
+          <div style={{marginBottom:16}}>
+            <input
+              type="color"
+              value={fill}
+              onChange={e => update("fill", e.target.value)}
+              style={{width:"100%",height:48,cursor:"pointer",border:"none",borderRadius:8,background:"transparent",padding:0}}
+            />
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+            {["#ffffff","#111111","#F5C400","#e63946","#457b9d","#2a9d8f","#264653","#f4a261","#e9c46a","#2d6a4f"].map(c => (
+              <div
+                key={c}
+                onClick={() => update("fill", c)}
+                style={{width:24,height:24,borderRadius:4,background:c,cursor:"pointer",border:fill===c?"2px solid #F5C400":"2px solid #333"}}
+              />
+            ))}
+          </div>
+          <div style={{padding:10,background:"#111",borderRadius:6,fontSize:10,color:"#555",textAlign:"center"}}>
+            Arraste outros elementos por cima do background
+          </div>
+        </div>
       ) : (
-        <div className="p-4 flex flex-col gap-5">
-          {/* Position */}
+        /* === OUTROS ELEMENTOS === */
+        <div style={{padding:16,display:"flex",flexDirection:"column",gap:16}}>
+          {/* Posição */}
+          {!isLocked && (
+            <div>
+              <div style={sectionTitle}>Posição</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                {[["X","x",x],["Y","y",y]].map(([l,k,v]) => (
+                  <div key={k as string}>
+                    <label style={{fontSize:9,color:"#555",display:"block",marginBottom:3}}>{l}</label>
+                    <input type="number" value={v as number} onChange={e => update(k as string,e.target.value)} style={inputStyle} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tamanho */}
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-[#555555] mb-2">Posição</div>
-            <div className="grid grid-cols-2 gap-2">
-              {[["X", "x"], ["Y", "y"]].map(([label, key]) => (
-                <div key={key}>
-                  <label className="text-[10px] text-[#555555] block mb-1">{label}</label>
-                  <input
-                    type="number"
-                    value={(props as any)[key]}
-                    onChange={e => updateObj(key, e.target.value)}
-                    className="w-full bg-[#111111] border border-[#333333] text-white text-xs px-2 py-1.5 rounded outline-none focus:border-[#F5C400]"
-                  />
+            <div style={sectionTitle}>Tamanho</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+              {[["W",w],["H",h]].map(([l,v]) => (
+                <div key={l as string}>
+                  <label style={{fontSize:9,color:"#555",display:"block",marginBottom:3}}>{l}</label>
+                  <input type="number" value={v as number} readOnly style={{...inputStyle,color:"#555"}} />
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Size */}
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-[#555555] mb-2">Tamanho</div>
-            <div className="grid grid-cols-2 gap-2">
-              {[["W", "w"], ["H", "h"]].map(([label, key]) => (
-                <div key={key}>
-                  <label className="text-[10px] text-[#555555] block mb-1">{label}</label>
-                  <input
-                    type="number"
-                    value={(props as any)[key]}
-                    readOnly
-                    className="w-full bg-[#111111] border border-[#333333] text-[#555555] text-xs px-2 py-1.5 rounded"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Typography (text only) */}
+          {/* Tipografia — só texto */}
           {isText && (
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[#555555] mb-2">Tipografia</div>
-              <div className="flex flex-col gap-2">
+              <div style={sectionTitle}>Tipografia</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
                 <div>
-                  <label className="text-[10px] text-[#555555] block mb-1">Tamanho</label>
-                  <input
-                    type="number"
-                    value={props.fontSize}
-                    onChange={e => updateObj("fontSize", e.target.value)}
-                    className="w-full bg-[#111111] border border-[#333333] text-white text-xs px-2 py-1.5 rounded outline-none focus:border-[#F5C400]"
-                  />
+                  <label style={{fontSize:9,color:"#555",display:"block",marginBottom:3}}>Tamanho</label>
+                  <input type="number" value={fontSize} onChange={e => update("fontSize",e.target.value)} style={inputStyle} />
                 </div>
                 <div>
-                  <label className="text-[10px] text-[#555555] block mb-1">Peso</label>
-                  <select
-                    value={props.fontWeight}
-                    onChange={e => updateObj("fontWeight", e.target.value)}
-                    className="w-full bg-[#111111] border border-[#333333] text-white text-xs px-2 py-1.5 rounded outline-none focus:border-[#F5C400]"
-                  >
+                  <label style={{fontSize:9,color:"#555",display:"block",marginBottom:3}}>Peso</label>
+                  <select value={fontWeight} onChange={e => update("fontWeight",e.target.value)} style={inputStyle}>
                     <option value="normal">Regular</option>
                     <option value="500">Medium</option>
                     <option value="bold">Bold</option>
@@ -118,34 +132,24 @@ export function PropertiesPanel({ selectedObj, fabricRef }: Props) {
             </div>
           )}
 
-          {/* Color */}
+          {/* Cor */}
           {isText && (
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[#555555] mb-2">Cor</div>
-              <div className="flex gap-2 flex-wrap">
-                {["#ffffff", "#111111", "#F5C400", "#e63946", "#457b9d", "#2a9d8f"].map(color => (
-                  <div
-                    key={color}
-                    onClick={() => updateObj("fill", color)}
-                    className={`w-6 h-6 rounded cursor-pointer border-2 ${props.fill === color ? "border-[#F5C400]" : "border-transparent"}`}
-                    style={{ background: color }}
-                  />
+              <div style={sectionTitle}>Cor do texto</div>
+              <input type="color" value={fill} onChange={e => update("fill",e.target.value)} style={{width:"100%",height:36,cursor:"pointer",border:"none",borderRadius:6,background:"transparent",padding:0}} />
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:8}}>
+                {["#ffffff","#111111","#F5C400","#e63946","#457b9d","#2a9d8f"].map(c => (
+                  <div key={c} onClick={() => update("fill",c)} style={{width:22,height:22,borderRadius:3,background:c,cursor:"pointer",border:fill===c?"2px solid #F5C400":"2px solid #333"}} />
                 ))}
               </div>
-              <input
-                type="color"
-                value={props.fill}
-                onChange={e => updateObj("fill", e.target.value)}
-                className="w-full mt-2 h-7 rounded cursor-pointer border border-[#333333] bg-transparent"
-              />
             </div>
           )}
 
           {/* Lock warning */}
           {isLocked && (
-            <div className="bg-[#fef9c3]/10 border border-[#F5C400]/30 rounded-lg p-3">
-              <div className="text-[10px] font-bold text-[#F5C400] mb-1">⚠ CONTEÚDO TRAVADO</div>
-              <div className="text-[10px] text-[#888888]">Edite o texto em Campanha → Assets</div>
+            <div style={{padding:10,background:"rgba(245,196,0,0.1)",borderRadius:6,border:"1px solid rgba(245,196,0,0.3)"}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#F5C400",marginBottom:3}}>⚠ CONTEÚDO TRAVADO</div>
+              <div style={{fontSize:10,color:"#888"}}>Edite em Campanha → Assets</div>
             </div>
           )}
         </div>
