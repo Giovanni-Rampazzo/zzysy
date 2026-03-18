@@ -4,51 +4,55 @@ import { useState } from "react"
 interface Props {
   clientId: string
   onClose: () => void
-  onCreated: () => void
+  onCreated: (campaignId: string) => void
 }
 
 export function NewCampaignModal({ clientId, onClose, onCreated }: Props) {
   const [name, setName] = useState("")
-  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-    await fetch("/api/campaigns", {
+    if (!name.trim()) { setError("Nome obrigatório"); return }
+    setLoading(true)
+    const res = await fetch("/api/campaigns", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, clientId }),
     })
-    setSaving(false)
-    onCreated()
+    setLoading(false)
+    if (res.ok) {
+      const data = await res.json()
+      onCreated(data.id)
+    } else {
+      setError("Erro ao criar campanha")
+    }
   }
 
-  const inp = "w-full border border-[#E0E0E0] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#F5C400]"
-
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-xl w-[440px] shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E0E0E0]">
-          <div className="text-[16px] font-bold">Nova Campanha</div>
-          <button onClick={onClose} className="text-[#888] text-xl leading-none">✕</button>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{background:"white",borderRadius:12,width:440,boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 24px",borderBottom:"1px solid #E0E0E0"}}>
+          <span style={{fontWeight:700,fontSize:16}}>Nova Campanha</span>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#888"}}>✕</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-          <div>
-            <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Nome da campanha *</label>
+        <form onSubmit={handleSubmit} style={{padding:24,display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px",color:"#888"}}>Nome da campanha *</label>
             <input
-              className={inp}
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Ex: Verão 2026"
-              required
+              autoFocus
+              style={{padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit"}}
             />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="text-[12px] font-semibold border border-[#E0E0E0] px-4 py-2 rounded-md hover:bg-[#F5F5F0]">
-              Cancelar
-            </button>
-            <button type="submit" disabled={saving} className="bg-[#F5C400] text-black font-bold text-[12px] px-4 py-2 rounded-md hover:bg-[#e0b000] disabled:opacity-60">
-              {saving ? "Criando..." : "Criar campanha"}
+          {error && <p style={{color:"#dc2626",fontSize:12,margin:0}}>{error}</p>}
+          <div style={{display:"flex",justifyContent:"flex-end",gap:12,marginTop:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #E0E0E0",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}}>Cancelar</button>
+            <button type="submit" disabled={loading} style={{padding:"8px 16px",border:"none",borderRadius:6,background:"#F5C400",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",opacity:loading?0.7:1}}>
+              {loading ? "Criando..." : "Criar campanha"}
             </button>
           </div>
         </form>
