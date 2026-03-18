@@ -29,33 +29,25 @@ function PiecesContent() {
   const router = useRouter()
   const campaignId = searchParams.get("campaignId")
   const [pieces, setPieces] = useState<Piece[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<"grid" | "list">("grid")
 
   useEffect(() => {
-    async function load() {
-      const url = campaignId ? `/api/pieces?campaignId=${campaignId}` : "/api/pieces"
-      const res = await fetch(url)
-      const data = await res.json()
-      setPieces(data)
-      setLoading(false)
-    }
-    load()
+    const url = campaignId ? `/api/pieces?campaignId=${campaignId}` : "/api/pieces"
+    fetch(url).then(r => r.json()).then(d => { setPieces(d); setLoading(false) })
   }, [campaignId])
 
   function toggleSelect(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
+  function isSelected(id: string) { return selected.includes(id) }
+
   async function deleteSelected() {
-    await Promise.all([...selected].map(id => fetch(`/api/pieces/${id}`, { method: "DELETE" })))
-    setPieces(prev => prev.filter(p => !selected.has(p.id)))
-    setSelected(new Set())
+    await Promise.all(selected.map(id => fetch(`/api/pieces/${id}`, { method: "DELETE" })))
+    setPieces(prev => prev.filter(p => !selected.includes(p.id)))
+    setSelected([])
   }
 
   return (
@@ -67,10 +59,10 @@ function PiecesContent() {
             <p className="text-sm text-[#888888] mt-1">Gerencie e exporte as peças geradas</p>
           </div>
           <div className="flex items-center gap-3">
-            {selected.size > 0 && (
+            {selected.length > 0 && (
               <>
-                <Button variant="danger" size="sm" onClick={deleteSelected}>🗑 Apagar ({selected.size})</Button>
-                <Button size="sm">↗ Exportar ({selected.size})</Button>
+                <Button variant="danger" size="sm" onClick={deleteSelected}>🗑 Apagar ({selected.length})</Button>
+                <Button size="sm">↗ Exportar ({selected.length})</Button>
               </>
             )}
             <div className="flex border border-[#E0E0E0] rounded-md overflow-hidden">
@@ -89,12 +81,12 @@ function PiecesContent() {
             {pieces.map((p) => (
               <div
                 key={p.id}
-                className={`bg-white rounded-lg border cursor-pointer transition-all ${selected.has(p.id) ? "border-[#F5C400] shadow-md" : "border-[#E0E0E0] hover:border-[#F5C400]"}`}
+                className={`bg-white rounded-lg border cursor-pointer transition-all ${isSelected(p.id) ? "border-[#F5C400] shadow-md" : "border-[#E0E0E0] hover:border-[#F5C400]"}`}
                 onClick={() => toggleSelect(p.id)}
               >
                 <div className="bg-[#F5F5F0] h-32 flex flex-col items-center justify-center relative">
                   <div className="absolute top-2 left-2 w-4 h-4 border-2 border-[#E0E0E0] rounded bg-white flex items-center justify-center">
-                    {selected.has(p.id) && <div className="w-2 h-2 bg-[#F5C400] rounded-sm" />}
+                    {isSelected(p.id) && <div className="w-2 h-2 bg-[#F5C400] rounded-sm" />}
                   </div>
                   <div className="text-xs font-semibold text-[#888888] mb-1">{p.format}</div>
                   <div className="text-xs text-[#aaaaaa]">{p.width}×{p.height}</div>
@@ -125,8 +117,8 @@ function PiecesContent() {
                 {pieces.map((p) => (
                   <tr key={p.id} className="border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa]">
                     <td className="px-4 py-3 w-8">
-                      <div onClick={() => toggleSelect(p.id)} className={`w-4 h-4 border-2 rounded cursor-pointer flex items-center justify-center ${selected.has(p.id) ? "border-[#F5C400] bg-[#F5C400]" : "border-[#E0E0E0]"}`}>
-                        {selected.has(p.id) && <div className="w-2 h-2 bg-white rounded-sm" />}
+                      <div onClick={() => toggleSelect(p.id)} className={`w-4 h-4 border-2 rounded cursor-pointer flex items-center justify-center ${isSelected(p.id) ? "border-[#F5C400] bg-[#F5C400]" : "border-[#E0E0E0]"}`}>
+                        {isSelected(p.id) && <div className="w-2 h-2 bg-white rounded-sm" />}
                       </div>
                     </td>
                     <td className="px-4 py-3 font-semibold text-sm">{p.name}</td>
