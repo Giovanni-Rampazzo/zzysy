@@ -1,12 +1,14 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+type Ctx = { params: Promise<{ id: string }> }
+
+export async function GET(req: Request, ctx: Ctx) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id } = await params
+  const { id } = await ctx.params
   const assets = await prisma.campaignAsset.findMany({
     where: { campaignId: id },
     orderBy: { order: "asc" },
@@ -14,14 +16,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json(assets)
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, ctx: Ctx) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id } = await params
-  const { type, label } = await req.json()
-  const count = await prisma.campaignAsset.count({ where: { campaignId: id } })
-  const asset = await prisma.campaignAsset.create({
-    data: { campaignId: id, type, label, order: count }
-  })
+  const { id } = await ctx.params
+  const body = await req.json()
+  const asset = await prisma.campaignAsset.create({ data: { ...body, campaignId: id } })
   return NextResponse.json(asset)
 }
