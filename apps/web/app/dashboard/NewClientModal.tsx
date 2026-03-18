@@ -16,53 +16,72 @@ export function NewClientModal({ onClose, onCreated }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name) { setError("Nome obrigatório"); return }
+    if (!form.name.trim()) { setError("Nome é obrigatório"); return }
     setLoading(true)
-    const res = await fetch("/api/clients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    })
-    setLoading(false)
-    if (res.ok) { onCreated() } else { setError("Erro ao criar cliente") }
+    setError("")
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? "Erro ao criar cliente")
+      } else {
+        onCreated()
+      }
+    } catch (err) {
+      setError("Erro de conexão")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-xl w-[480px] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E0E0E0]">
-          <span className="font-bold text-base">Novo Cliente</span>
-          <button onClick={onClose} className="text-[#888888] hover:text-[#111111] text-xl bg-transparent border-0 cursor-pointer">✕</button>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{background:"white",borderRadius:12,width:480,overflow:"hidden",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 24px",borderBottom:"1px solid #E0E0E0"}}>
+          <span style={{fontWeight:700,fontSize:16}}>Novo Cliente</span>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#888"}}>✕</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">Nome *</label>
-            <input value={form.name} onChange={e => set("name", e.target.value)} placeholder="Nome do cliente" className="w-full px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]" />
+        <form onSubmit={handleSubmit} style={{padding:24,display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px",color:"#888"}}>Nome *</label>
+            <input
+              value={form.name}
+              onChange={e => set("name", e.target.value)}
+              placeholder="Nome do cliente"
+              required
+              style={{padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit"}}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">Contato</label>
-              <input value={form.contact} onChange={e => set("contact", e.target.value)} placeholder="Nome do contato" className="w-full px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]" />
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px",color:"#888"}}>Contato</label>
+              <input value={form.contact} onChange={e => set("contact", e.target.value)} placeholder="Nome do contato" style={{padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit"}} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">E-mail</label>
-              <input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="email@cliente.com" className="w-full px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">Telefone</label>
-              <input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(11) 99999-9999" className="w-full px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">Endereço</label>
-              <input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Cidade, Estado" className="w-full px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]" />
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px",color:"#888"}}>E-mail</label>
+              <input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="email@cliente.com" style={{padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit"}} />
             </div>
           </div>
-          {error && <p className="text-red-500 text-xs">{error}</p>}
-          <div className="flex justify-end gap-3 mt-2">
-            <Button variant="secondary" type="button" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" loading={loading}>Criar cliente</Button>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px",color:"#888"}}>Telefone</label>
+              <input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="(11) 99999-9999" style={{padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit"}} />
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px",color:"#888"}}>Endereço</label>
+              <input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Cidade, Estado" style={{padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit"}} />
+            </div>
+          </div>
+          {error && <p style={{color:"#dc2626",fontSize:12,margin:0}}>{error}</p>}
+          <div style={{display:"flex",justifyContent:"flex-end",gap:12,marginTop:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #E0E0E0",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}}>Cancelar</button>
+            <button type="submit" disabled={loading} style={{padding:"8px 16px",border:"none",borderRadius:6,background:"#F5C400",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",opacity:loading?0.7:1}}>
+              {loading ? "Criando..." : "Criar cliente"}
+            </button>
           </div>
         </form>
       </div>
