@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const assets = await prisma.campaignAsset.findMany({
     where: { campaignId: params.id },
     orderBy: { order: "asc" },
@@ -16,10 +17,10 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { type, label } = await req.json()
-  const count = await prisma.campaignAsset.count({ where: { campaignId: params.id } })
+
+  const body = await req.json()
   const asset = await prisma.campaignAsset.create({
-    data: { campaignId: params.id, type, label, order: count }
+    data: { ...body, campaignId: params.id }
   })
   return NextResponse.json(asset)
 }
