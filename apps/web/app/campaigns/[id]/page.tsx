@@ -1,17 +1,21 @@
 "use client"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { PageShell } from "@/components/layout/PageShell"
-import { Button } from "@/components/ui/Button"
+import { TopNav } from "@/components/TopNav"
 
-const TEXT_TYPES = ["TITULO", "SUBTITULO", "TEXTO", "TEXTO_APOIO", "CTA"]
-const IMAGE_TYPES = ["PERSONA", "PRODUTO", "FUNDO", "LOGOMARCA"]
+const ASSET_TYPES = [
+  { value: "TITULO", label: "Título" },
+  { value: "SUBTITULO", label: "Subtítulo" },
+  { value: "TEXTO", label: "Texto corrido" },
+  { value: "TEXTO_APOIO", label: "Texto apoio" },
+  { value: "CTA", label: "CTA" },
+  { value: "PERSONA", label: "Persona (imagem)" },
+  { value: "PRODUTO", label: "Produto (imagem)" },
+  { value: "FUNDO", label: "Fundo (imagem)" },
+  { value: "LOGOMARCA", label: "Logomarca (imagem)" },
+]
 
-const LABELS: Record<string, string> = {
-  TITULO: "Título", SUBTITULO: "Subtítulo", TEXTO: "Texto corrido",
-  TEXTO_APOIO: "Texto apoio", CTA: "CTA", PERSONA: "Persona",
-  PRODUTO: "Produto", FUNDO: "Fundo", LOGOMARCA: "Logomarca",
-}
+const TEXT_TYPES = ["TITULO", "SUBTITULO", "TEXTO", "TEXTO_APOIO", "CTA", "CUSTOM_TEXT"]
 
 interface Asset {
   id: string
@@ -19,7 +23,6 @@ interface Asset {
   label: string
   value: string | null
   imageUrl: string | null
-  order: number
 }
 
 interface Campaign {
@@ -27,115 +30,112 @@ interface Campaign {
   name: string
   client: { id: string; name: string }
   assets: Asset[]
-  keyVision: { id: string } | null
 }
 
 export default function CampaignPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
-  const [showAddField, setShowAddField] = useState(false)
-  const debounceRef = useRef<Record<string, NodeJS.Timeout>>({})
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newAssetType, setNewAssetType] = useState("CUSTOM_TEXT")
+  const [newAssetLabel, setNewAssetLabel] = useState("")
 
-  async function load() {
+  useEffect(() => { fetchCampaign() }, [])
+
+  async function fetchCampaign() {
     const res = await fetch(`/api/campaigns/${id}`)
-    const data = await res.json()
-    setCampaign(data)
-    setLoading(false)
+    if (res.ok) setCampaign(await res.json())
   }
 
-  useEffect(() => { load() }, [id])
-
-  async function updateAsset(assetId: string, field: "value" | "imageUrl", val: string) {
-    setCampaign(prev => prev ? {
-      ...prev,
-      assets: prev.assets.map(a => a.id === assetId ? { ...a, [field]: val } : a)
-    } : prev)
-
-    clearTimeout(debounceRef.current[assetId])
-    debounceRef.current[assetId] = setTimeout(async () => {
-      setSaving(assetId)
-      await fetch(`/api/campaigns/${id}/assets/${assetId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: val }),
-      })
-      setSaving(null)
-    }, 600)
-  }
-
-  async function addField(type: string) {
-    const label = LABELS[type] ?? type
-    const res = await fetch(`/api/campaigns/${id}/assets`, {
-      method: "POST",
+  async function updateAsset(assetId: string, field: string, value: string) {
+    setSaving(assetId)
+    await fetch(`/api/campaigns/${id}/assets/${assetId}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, label }),
+      body: JSON.stringify({ [field]: value }),
     })
-    const asset = await res.json()
-    setCampaign(prev => prev ? { ...prev, assets: [...prev.assets, asset] } : prev)
-    setShowAddField(false)
+    setSaving(null)
   }
 
   async function deleteAsset(assetId: string) {
     await fetch(`/api/campaigns/${id}/assets/${assetId}`, { method: "DELETE" })
-    setCampaign(prev => prev ? { ...prev, assets: prev.assets.filter(a => a.id !== assetId) } : prev)
+    fetchCampaign()
   }
 
-  if (loading) return <PageShell><div className="p-8 text-[#888888]">Carregando...</div></PageShell>
-  if (!campaign) return <PageShell><div className="p-8 text-[#888888]">Campanha não encontrada</div></PageShell>
+  async function addAsset(e: React.FormEvent) {
+    e.preventDefault()
+    await fetch(`/api/campaigns/${id}/assets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: newAssetType, label: newAssetLabel }),
+    })
+    setShowAddModal(false)
+    setNewAssetLabel("")
+    fetchCampaign()
+  }
+
+  if (!campaign) return (
+    <div className="flex flex-col h-screen">
+      <TopNav />
+      <div className="flex-1 flex items-center justify-center text-[#888] text-[13px]">Carregando...</div>
+    </div>
+  )
 
   const textAssets = campaign.assets.filter(a => TEXT_TYPES.includes(a.type))
-  const imageAssets = campaign.assets.filter(a => IMAGE_TYPES.includes(a.type))
-  const customAssets = campaign.assets.filter(a => !TEXT_TYPES.includes(a.type) && !IMAGE_TYPES.includes(a.type))
+  const imageAssets = campaign.assets.filter(a => !TEXT_TYPES.includes(a.type))
+
+  const inp = "w-full border border-[#E0E0E0] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[#F5C400]"
 
   return (
-    <PageShell>
-      <div className="p-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs text-[#888888] mb-5">
-          <button onClick={() => router.push("/dashboard")} className="hover:text-[#111111] bg-transparent border-0 cursor-pointer text-xs text-[#888888]">Clientes</button>
-          <span className="text-[#cccccc]">/</span>
-          <button onClick={() => router.push(`/clients/${campaign.client.id}`)} className="hover:text-[#111111] bg-transparent border-0 cursor-pointer text-xs text-[#888888]">{campaign.client.name}</button>
-          <span className="text-[#cccccc]">/</span>
-          <span className="font-semibold text-[#111111]">{campaign.name}</span>
+    <div className="flex flex-col h-screen">
+      <TopNav />
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="text-[11px] text-[#888] mb-5 flex items-center gap-2">
+          <span className="cursor-pointer hover:text-black" onClick={() => router.push("/dashboard")}>Clientes</span>
+          <span className="text-[#ccc]">/</span>
+          <span className="cursor-pointer hover:text-black" onClick={() => router.push(`/clients/${campaign.client.id}`)}>{campaign.client.name}</span>
+          <span className="text-[#ccc]">/</span>
+          <strong className="text-black">{campaign.name}</strong>
         </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">{campaign.name}</h1>
-            <p className="text-sm text-[#888888] mt-1">Assets da campanha</p>
+            <h1 className="text-[22px] font-bold">{campaign.name}</h1>
+            <p className="text-[#888] text-[12px] mt-1">Assets da campanha</p>
           </div>
-          <Button onClick={() => router.push(`/editor?campaignId=${id}`)} className="text-base px-6 py-2.5">
+          <button
+            onClick={() => router.push(`/editor?campaignId=${id}`)}
+            className="bg-[#F5C400] text-black font-bold text-[14px] px-6 py-2.5 rounded-md hover:bg-[#e0b000] flex items-center gap-2"
+          >
             ▶ Gerar Key Vision
-          </Button>
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-6">
-          {/* Texto */}
-          <div className="bg-white rounded-xl border border-[#E0E0E0] p-6">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#888888] mb-5">Campos de Texto</div>
+          {/* Texto assets */}
+          <div className="bg-white rounded-xl border border-[#E0E0E0] p-5">
+            <div className="text-[12px] font-bold text-[#888] uppercase tracking-wider mb-4">Campos de Texto</div>
             <div className="flex flex-col gap-4">
-              {textAssets.map((asset) => (
-                <div key={asset.id} className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">{asset.label}</label>
-                    {saving === asset.id && <span className="text-xs text-[#888888]">Salvando...</span>}
+              {textAssets.map(a => (
+                <div key={a.id}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[11px] font-semibold text-[#888] uppercase tracking-wider">{a.label}</label>
+                    {saving === a.id && <span className="text-[10px] text-[#F5C400]">Salvando...</span>}
                   </div>
-                  {asset.type === "TEXTO" ? (
+                  {a.label === "Texto corrido" || a.label === "Texto apoio" ? (
                     <textarea
-                      value={asset.value ?? ""}
-                      onChange={e => updateAsset(asset.id, "value", e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400] resize-none"
+                      defaultValue={a.value ?? ""}
+                      className={inp}
+                      onBlur={e => updateAsset(a.id, "value", e.target.value)}
                     />
                   ) : (
                     <input
-                      value={asset.value ?? ""}
-                      onChange={e => updateAsset(asset.id, "value", e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]"
+                      type="text"
+                      defaultValue={a.value ?? ""}
+                      className={inp}
+                      onBlur={e => updateAsset(a.id, "value", e.target.value)}
                     />
                   )}
                 </div>
@@ -143,44 +143,67 @@ export default function CampaignPage() {
             </div>
           </div>
 
-          {/* Imagens + Add field */}
-          <div className="flex flex-col gap-4">
-            <div className="bg-white rounded-xl border border-[#E0E0E0] p-6">
-              <div className="text-xs font-bold uppercase tracking-wider text-[#888888] mb-5">Imagens</div>
+          {/* Imagem assets */}
+          <div>
+            <div className="bg-white rounded-xl border border-[#E0E0E0] p-5 mb-4">
+              <div className="text-[12px] font-bold text-[#888] uppercase tracking-wider mb-4">Imagens</div>
               <div className="flex flex-col gap-3">
-                {imageAssets.map((asset) => (
-                  <div key={asset.id} className="flex items-center gap-3 bg-[#F5F5F0] border border-dashed border-[#E0E0E0] rounded-lg p-3">
-                    <div className="w-11 h-11 bg-[#E0E0E0] rounded-md flex items-center justify-content text-lg flex-shrink-0">
-                      {asset.type === "PERSONA" ? "👤" : asset.type === "PRODUTO" ? "🥤" : asset.type === "FUNDO" ? "🖼" : "🏷"}
+                {imageAssets.map(a => (
+                  <div key={a.id} className="bg-[#F5F5F0] border border-dashed border-[#E0E0E0] rounded-lg p-3 flex items-center gap-3">
+                    <div className="w-11 h-11 bg-[#E0E0E0] rounded-md flex items-center justify-center text-[18px] flex-shrink-0">
+                      {a.type === "PERSONA" ? "👤" : a.type === "PRODUTO" ? "🥤" : a.type === "LOGOMARCA" ? "🏷" : "🖼"}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm">{asset.label}</div>
-                      <div className="text-xs text-[#888888] truncate">{asset.imageUrl ?? "Nenhuma imagem"}</div>
+                      <div className="font-semibold text-[13px]">{a.label}</div>
+                      <div className="text-[#888] text-[11px]">{a.imageUrl ? "Imagem carregada" : "Nenhuma imagem"}</div>
                     </div>
-                    <Button variant="secondary" size="sm">Trocar</Button>
+                    <button className="text-[11px] font-semibold border border-[#E0E0E0] px-2.5 py-1 rounded-md bg-white hover:bg-[#F5F5F0] flex-shrink-0">
+                      Trocar
+                    </button>
                   </div>
                 ))}
+                {imageAssets.length === 0 && (
+                  <div className="text-[#888] text-[12px] text-center py-4">Nenhuma imagem adicionada</div>
+                )}
               </div>
             </div>
-
-            {/* Add custom field */}
-            <div className="relative">
-              <Button variant="secondary" className="w-full justify-center" onClick={() => setShowAddField(!showAddField)}>
-                + Adicionar campo
-              </Button>
-              {showAddField && (
-                <div className="absolute top-full mt-1 left-0 right-0 bg-white rounded-lg border border-[#E0E0E0] shadow-lg z-10 overflow-hidden">
-                  {["CUSTOM_TEXT", "CUSTOM_IMAGE", "LOGOMARCA"].map((type) => (
-                    <button key={type} onClick={() => addField(type)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F5F5F0] bg-transparent border-0 cursor-pointer">
-                      {type === "CUSTOM_TEXT" ? "📝 Campo de texto" : type === "CUSTOM_IMAGE" ? "🖼 Campo de imagem" : "🏷 Logomarca"}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="w-full border border-[#E0E0E0] bg-white rounded-md py-2 text-[12px] font-semibold text-[#555] hover:bg-[#F5F5F0]"
+            >
+              + Adicionar campo
+            </button>
           </div>
         </div>
       </div>
-    </PageShell>
+
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-xl w-[400px] shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E0E0E0]">
+              <div className="text-[16px] font-bold">Adicionar campo</div>
+              <button onClick={() => setShowAddModal(false)} className="text-[#888] text-xl leading-none">✕</button>
+            </div>
+            <form onSubmit={addAsset} className="p-6 flex flex-col gap-4">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Tipo</label>
+                <select className={inp} value={newAssetType} onChange={e => setNewAssetType(e.target.value)}>
+                  <option value="CUSTOM_TEXT">Texto personalizado</option>
+                  <option value="CUSTOM_IMAGE">Imagem personalizada</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Label</label>
+                <input className={inp} value={newAssetLabel} onChange={e => setNewAssetLabel(e.target.value)} placeholder="Ex: Hashtag" required />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowAddModal(false)} className="text-[12px] font-semibold border border-[#E0E0E0] px-4 py-2 rounded-md hover:bg-[#F5F5F0]">Cancelar</button>
+                <button type="submit" className="bg-[#F5C400] text-black font-bold text-[12px] px-4 py-2 rounded-md hover:bg-[#e0b000]">Adicionar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
