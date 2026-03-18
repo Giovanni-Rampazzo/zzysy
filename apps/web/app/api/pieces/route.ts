@@ -14,3 +14,13 @@ export async function GET(req: NextRequest) {
   })
   return NextResponse.json(pieces)
 }
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { campaignId, name, format, width, height, dpi, data, status } = await req.json()
+  const piece = await prisma.piece.create({
+    data: { campaignId, name, format, width, height, dpi: dpi ?? 72, data, status: status ?? "DRAFT" }
+  })
+  return NextResponse.json(piece)
+}
