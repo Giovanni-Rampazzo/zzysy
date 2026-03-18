@@ -1,28 +1,20 @@
 "use client"
 import { useEffect, useState } from "react"
 import { PageShell } from "@/components/layout/PageShell"
-import { Button } from "@/components/ui/Button"
 
 interface MediaFormat {
-  id: string
-  vehicle: string
-  media: string
-  format: string
-  width: number
-  height: number
-  dpi: number
-  category: "DIGITAL" | "OFFLINE"
-  isDefault: boolean
+  id: string; vehicle: string; media: string; format: string
+  width: number; height: number; dpi: number; category: "DIGITAL"|"OFFLINE"; isDefault: boolean
 }
 
 export default function MediasPage() {
   const [formats, setFormats] = useState<MediaFormat[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ vehicle: "", media: "", format: "", width: "", height: "", dpi: "72", category: "DIGITAL" })
+  const [form, setForm] = useState({vehicle:"",media:"",format:"",width:"",height:"",dpi:"72",category:"DIGITAL"})
 
   useEffect(() => {
-    fetch("/api/medias").then(r => r.json()).then(d => { setFormats(d); setLoading(false) })
+    fetch("/api/medias").then(r => r.json()).then(d => { setFormats(Array.isArray(d)?d:[]); setLoading(false) })
   }, [])
 
   async function handleAdd(e: React.FormEvent) {
@@ -30,12 +22,12 @@ export default function MediasPage() {
     const res = await fetch("/api/medias", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, width: +form.width, height: +form.height, dpi: +form.dpi }),
+      body: JSON.stringify({ ...form, width:+form.width, height:+form.height, dpi:+form.dpi }),
     })
     const mf = await res.json()
     setFormats(prev => [...prev, mf])
     setShowModal(false)
-    setForm({ vehicle: "", media: "", format: "", width: "", height: "", dpi: "72", category: "DIGITAL" })
+    setForm({vehicle:"",media:"",format:"",width:"",height:"",dpi:"72",category:"DIGITAL"})
   }
 
   async function handleDelete(id: string) {
@@ -45,39 +37,39 @@ export default function MediasPage() {
 
   const digital = formats.filter(f => f.category === "DIGITAL")
   const offline = formats.filter(f => f.category === "OFFLINE")
+  const inp = {width:"100%",padding:"7px 10px",border:"1px solid #E0E0E0",borderRadius:5,fontSize:12,outline:"none",fontFamily:"inherit"} as React.CSSProperties
 
   return (
     <PageShell>
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
+      <div style={{padding:32}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:32}}>
           <div>
-            <h1 className="text-2xl font-bold">Mídias e Formatos</h1>
-            <p className="text-sm text-[#888888] mt-1">Formatos disponíveis para geração de peças</p>
+            <h1 style={{fontSize:22,fontWeight:700,margin:0}}>Mídias e Formatos</h1>
+            <p style={{fontSize:12,color:"#888",margin:"4px 0 0"}}>Formatos disponíveis para geração de peças</p>
           </div>
-          <Button onClick={() => setShowModal(true)}>+ Novo formato</Button>
+          <button onClick={() => setShowModal(true)} style={{background:"#F5C400",border:"none",borderRadius:6,padding:"8px 16px",fontWeight:600,fontSize:12,cursor:"pointer"}}>+ Novo formato</button>
         </div>
 
-        {loading ? (
-          <div className="text-center py-16 text-[#888888]">Carregando...</div>
-        ) : (
-          <div className="bg-white rounded-xl border border-[#E0E0E0] overflow-hidden">
-            {[{ label: "Digital", data: digital }, { label: "Offline", data: offline }].map(({ label, data }) => (
+        {loading ? <div style={{textAlign:"center",padding:"64px 0",color:"#888"}}>Carregando...</div> : (
+          <div style={{background:"white",borderRadius:10,border:"1px solid #E0E0E0",overflow:"hidden"}}>
+            {[{label:"Digital",data:digital},{label:"Offline",data:offline}].map(({label,data}) => (
               <div key={label}>
-                <div className="px-5 py-3 bg-[#F5F5F0] border-b border-[#E0E0E0]">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#888888]">{label}</span>
+                <div style={{padding:"10px 20px",background:"#F5F5F0",borderBottom:"1px solid #E0E0E0"}}>
+                  <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase" as const,letterSpacing:"0.8px",color:"#888"}}>{label}</span>
                 </div>
-                {data.map((f) => (
-                  <div key={f.id} className="flex items-center px-5 py-3 border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa]">
-                    <div className="flex-1 font-semibold text-sm">{f.vehicle}</div>
-                    <div className="w-36 text-sm text-[#888888]">{f.media}</div>
-                    <div className="w-36 text-sm text-[#888888]">{f.format}</div>
-                    <div className="w-28 text-sm text-[#888888]">{f.width}×{f.height}</div>
-                    <div className="w-20 text-sm text-[#888888]">{f.dpi}dpi</div>
-                    <div className="flex gap-2">
-                      {!f.isDefault && (
-                        <Button variant="danger" size="sm" onClick={() => handleDelete(f.id)}>Remover</Button>
+                {data.map(f => (
+                  <div key={f.id} style={{display:"flex",alignItems:"center",padding:"10px 20px",borderBottom:"1px solid #f0f0f0"}}>
+                    <div style={{flex:1,fontWeight:600,fontSize:13}}>{f.vehicle}</div>
+                    <div style={{width:140,fontSize:12,color:"#888"}}>{f.media}</div>
+                    <div style={{width:150,fontSize:12,color:"#888"}}>{f.format}</div>
+                    <div style={{width:110,fontSize:12,color:"#888"}}>{f.width}×{f.height}</div>
+                    <div style={{width:70,fontSize:12,color:"#888"}}>{f.dpi}dpi</div>
+                    <div>
+                      {!f.isDefault ? (
+                        <button onClick={() => handleDelete(f.id)} style={{fontSize:11,fontWeight:600,padding:"4px 10px",borderRadius:5,background:"#fee2e2",color:"#dc2626",border:"none",cursor:"pointer"}}>Remover</button>
+                      ) : (
+                        <span style={{fontSize:11,color:"#aaa",padding:"0 8px"}}>padrão</span>
                       )}
-                      {f.isDefault && <span className="text-xs text-[#888888] px-2">padrão</span>}
                     </div>
                   </div>
                 ))}
@@ -88,39 +80,39 @@ export default function MediasPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl w-[500px] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E0E0E0]">
-              <span className="font-bold text-base">Novo Formato</span>
-              <button onClick={() => setShowModal(false)} className="text-[#888888] hover:text-[#111111] bg-transparent border-0 text-xl cursor-pointer">✕</button>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"white",borderRadius:12,width:500,boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 24px",borderBottom:"1px solid #E0E0E0"}}>
+              <span style={{fontWeight:700,fontSize:16}}>Novo Formato</span>
+              <button onClick={() => setShowModal(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#888"}}>✕</button>
             </div>
-            <form onSubmit={handleAdd} className="p-6 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-3">
-                {[["vehicle","Veículo","Ex: Instagram"],["media","Mídia","Ex: Feed"],["format","Formato","Ex: Post Quadrado"]].map(([k,l,p]) => (
-                  <div key={k} className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">{l}</label>
-                    <input value={(form as any)[k]} onChange={e => setForm(f => ({...f,[k]:e.target.value}))} placeholder={p} required className="px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]" />
+            <form onSubmit={handleAdd} style={{padding:24,display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {([["vehicle","Veículo","Ex: Instagram"],["media","Mídia","Ex: Feed"],["format","Formato","Ex: Post Quadrado"]] as [string,string,string][]).map(([k,l,p]) => (
+                  <div key={k} style={{display:"flex",flexDirection:"column",gap:5}}>
+                    <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase" as const,letterSpacing:"0.5px",color:"#888"}}>{l}</label>
+                    <input value={(form as any)[k]} onChange={e => setForm(f => ({...f,[k]:e.target.value}))} placeholder={p} required style={inp} />
                   </div>
                 ))}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">Categoria</label>
-                  <select value={form.category} onChange={e => setForm(f => ({...f,category:e.target.value}))} className="px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]">
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase" as const,letterSpacing:"0.5px",color:"#888"}}>Categoria</label>
+                  <select value={form.category} onChange={e => setForm(f => ({...f,category:e.target.value}))} style={inp}>
                     <option value="DIGITAL">Digital</option>
                     <option value="OFFLINE">Offline</option>
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                {[["width","Largura (px)"],["height","Altura (px)"],["dpi","DPI"]].map(([k,l]) => (
-                  <div key={k} className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-[#888888]">{l}</label>
-                    <input type="number" value={(form as any)[k]} onChange={e => setForm(f => ({...f,[k]:e.target.value}))} required className="px-3 py-2 text-sm border border-[#E0E0E0] rounded-md outline-none focus:border-[#F5C400]" />
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+                {([["width","Largura (px)"],["height","Altura (px)"],["dpi","DPI"]] as [string,string][]).map(([k,l]) => (
+                  <div key={k} style={{display:"flex",flexDirection:"column",gap:5}}>
+                    <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase" as const,letterSpacing:"0.5px",color:"#888"}}>{l}</label>
+                    <input type="number" value={(form as any)[k]} onChange={e => setForm(f => ({...f,[k]:e.target.value}))} required style={inp} />
                   </div>
                 ))}
               </div>
-              <div className="flex justify-end gap-3 mt-2">
-                <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>Cancelar</Button>
-                <Button type="submit">Salvar formato</Button>
+              <div style={{display:"flex",justifyContent:"flex-end",gap:12,marginTop:8}}>
+                <button type="button" onClick={() => setShowModal(false)} style={{padding:"8px 16px",border:"1px solid #E0E0E0",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>Cancelar</button>
+                <button type="submit" style={{padding:"8px 16px",background:"#F5C400",border:"none",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>Salvar</button>
               </div>
             </form>
           </div>
