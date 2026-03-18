@@ -77,3 +77,5 @@ npm run dev
 | `/pieces` | Peças/desdobramentos |
 | `/plans` | Planos e assinatura |
 | `/admin` | Painel interno (SUPER_ADMIN) |
+
+<!-- deploy trigger -->
