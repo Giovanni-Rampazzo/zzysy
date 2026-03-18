@@ -7,6 +7,7 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const tenantId = (session.user as any).tenantId
+
   const clients = await prisma.client.findMany({
     where: { tenantId },
     include: { _count: { select: { campaigns: true } } },
@@ -19,10 +20,10 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const tenantId = (session.user as any).tenantId
-  const { name, contact, email, phone, address } = await req.json()
-  if (!name) return NextResponse.json({ error: "Nome obrigatório" }, { status: 400 })
+
+  const body = await req.json()
   const client = await prisma.client.create({
-    data: { tenantId, name, contact, email, phone, address }
+    data: { ...body, tenantId }
   })
   return NextResponse.json(client)
 }
