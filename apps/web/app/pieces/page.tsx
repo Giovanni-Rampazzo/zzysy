@@ -1,0 +1,151 @@
+"use client"
+import { useEffect, useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
+import { Suspense } from "react"
+import { PageShell } from "@/components/layout/PageShell"
+import { Button } from "@/components/ui/Button"
+
+interface Piece {
+  id: string
+  name: string
+  format: string
+  width: number
+  height: number
+  dpi: number
+  status: string
+  createdAt: string
+  campaignId: string
+}
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  DRAFT: { label: "Rascunho", color: "bg-gray-100 text-gray-600" },
+  REVIEW: { label: "Em revisão", color: "bg-blue-100 text-blue-700" },
+  APPROVED: { label: "Aprovada", color: "bg-green-100 text-green-700" },
+  EXPORTED: { label: "Exportada", color: "bg-yellow-100 text-yellow-700" },
+}
+
+function PiecesContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const campaignId = searchParams.get("campaignId")
+  const [pieces, setPieces] = useState<Piece[]>([])
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<"grid" | "list">("grid")
+
+  useEffect(() => {
+    async function load() {
+      const url = campaignId ? `/api/pieces?campaignId=${campaignId}` : "/api/pieces"
+      const res = await fetch(url)
+      const data = await res.json()
+      setPieces(data)
+      setLoading(false)
+    }
+    load()
+  }, [campaignId])
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  async function deleteSelected() {
+    await Promise.all([...selected].map(id => fetch(`/api/pieces/${id}`, { method: "DELETE" })))
+    setPieces(prev => prev.filter(p => !selected.has(p.id)))
+    setSelected(new Set())
+  }
+
+  return (
+    <PageShell>
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Peças <span className="text-[#888888] font-normal text-lg">({pieces.length})</span></h1>
+            <p className="text-sm text-[#888888] mt-1">Gerencie e exporte as peças geradas</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {selected.size > 0 && (
+              <>
+                <Button variant="danger" size="sm" onClick={deleteSelected}>🗑 Apagar ({selected.size})</Button>
+                <Button size="sm">↗ Exportar ({selected.size})</Button>
+              </>
+            )}
+            <div className="flex border border-[#E0E0E0] rounded-md overflow-hidden">
+              <button onClick={() => setView("grid")} className={`px-3 py-1.5 text-xs font-medium cursor-pointer border-0 ${view === "grid" ? "bg-[#111111] text-white" : "bg-white text-[#888888]"}`}>Grid</button>
+              <button onClick={() => setView("list")} className={`px-3 py-1.5 text-xs font-medium cursor-pointer border-0 ${view === "list" ? "bg-[#111111] text-white" : "bg-white text-[#888888]"}`}>Lista</button>
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-16 text-[#888888]">Carregando...</div>
+        ) : pieces.length === 0 ? (
+          <div className="text-center py-16 text-[#888888]">Nenhuma peça encontrada</div>
+        ) : view === "grid" ? (
+          <div className="grid grid-cols-4 gap-4">
+            {pieces.map((p) => (
+              <div
+                key={p.id}
+                className={`bg-white rounded-lg border cursor-pointer transition-all ${selected.has(p.id) ? "border-[#F5C400] shadow-md" : "border-[#E0E0E0] hover:border-[#F5C400]"}`}
+                onClick={() => toggleSelect(p.id)}
+              >
+                <div className="bg-[#F5F5F0] h-32 flex flex-col items-center justify-center relative">
+                  <div className="absolute top-2 left-2 w-4 h-4 border-2 border-[#E0E0E0] rounded bg-white flex items-center justify-center">
+                    {selected.has(p.id) && <div className="w-2 h-2 bg-[#F5C400] rounded-sm" />}
+                  </div>
+                  <div className="text-xs font-semibold text-[#888888] mb-1">{p.format}</div>
+                  <div className="text-xs text-[#aaaaaa]">{p.width}×{p.height}</div>
+                </div>
+                <div className="p-3">
+                  <div className="text-xs font-semibold truncate">{p.name}</div>
+                  <div className="flex items-center justify-between mt-1">
+                    <div className="text-xs text-[#888888]">{p.width}×{p.height} px</div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_LABELS[p.status]?.color}`}>
+                      {STATUS_LABELS[p.status]?.label}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-[#E0E0E0] overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  {["", "Nome", "Formato", "Dimensões", "DPI", "Status", ""].map((h, i) => (
+                    <th key={i} className="text-left text-xs font-semibold text-[#888888] uppercase tracking-wide px-4 py-3 border-b border-[#E0E0E0]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pieces.map((p) => (
+                  <tr key={p.id} className="border-b border-[#f0f0f0] last:border-0 hover:bg-[#fafafa]">
+                    <td className="px-4 py-3 w-8">
+                      <div onClick={() => toggleSelect(p.id)} className={`w-4 h-4 border-2 rounded cursor-pointer flex items-center justify-center ${selected.has(p.id) ? "border-[#F5C400] bg-[#F5C400]" : "border-[#E0E0E0]"}`}>
+                        {selected.has(p.id) && <div className="w-2 h-2 bg-white rounded-sm" />}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-sm">{p.name}</td>
+                    <td className="px-4 py-3 text-sm text-[#888888]">{p.format}</td>
+                    <td className="px-4 py-3 text-sm text-[#888888]">{p.width}×{p.height}</td>
+                    <td className="px-4 py-3 text-sm text-[#888888]">{p.dpi}</td>
+                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_LABELS[p.status]?.color}`}>{STATUS_LABELS[p.status]?.label}</span></td>
+                    <td className="px-4 py-3 text-right"><Button variant="secondary" size="sm" onClick={() => router.push(`/pieces/${p.id}`)}>Ver</Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </PageShell>
+  )
+}
+
+export default function PiecesPage() {
+  return <Suspense><PiecesContent /></Suspense>
+}
