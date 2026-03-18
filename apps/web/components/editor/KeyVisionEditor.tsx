@@ -14,6 +14,7 @@ interface Campaign {
 
 const CANVAS_W = 1920
 const CANVAS_H = 1080
+const BG_LAYER_ID = "__background__"
 
 export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const router = useRouter()
@@ -43,24 +44,34 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     let mounted = true
 
     async function init() {
-      const { Canvas, Rect, IText } = await import("fabric")
+      const { Canvas, Rect } = await import("fabric")
 
       const fc = new Canvas(canvasRef.current!, {
         width: Math.round(CANVAS_W * zoom),
         height: Math.round(CANVAS_H * zoom),
       })
+      fc.setZoom(zoom)
 
-      // White background rect — always at bottom, non-selectable
+      // Background layer — selecionável, muda cor via PropertiesPanel
       const bg = new Rect({
         left: 0, top: 0,
         width: CANVAS_W, height: CANVAS_H,
         fill: "#ffffff",
-        selectable: false,
-        evented: false,
-        excludeFromExport: true,
+        selectable: true,
+        evented: true,
+        hasControls: false,
+        hasBorders: true,
+        lockMovementX: true,
+        lockMovementY: true,
+        lockScalingX: true,
+        lockScalingY: true,
+        lockRotation: true,
       })
+      ;(bg as any).layerId = BG_LAYER_ID
+      ;(bg as any).layerLabel = "Background"
+      ;(bg as any).isBackground = true
       fc.add(bg)
-      fc.setZoom(zoom)
+      fc.sendObjectToBack(bg)
       fc.renderAll()
 
       fabricRef.current = fc
@@ -76,22 +87,51 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       const kvRes = await fetch(`/api/campaigns/${campaignId}/key-vision`)
       const kv = await kvRes.json()
       if (kv?.data?.objects?.length > 0) {
-        const saved = { ...kv.data }
-        fc.loadFromJSON(saved, () => {
-          // Re-add bg at bottom if not present
-          const objs = fc.getObjects()
-          const hasBg = objs.some((o: any) => o.excludeFromExport)
-          if (!hasBg) {
-            const bg2 = new Rect({ left:0,top:0,width:CANVAS_W,height:CANVAS_H,fill:"#ffffff",selectable:false,evented:false,excludeFromExport:true })
-            fc.add(bg2)
-            fc.sendObjectToBack(bg2)
+        // Restore saved objects on top of background
+        const { IText } = await import("fabric")
+        for (const obj of kv.data.objects) {
+          if (obj.layerId === BG_LAYER_ID) {
+            // Restore background color
+            const bgObj = fc.getObjects().find((o: any) => o.layerId === BG_LAYER_ID)
+            if (bgObj) { bgObj.set("fill", obj.fill); fc.renderAll() }
+            continue
           }
-          fc.renderAll()
-          if (mounted) refreshLayers(fc)
-        })
+          if (obj.type === "i-text" || obj.type === "IText") {
+            const text = new IText(obj.text ?? "", {
+              left: obj.left, top: obj.top,
+              fontSize: obj.fontSize ?? 80,
+              fontFamily: obj.fontFamily ?? "Arial",
+              fill: obj.fill ?? "#111",
+              scaleX: obj.scaleX ?? 1,
+              scaleY: obj.scaleY ?? 1,
+              angle: obj.angle ?? 0,
+              editable: false,
+            })
+            ;(text as any).layerId = obj.layerId
+            ;(text as any).layerLabel = obj.layerLabel
+            ;(text as any).locked = obj.locked
+            fc.add(text)
+          } else if (obj.type === "rect") {
+            const r = new Rect({
+              left: obj.left, top: obj.top,
+              width: obj.width, height: obj.height,
+              fill: obj.fill ?? "#e8e8e8",
+              stroke: obj.stroke, strokeWidth: obj.strokeWidth,
+              strokeDashArray: obj.strokeDashArray,
+              scaleX: obj.scaleX ?? 1, scaleY: obj.scaleY ?? 1,
+              angle: obj.angle ?? 0,
+            })
+            ;(r as any).layerId = obj.layerId
+            ;(r as any).layerLabel = obj.layerLabel
+            ;(r as any).locked = obj.locked
+            fc.add(r)
+          }
+        }
+        fc.renderAll()
+        if (mounted) refreshLayers(fc)
       }
 
-      if (mounted) setReady(true)
+      if (mounted) { refreshLayers(fc); setReady(true) }
     }
 
     init()
@@ -102,15 +142,14 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }, [])
 
   function refreshLayers(fc: any) {
-    const objs = fc.getObjects()
-      .filter((o: any) => !o.excludeFromExport)
-      .map((obj: any, i: number) => ({
-        id: obj.layerId ?? `obj-${i}`,
-        label: obj.layerLabel ?? obj.type ?? "Layer",
-        type: obj.type,
-        locked: obj.locked ?? false,
-        obj,
-      }))
+    const objs = fc.getObjects().map((obj: any, i: number) => ({
+      id: obj.layerId ?? `obj-${i}`,
+      label: obj.layerLabel ?? obj.type ?? "Layer",
+      type: obj.type,
+      locked: obj.locked ?? false,
+      isBackground: obj.isBackground ?? false,
+      obj,
+    }))
     setLayers([...objs].reverse())
   }
 
@@ -118,9 +157,32 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       setSaving(true)
-      // Export only non-bg objects
-      const data = fc.toJSON(["layerId","layerLabel","locked","excludeFromExport"])
-      data.objects = (data.objects ?? []).filter((o: any) => !o.excludeFromExport)
+      const data = {
+        objects: fc.getObjects().map((obj: any) => {
+          if ((obj as any).isBackground) {
+            return { type: "rect", layerId: BG_LAYER_ID, layerLabel: "Background", isBackground: true, fill: obj.fill, left: 0, top: 0, width: CANVAS_W, height: CANVAS_H }
+          }
+          return {
+            type: obj.type,
+            layerId: (obj as any).layerId,
+            layerLabel: (obj as any).layerLabel,
+            locked: (obj as any).locked,
+            left: obj.left, top: obj.top,
+            scaleX: obj.scaleX, scaleY: obj.scaleY,
+            angle: obj.angle,
+            fill: obj.fill,
+            ...(obj.type === "i-text" || obj.type === "IText" ? {
+              text: (obj as any).text,
+              fontSize: obj.fontSize,
+              fontFamily: obj.fontFamily,
+            } : {
+              width: obj.width, height: obj.height,
+              stroke: obj.stroke, strokeWidth: obj.strokeWidth,
+              strokeDashArray: obj.strokeDashArray,
+            })
+          }
+        })
+      }
       await fetch(`/api/campaigns/${campaignId}/key-vision`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -132,12 +194,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
   async function addAsset() {
     const fc = fabricRef.current
-    if (!fc || !campaign) return
+    if (!fc || !campaign || !ready) return
     const asset = campaign.assets.find(a => a.id === selectedAssetId)
     if (!asset) return
 
-    const { Rect, IText } = await import("fabric")
     const isImage = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"].includes(asset.type)
+    const { Rect, IText } = await import("fabric")
 
     if (isImage) {
       const rect = new Rect({ left:100,top:100,width:400,height:300,fill:"#e8e8e8",stroke:"#aaa",strokeWidth:1,strokeDashArray:[8,4] })
@@ -148,11 +210,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     } else {
       const displayText = asset.value?.trim() ? asset.value : `{{ ${asset.label} }}`
       const text = new IText(displayText, {
-        left: 80, top: 80,
-        fontSize: 80,
-        fontFamily: "Arial, sans-serif",
-        fill: "#111111",
-        editable: false,
+        left:80, top:80, fontSize:80,
+        fontFamily:"Arial, sans-serif",
+        fill:"#111111", editable:false,
       })
       ;(text as any).layerId = asset.id
       ;(text as any).layerLabel = asset.label
@@ -174,7 +234,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   function deleteLayer(layerId: string) {
     const fc = fabricRef.current
     if (!fc) return
-    const obj = fc.getObjects().find((o: any) => o.layerId === layerId)
+    // Não permite apagar background
+    const obj = fc.getObjects().find((o: any) => o.layerId === layerId && !(o as any).isBackground)
     if (obj) { fc.remove(obj); fc.renderAll(); autoSave(fc) }
   }
 
@@ -191,7 +252,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   function undo() {
     const fc = fabricRef.current
     if (!fc) return
-    const objs = fc.getObjects().filter((o: any) => !o.excludeFromExport)
+    const objs = fc.getObjects().filter((o: any) => !(o as any).isBackground)
     if (objs.length > 0) { fc.remove(objs[objs.length-1]); fc.renderAll(); autoSave(fc) }
   }
 
@@ -203,7 +264,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",background:"#111"}}>
-      {/* Top bar */}
       <div style={{height:48,background:"#111",borderBottom:"1px solid #2a2a2a",display:"flex",alignItems:"center",padding:"0 16px",gap:12,flexShrink:0}}>
         <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:13}}>
           ← {campaign.name}
@@ -220,7 +280,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         <LayerPanel layers={layers} selectedObj={selectedObj} onSelect={selectLayer} onDelete={deleteLayer} />
 
         <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-          {/* Asset bar */}
           <div style={{height:44,background:"#1a1a1a",borderBottom:"1px solid #2a2a2a",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0}}>
             <span style={{fontSize:12,color:"#666",fontWeight:600}}>Adicionar asset:</span>
             <select
@@ -242,13 +301,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
               + Adicionar
             </button>
             <div style={{flex:1}} />
-            <button onClick={() => updateZoom(zoom - 0.1)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:18}}>−</button>
+            <button onClick={() => updateZoom(zoom-0.1)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:18}}>−</button>
             <span style={{fontSize:11,color:"#666",minWidth:40,textAlign:"center"}}>{Math.round(zoom*100)}%</span>
-            <button onClick={() => updateZoom(zoom + 0.1)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:18}}>+</button>
+            <button onClick={() => updateZoom(zoom+0.1)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:18}}>+</button>
             <button onClick={undo} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:16,padding:"0 8px"}}>↩</button>
           </div>
 
-          {/* Canvas area */}
           <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",padding:32}}>
             <div style={{boxShadow:"0 8px 40px rgba(0,0,0,0.6)"}}>
               <canvas ref={canvasRef} />
@@ -256,7 +314,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           </div>
         </div>
 
-        <PropertiesPanel selectedObj={selectedObj} fabricRef={fabricRef} />
+        <PropertiesPanel selectedObj={selectedObj} fabricRef={fabricRef} onUpdate={() => autoSave(fabricRef.current)} />
       </div>
 
       {showModal && (
