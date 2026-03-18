@@ -1,4 +1,49 @@
 "use client"
-import TopNav from "@/components/TopNav"
-export { TopNav }
-export default TopNav
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { signOut, useSession } from "next-auth/react"
+
+const navLinks = [
+  { href: "/dashboard", label: "Clientes" },
+  { href: "/pieces", label: "Peças" },
+  { href: "/medias", label: "Mídias" },
+  { href: "/approvals", label: "Aprovação" },
+  { href: "/deliveries", label: "Entregas" },
+]
+
+export function TopNav() {
+  const pathname = usePathname()
+  const { data: session } = useSession()
+
+  return (
+    <nav style={{height:52,background:"#111111",display:"flex",alignItems:"center",padding:"0 24px",gap:28,flexShrink:0,zIndex:50}}>
+      <span style={{color:"#F5C400",fontWeight:700,fontSize:15,letterSpacing:2,marginRight:8}}>ZZOSY</span>
+      {navLinks.map(link => (
+        <Link
+          key={link.href}
+          href={link.href}
+          style={{
+            color: pathname?.startsWith(link.href) ? "#ffffff" : "#777777",
+            textDecoration: "none",
+            fontSize: 12,
+            fontWeight: 500,
+            paddingBottom: 2,
+            borderBottom: pathname?.startsWith(link.href) ? "2px solid #F5C400" : "2px solid transparent",
+          }}
+        >
+          {link.label}
+        </Link>
+      ))}
+      <div style={{flex:1}} />
+      <Link href="/account" style={{color: pathname?.startsWith("/account") ? "#ffffff" : "#777777", textDecoration:"none", fontSize:12, fontWeight:500}}>
+        Account
+      </Link>
+      <div
+        onClick={() => signOut({ callbackUrl: "/login" })}
+        style={{width:28,height:28,borderRadius:"50%",background:"#F5C400",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#111111",cursor:"pointer"}}
+      >
+        {session?.user?.name?.[0]?.toUpperCase() ?? "G"}
+      </div>
+    </nav>
+  )
+}
