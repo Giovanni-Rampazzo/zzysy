@@ -1,7 +1,6 @@
 "use client"
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/Button"
 import { GeneratePiecesModal } from "./GeneratePiecesModal"
 import { LayerPanel } from "./LayerPanel"
 import { PropertiesPanel } from "./PropertiesPanel"
@@ -28,60 +27,61 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fabricRef = useRef<any>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
   const [campaign, setCampaign] = useState<Campaign | null>(null)
-  const [selectedAsset, setSelectedAsset] = useState<string | null>(null)
   const [selectedObj, setSelectedObj] = useState<any>(null)
   const [layers, setLayers] = useState<any[]>([])
   const [zoom, setZoom] = useState(0.5)
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
-  const saveTimeoutRef = useRef<NodeJS.Timeout>()
+  const [selectedAssetId, setSelectedAssetId] = useState("")
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
 
-  // Load campaign data
+  // Load campaign
   useEffect(() => {
     fetch(`/api/campaigns/${campaignId}`)
       .then(r => r.json())
-      .then(data => setCampaign(data))
+      .then(data => {
+        setCampaign(data)
+        if (data.assets?.length > 0) setSelectedAssetId(data.assets[0].id)
+      })
   }, [campaignId])
 
-  // Init Fabric.js
+  // Init Fabric
   useEffect(() => {
     if (!canvasRef.current || fabricRef.current) return
 
-    async function initFabric() {
-      const { Canvas, IText, Rect } = await import("fabric")
+    let fc: any = null
 
-      const fc = new Canvas(canvasRef.current!, {
+    async function initFabric() {
+      const fabric = await import("fabric")
+      const { Canvas } = fabric
+
+      fc = new Canvas(canvasRef.current!, {
         width: CANVAS_W * zoom,
         height: CANVAS_H * zoom,
-        backgroundColor: "#ffffff",
         selection: true,
       })
 
-      fc.setZoom(zoom)
-      fc.setDimensions({ width: CANVAS_W * zoom, height: CANVAS_H * zoom })
+      // Set white background explicitly
+      fc.backgroundColor = "#ffffff"
+      fc.renderAll()
 
+      fc.setZoom(zoom)
       fabricRef.current = fc
 
-      fc.on("selection:created", (e: any) => {
-        const obj = e.selected?.[0]
-        if (obj) setSelectedObj(obj)
-      })
-      fc.on("selection:updated", (e: any) => {
-        const obj = e.selected?.[0]
-        if (obj) setSelectedObj(obj)
-      })
+      fc.on("selection:created", (e: any) => setSelectedObj(e.selected?.[0] ?? null))
+      fc.on("selection:updated", (e: any) => setSelectedObj(e.selected?.[0] ?? null))
       fc.on("selection:cleared", () => setSelectedObj(null))
       fc.on("object:modified", () => autoSave(fc))
       fc.on("object:added", () => refreshLayers(fc))
       fc.on("object:removed", () => refreshLayers(fc))
 
-      // Load existing key vision data
+      // Load existing KV
       const kvRes = await fetch(`/api/campaigns/${campaignId}/key-vision`)
       const kv = await kvRes.json()
-      if (kv?.data?.objects) {
+      if (kv?.data?.objects?.length > 0) {
         fc.loadFromJSON(kv.data, () => {
+          fc.backgroundColor = "#ffffff"
           fc.renderAll()
           refreshLayers(fc)
         })
@@ -101,7 +101,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   function refreshLayers(fc: any) {
     const objs = fc.getObjects().map((obj: any, i: number) => ({
       id: obj.layerId ?? `obj-${i}`,
-      label: obj.layerLabel ?? obj.type,
+      label: obj.layerLabel ?? obj.type ?? "Layer",
       type: obj.type,
       locked: obj.locked ?? false,
       obj,
@@ -116,50 +116,45 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       await fetch(`/api/campaigns/${campaignId}/key-vision`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: fc.toJSON(["layerId", "layerLabel", "locked"]) }),
+        body: JSON.stringify({ data: fc.toJSON(["layerId","layerLabel","locked"]) }),
       })
       setSaving(false)
     }, 800)
   }
 
-  async function addAsset(asset: Asset) {
+  async function addAsset() {
     const fc = fabricRef.current
-    if (!fc) return
+    if (!fc || !campaign) return
 
-    const isImage = ["PERSONA", "PRODUTO", "FUNDO", "LOGOMARCA", "CUSTOM_IMAGE"].includes(asset.type)
+    const asset = campaign.assets.find(a => a.id === selectedAssetId)
+    if (!asset) return
+
+    const isImage = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"].includes(asset.type)
 
     if (isImage) {
       const { Rect } = await import("fabric")
-      const placeholder = new Rect({
-        left: 100,
-        top: 100,
-        width: 300,
-        height: 300,
-        fill: "#e0e0e0",
-        stroke: "#aaaaaa",
-        strokeWidth: 1,
+      const rect = new Rect({
+        left: 100, top: 100, width: 300, height: 300,
+        fill: "#e8e8e8", stroke: "#aaa", strokeWidth: 1,
         strokeDashArray: [8, 4],
-        opacity: 0.8,
-        hasControls: true,
-        lockUniScaling: false,
       })
-      placeholder.set({ layerId: asset.id, layerLabel: asset.label, locked: false } as any)
-      fc.add(placeholder)
+      ;(rect as any).layerId = asset.id
+      ;(rect as any).layerLabel = asset.label
+      ;(rect as any).locked = false
+      fc.add(rect)
     } else {
       const { IText } = await import("fabric")
-      const displayText = asset.value || `{{ ${asset.label} }}`
+      const displayText = asset.value?.trim() ? asset.value : `{{ ${asset.label} }}`
       const text = new IText(displayText, {
-        left: 80,
-        top: 80,
+        left: 80, top: 80,
         fontSize: 72,
-        fontFamily: "DM Sans",
+        fontFamily: "DM Sans, Arial, sans-serif",
         fill: "#111111",
         editable: false,
-        hasControls: true,
-        lockMovementX: false,
-        lockMovementY: false,
       })
-      text.set({ layerId: asset.id, layerLabel: asset.label, locked: true } as any)
+      ;(text as any).layerId = asset.id
+      ;(text as any).layerLabel = asset.label
+      ;(text as any).locked = true
       fc.add(text)
     }
 
@@ -171,126 +166,100 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     const fc = fabricRef.current
     if (!fc) return
     const obj = fc.getObjects().find((o: any) => o.layerId === layerId)
-    if (obj) {
-      fc.setActiveObject(obj)
-      fc.renderAll()
-      setSelectedObj(obj)
-    }
+    if (obj) { fc.setActiveObject(obj); fc.renderAll(); setSelectedObj(obj) }
   }
 
   function deleteLayer(layerId: string) {
     const fc = fabricRef.current
     if (!fc) return
     const obj = fc.getObjects().find((o: any) => o.layerId === layerId)
-    if (obj) {
-      fc.remove(obj)
-      fc.renderAll()
-      autoSave(fc)
-    }
+    if (obj) { fc.remove(obj); fc.renderAll(); autoSave(fc) }
   }
 
   function updateZoom(newZoom: number) {
     const fc = fabricRef.current
     if (!fc) return
-    setZoom(newZoom)
-    fc.setZoom(newZoom)
-    fc.setDimensions({ width: CANVAS_W * newZoom, height: CANVAS_H * newZoom })
+    const z = Math.min(2, Math.max(0.1, newZoom))
+    setZoom(z)
+    fc.setZoom(z)
+    fc.setDimensions({ width: CANVAS_W * z, height: CANVAS_H * z })
     fc.renderAll()
   }
 
   function undo() {
-    // Simple undo: remove last object
     const fc = fabricRef.current
     if (!fc) return
     const objs = fc.getObjects()
-    if (objs.length > 0) {
-      fc.remove(objs[objs.length - 1])
-      fc.renderAll()
-      autoSave(fc)
-    }
+    if (objs.length > 0) { fc.remove(objs[objs.length - 1]); fc.renderAll(); autoSave(fc) }
   }
 
-  if (!campaign) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#2a2a2a] text-white">
-        Carregando...
-      </div>
-    )
-  }
+  if (!campaign) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#2a2a2a",color:"white",fontSize:14}}>
+      Carregando...
+    </div>
+  )
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#111111]">
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",background:"#111111"}}>
       {/* Top bar */}
-      <div className="h-[48px] bg-[#111111] border-b border-[#2a2a2a] flex items-center px-4 gap-3 flex-shrink-0">
+      <div style={{height:48,background:"#111111",borderBottom:"1px solid #2a2a2a",display:"flex",alignItems:"center",padding:"0 16px",gap:12,flexShrink:0}}>
         <button
           onClick={() => router.push(`/campaigns/${campaignId}`)}
-          className="text-[#888888] hover:text-white text-sm bg-transparent border-0 cursor-pointer"
+          style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:13}}
         >
           ← {campaign.name}
         </button>
-        <div className="flex-1" />
-        {saving && <span className="text-xs text-[#888888]">Salvando...</span>}
-        <span className="text-xs text-[#555555]">1920 × 1080 px</span>
-        <Button onClick={() => setShowModal(true)} size="sm">▶ Gerar Peças</Button>
+        <div style={{flex:1}} />
+        {saving && <span style={{fontSize:11,color:"#555"}}>Salvando...</span>}
+        <span style={{fontSize:11,color:"#555"}}>1920 × 1080 px</span>
+        <button
+          onClick={() => setShowModal(true)}
+          style={{background:"#F5C400",border:"none",borderRadius:6,padding:"6px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}
+        >
+          ▶ Gerar Peças
+        </button>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
         {/* Layer Panel */}
-        <LayerPanel
-          layers={layers}
-          selectedObj={selectedObj}
-          onSelect={selectLayer}
-          onDelete={deleteLayer}
-        />
+        <LayerPanel layers={layers} selectedObj={selectedObj} onSelect={selectLayer} onDelete={deleteLayer} />
 
-        {/* Main editor */}
-        <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Main canvas area */}
+        <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
           {/* Asset bar */}
-          <div className="h-[44px] bg-[#1a1a1a] border-b border-[#2a2a2a] flex items-center px-4 gap-3 flex-shrink-0">
-            <span className="text-xs text-[#666666] font-semibold">Adicionar asset:</span>
+          <div style={{height:44,background:"#1a1a1a",borderBottom:"1px solid #2a2a2a",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0}}>
+            <span style={{fontSize:12,color:"#666",fontWeight:600}}>Adicionar asset:</span>
             <select
-              id="asset-select"
-              className="bg-[#222222] text-white border border-[#444444] rounded px-2 py-1 text-xs font-['DM_Sans',sans-serif]"
-              defaultValue=""
+              value={selectedAssetId}
+              onChange={e => setSelectedAssetId(e.target.value)}
+              style={{background:"#222",color:"white",border:"1px solid #444",borderRadius:4,padding:"4px 8px",fontSize:12,fontFamily:"inherit"}}
             >
-              <option value="" disabled>Selecionar...</option>
               {campaign.assets.map(a => (
-                <option key={a.id} value={a.id}>{a.label}</option>
+                <option key={a.id} value={a.id}>{a.label}{a.value ? ` — "${a.value.substring(0,20)}${a.value.length>20?"...":""}"` : ""}</option>
               ))}
             </select>
             <button
-              onClick={() => {
-                const sel = (document.getElementById("asset-select") as HTMLSelectElement).value
-                const asset = campaign.assets.find(a => a.id === sel)
-                if (asset) addAsset(asset)
-              }}
-              className="bg-[#F5C400] text-[#111111] text-xs font-bold px-3 py-1 rounded cursor-pointer border-0"
+              onClick={addAsset}
+              style={{background:"#F5C400",color:"#111",border:"none",padding:"5px 14px",borderRadius:4,fontSize:12,fontWeight:700,cursor:"pointer"}}
             >
               + Adicionar
             </button>
-            <div className="flex-1" />
-            {/* Zoom controls */}
-            <div className="flex items-center gap-2">
-              <button onClick={() => updateZoom(Math.max(0.1, zoom - 0.1))} className="text-[#888888] hover:text-white bg-transparent border-0 cursor-pointer text-lg">−</button>
-              <span className="text-xs text-[#666666] w-12 text-center">{Math.round(zoom * 100)}%</span>
-              <button onClick={() => updateZoom(Math.min(2, zoom + 0.1))} className="text-[#888888] hover:text-white bg-transparent border-0 cursor-pointer text-lg">+</button>
-            </div>
-            <button onClick={undo} className="text-[#888888] hover:text-white text-sm bg-transparent border-0 cursor-pointer px-2">↩</button>
+            <div style={{flex:1}} />
+            <button onClick={() => updateZoom(zoom - 0.1)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:18,lineHeight:1}}>−</button>
+            <span style={{fontSize:11,color:"#666",minWidth:40,textAlign:"center"}}>{Math.round(zoom*100)}%</span>
+            <button onClick={() => updateZoom(zoom + 0.1)} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:18,lineHeight:1}}>+</button>
+            <button onClick={undo} style={{color:"#888",background:"transparent",border:"none",cursor:"pointer",fontSize:16,padding:"0 8px"}}>↩</button>
           </div>
 
-          {/* Canvas area */}
-          <div
-            ref={containerRef}
-            className="flex-1 overflow-auto bg-[#2a2a2a] flex items-center justify-center p-8"
-            style={{ cursor: "default" }}
-          >
-            <div className="shadow-2xl">
+          {/* Canvas */}
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",padding:32}}>
+            <div style={{boxShadow:"0 8px 40px rgba(0,0,0,0.5)"}}>
               <canvas ref={canvasRef} />
             </div>
           </div>
         </div>
 
-        {/* Properties Panel */}
+        {/* Properties */}
         <PropertiesPanel selectedObj={selectedObj} fabricRef={fabricRef} />
       </div>
 
