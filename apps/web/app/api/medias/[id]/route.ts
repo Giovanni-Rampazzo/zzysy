@@ -1,23 +1,21 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-type Ctx = { params: Promise<{ id: string }> }
-
-export async function PATCH(req: Request, ctx: Ctx) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id } = await ctx.params
-  const body = await req.json()
-  const format = await prisma.mediaFormat.update({ where: { id }, data: body })
-  return NextResponse.json(format)
+  const { id } = await params
+  const data = await req.json()
+  const mf = await prisma.mediaFormat.update({ where: { id }, data })
+  return NextResponse.json(mf)
 }
 
-export async function DELETE(req: Request, ctx: Ctx) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id } = await ctx.params
+  const { id } = await params
   await prisma.mediaFormat.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }
