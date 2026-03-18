@@ -3,22 +3,22 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function PATCH(req: Request, { params }: { params: { id: string; assetId: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string; assetId: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  const body = await req.json()
+  const { assetId } = await params
+  const { value, imageUrl } = await req.json()
   const asset = await prisma.campaignAsset.update({
-    where: { id: params.assetId },
-    data: body,
+    where: { id: assetId },
+    data: { value, imageUrl },
   })
   return NextResponse.json(asset)
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string; assetId: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string; assetId: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  await prisma.campaignAsset.delete({ where: { id: params.assetId } })
+  const { assetId } = await params
+  await prisma.campaignAsset.delete({ where: { id: assetId } })
   return NextResponse.json({ ok: true })
 }
