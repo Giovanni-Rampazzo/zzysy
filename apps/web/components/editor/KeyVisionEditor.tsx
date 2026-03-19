@@ -55,12 +55,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.setZoom(zoom)
       fabricRef.current=fc
 
-      // Injetar CSS no canvas-container do Fabric diretamente via JS
-      const fabricWrapper = canvasRef.current?.parentElement
-      if(fabricWrapper){
-        fabricWrapper.style.display = "block"
-        fabricWrapper.style.margin = "0 auto"
-      }
+
 
       const bg=new Rect({left:0,top:0,width:CW,height:CH,fill:"#ffffff",selectable:true,evented:true,hasControls:false,hasBorders:false,lockMovementX:true,lockMovementY:true,lockScalingX:true,lockScalingY:true,lockRotation:true})
       ;(bg as any).layerId=BG;(bg as any).layerLabel="Background";(bg as any).isBackground=true
@@ -205,22 +200,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div
-            ref={(el) => {
-              if(el && canvasRef.current){
-                const fabricDiv = canvasRef.current.parentElement
-                if(fabricDiv){
-                  // Centralizar o canvas-container dentro do scroll container
-                  const padH = Math.max(40, (el.clientWidth - fabricDiv.offsetWidth) / 2)
-                  const padV = Math.max(40, (el.clientHeight - fabricDiv.offsetHeight) / 2)
-                  fabricDiv.style.marginLeft = padH + "px"
-                  fabricDiv.style.marginTop = padV + "px"
-                }
-              }
-            }}
-            style={{flex:1,overflow:"auto",background:"#2a2a2a",position:"relative" as const}}
-          >
-            <canvas ref={canvasRef}/>
+          <div id="canvas-outer" style={{flex:1,overflow:"auto",background:"#2a2a2a"}}>
+            <div id="canvas-inner" style={{minWidth:"100%",minHeight:"100%",display:"flex",alignItems:"center",justifyContent:"center",padding:40,boxSizing:"border-box" as const}}>
+              <div style={{lineHeight:0,boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
+                <canvas ref={canvasRef}/>
+              </div>
+            </div>
           </div>
         </div>
         <PropertiesPanel selectedObj={selected} fabricRef={fabricRef} onUpdate={doSave} onBgColorChange={bgColor}/>
