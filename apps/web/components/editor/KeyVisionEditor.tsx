@@ -45,7 +45,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
       const bg=new Rect({left:0,top:0,width:CW,height:CH,fill:"#ffffff",selectable:true,evented:true,hasControls:false,hasBorders:false,lockMovementX:true,lockMovementY:true,lockScalingX:true,lockScalingY:true,lockRotation:true})
       ;(bg as any).layerId=BG;(bg as any).layerLabel="Background";(bg as any).isBackground=true
-      bgRef.current=bg; fc.add(bg); fc.sendObjectToBack(bg)
+      bgRef.current=bg;fc.add(bg);fc.sendObjectToBack(bg)
 
       fc.on("selection:created",(e:any)=>setSelected(e.selected?.[0]??null))
       fc.on("selection:updated",(e:any)=>setSelected(e.selected?.[0]??null))
@@ -53,25 +53,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.on("object:modified",()=>save(fc))
       fc.on("object:added",()=>alive&&refresh(fc))
       fc.on("object:removed",()=>alive&&refresh(fc))
-
-      // Ao terminar de editar texto — proteger conteúdo
       fc.on("text:editing:exited",(e:any)=>{
-        const obj=e.target
-        if(!obj||(obj as any).isBackground) return
-        const assetMap: Record<string,Asset>={}
-        for(const a of campaign.assets) assetMap[a.id]=a
-        const asset=assetMap[(obj as any).layerId]
-        if(asset&&asset.value?.trim()){
-          // Reverter texto para valor do asset se foi alterado
-          if(obj.text!==asset.value){
-            obj.set("text",asset.value)
-            fc.renderAll()
-          }
+        const obj=e.target; if(!obj) return
+        const asset=campaign.assets.find(a=>a.id===(obj as any).layerId)
+        if(asset?.value?.trim()&&obj.text!==asset.value){
+          obj.set("text",asset.value); fc.renderAll()
         }
         save(fc)
       })
 
-      const assetMap: Record<string,Asset>={}
+      const assetMap:Record<string,Asset>={}
       for(const a of campaign.assets) assetMap[a.id]=a
 
       try{
@@ -82,18 +73,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             if(o.type==="i-text"||o.type==="IText"){
               const asset=assetMap[o.layerId]
               const txt=asset?.value?.trim()?asset.value:(o.text??`{{ ${o.layerLabel} }}`)
-              const t=new IText(txt,{
-                left:o.left??80,top:o.top??80,
-                fontSize:o.fontSize??80,fontFamily:o.fontFamily??"Arial",
-                fontWeight:o.fontWeight??"normal",fill:o.fill??"#111",
-                scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0,
-                editable:true, // EDITÁVEL
-              })
-              ;(t as any).layerId=o.layerId;(t as any).layerLabel=o.layerLabel;(t as any).locked=false
+              const t=new IText(txt,{left:o.left??80,top:o.top??80,fontSize:o.fontSize??80,fontFamily:o.fontFamily??"Arial",fontWeight:o.fontWeight??"normal",fill:o.fill??"#111",scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0,editable:true})
+              ;(t as any).layerId=o.layerId;(t as any).layerLabel=o.layerLabel
               fc.add(t)
             } else if(o.type==="rect"&&!o.isBackground){
               const r=new Rect({left:o.left??100,top:o.top??100,width:o.width??400,height:o.height??300,fill:o.fill??"#e8e8e8",stroke:o.stroke,strokeWidth:o.strokeWidth,strokeDashArray:o.strokeDashArray,scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0})
-              ;(r as any).layerId=o.layerId;(r as any).layerLabel=o.layerLabel;(r as any).locked=false
+              ;(r as any).layerId=o.layerId;(r as any).layerLabel=o.layerLabel
               fc.add(r)
             }
           }
@@ -119,7 +104,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       setSaving(true)
       const objects=fc.getObjects().map((o:any)=>{
         if((o as any).isBackground) return{type:"rect",layerId:BG,layerLabel:"Background",isBackground:true,fill:o.fill,left:0,top:0,width:CW,height:CH}
-        return{type:o.type,layerId:(o as any).layerId,layerLabel:(o as any).layerLabel,locked:false,left:o.left,top:o.top,scaleX:o.scaleX,scaleY:o.scaleY,angle:o.angle,fill:o.fill,
+        return{type:o.type,layerId:(o as any).layerId,layerLabel:(o as any).layerLabel,left:o.left,top:o.top,scaleX:o.scaleX,scaleY:o.scaleY,angle:o.angle,fill:o.fill,
           ...(o.type==="i-text"||o.type==="IText"?{text:(o as any).text,fontSize:o.fontSize,fontFamily:o.fontFamily,fontWeight:o.fontWeight}:{width:o.width,height:o.height,stroke:o.stroke,strokeWidth:o.strokeWidth,strokeDashArray:o.strokeDashArray})}
       })
       await fetch(`/api/campaigns/${campaignId}/key-vision`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:{objects}})})
@@ -128,21 +113,27 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   async function add(){
-    const fc=fabricRef.current;if(!fc||!campaign||!ready) return
-    const asset=campaign.assets.find(a=>a.id===assetId);if(!asset) return
-    const{Rect,IText}=await import("fabric")
+    const fc=fabricRef.current
+    if(!fc||!campaign) return
+    if(!ready){ alert("Aguarde o canvas carregar"); return }
+    const asset=campaign.assets.find(a=>a.id===assetId)
+    if(!asset){ alert("Selecione um asset"); return }
+
+    const {Rect,IText}=await import("fabric")
     const isImg=["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"].includes(asset.type)
+
     if(isImg){
       const r=new Rect({left:100,top:100,width:400,height:300,fill:"#e8e8e8",stroke:"#aaa",strokeWidth:2,strokeDashArray:[10,5]})
-      ;(r as any).layerId=asset.id;(r as any).layerLabel=asset.label;(r as any).locked=false
+      ;(r as any).layerId=asset.id;(r as any).layerLabel=asset.label
       fc.add(r);fc.setActiveObject(r)
     } else {
       const txt=asset.value?.trim()?asset.value:`{{ ${asset.label} }}`
       const t=new IText(txt,{left:80,top:80,fontSize:100,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:true})
-      ;(t as any).layerId=asset.id;(t as any).layerLabel=asset.label;(t as any).locked=false
+      ;(t as any).layerId=asset.id;(t as any).layerLabel=asset.label
       fc.add(t);fc.setActiveObject(t)
     }
-    fc.renderAll();save(fc)
+    fc.renderAll()
+    save(fc)
   }
 
   function selLayer(lid:string){const fc=fabricRef.current;if(!fc)return;const o=fc.getObjects().find((x:any)=>x.layerId===lid);if(o){fc.setActiveObject(o);fc.renderAll();setSelected(o)}}
@@ -169,11 +160,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
         <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
           <div style={{height:44,background:"#1a1a1a",borderBottom:"1px solid #222",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0}}>
-            <span style={{fontSize:12,color:"#555",fontWeight:600}}>Adicionar asset:</span>
-            <select value={assetId} onChange={e=>setAssetId(e.target.value)} style={{background:"#222",color:"white",border:"1px solid #333",borderRadius:4,padding:"4px 8px",fontSize:12,fontFamily:"inherit"}}>
-              {campaign.assets.map(a=><option key={a.id} value={a.id}>{a.label}{a.value?` — "${a.value.substring(0,20)}"`:""}</option>)}
+            <span style={{fontSize:12,color:"#555",fontWeight:600}}>Asset:</span>
+            <select value={assetId} onChange={e=>setAssetId(e.target.value)} style={{background:"#222",color:"white",border:"1px solid #333",borderRadius:4,padding:"4px 8px",fontSize:12,fontFamily:"inherit",maxWidth:280}}>
+              {campaign.assets.map(a=><option key={a.id} value={a.id}>{a.label}{a.value?` — "${a.value.substring(0,18)}"`:""}</option>)}
             </select>
-            <button onClick={add} disabled={!ready} style={{background:ready?"#F5C400":"#444",color:"#111",border:"none",padding:"5px 14px",borderRadius:4,fontSize:12,fontWeight:700,cursor:ready?"pointer":"not-allowed"}}>+ Adicionar</button>
+            <button
+              onClick={add}
+              style={{background:"#F5C400",color:"#111",border:"none",padding:"5px 14px",borderRadius:4,fontSize:12,fontWeight:700,cursor:"pointer",opacity:ready?1:0.5}}
+            >
+              + Adicionar
+            </button>
             <div style={{flex:1}}/>
             <button onClick={()=>chZoom(-0.1)} style={bS}>−</button>
             <span style={{fontSize:11,color:"#555",minWidth:40,textAlign:"center"}}>{Math.round(zoom*100)}%</span>
@@ -181,11 +177,18 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"table"}}>
-            <div style={{display:"table-cell",verticalAlign:"middle",textAlign:"center",padding:40}}>
-              <div style={{display:"inline-block",boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0}}>
-                <canvas ref={canvasRef}/>
-              </div>
+          {/* Canvas — grid centralizado */}
+          <div style={{
+            flex:1,
+            overflow:"auto",
+            background:"#2a2a2a",
+            display:"grid",
+            placeItems:"center",
+            padding:40,
+            boxSizing:"border-box" as const,
+          }}>
+            <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0}}>
+              <canvas ref={canvasRef}/>
             </div>
           </div>
         </div>
