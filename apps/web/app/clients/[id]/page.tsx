@@ -124,8 +124,8 @@ export default function ClientPage() {
                         <button onClick={() => router.push(`/campaigns/${c.id}`)} style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"5px 12px",borderRadius:6,background:"white",cursor:"pointer"}}>Abrir</button>
                         {confirmDelete === c.id ? (
                           <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                            <span style={{fontSize:11,color:"#dc2626"}}>Confirmar?</span>
-                            <button onClick={() => deleteCampaign(c.id)} style={{fontSize:11,fontWeight:600,border:"none",padding:"5px 10px",borderRadius:6,background:"#dc2626",color:"white",cursor:"pointer"}}>Sim</button>
+                            <span style={{fontSize:11,color:"#666"}}>Confirmar?</span>
+                            <button onClick={() => deleteCampaign(c.id)} style={{fontSize:11,fontWeight:600,border:"none",padding:"5px 10px",borderRadius:6,background:"#555",color:"white",cursor:"pointer"}}>Sim</button>
                             <button onClick={() => setConfirmDelete(null)} style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"5px 10px",borderRadius:6,background:"white",cursor:"pointer"}}>Não</button>
                           </div>
                         ) : (
@@ -153,7 +153,7 @@ export default function ClientPage() {
             <div style={{fontSize:13,color:"#888",marginBottom:24}}>Esta ação é irreversível e apagará todas as campanhas do cliente.</div>
             <div style={{display:"flex",gap:12,justifyContent:"center"}}>
               <button onClick={() => setConfirmDeleteClient(false)} style={{padding:"8px 20px",border:"1px solid #E0E0E0",borderRadius:6,background:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>Cancelar</button>
-              <button onClick={deleteClient} style={{padding:"8px 20px",border:"none",borderRadius:6,background:"#dc2626",color:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>Apagar</button>
+              <button onClick={deleteClient} style={{padding:"8px 20px",border:"none",borderRadius:6,background:"#555",color:"white",cursor:"pointer",fontSize:13,fontWeight:600}}>Apagar</button>
             </div>
           </div>
         </div>
