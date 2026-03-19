@@ -217,10 +217,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           </div>
 
           {/* Canvas scroll com padding grande para permitir centralização via scrollTo */}
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",padding:"40px"}}>
-              <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0}}>
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",padding:"40px"}}>
+            <div style={{display:"flex",justifyContent:"center",alignItems:"flex-start",minHeight:"100%"}}>
+              <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,margin:"auto"}}>
                 <canvas ref={canvasRef}/>
               </div>
+            </div>
           </div>
         </div>
 
