@@ -248,16 +248,10 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...btnS,padding:"0 8px"}}>↩</button>
           </div>
 
-          {/* Canvas — centralizado com margin auto */}
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",position:"relative"}}>
-            <div style={{
-              position:"absolute", inset:0,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              padding:40, overflow:"auto"
-            }}>
-              <div style={{flexShrink:0,boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
-                <canvas ref={canvasElRef}/>
-              </div>
+          {/* Canvas — centralizado */}
+          <div style={{flex:1,background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",overflow:"auto",padding:40}}>
+            <div style={{flexShrink:0,display:"inline-block",lineHeight:0,boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
+              <canvas ref={canvasElRef}/>
             </div>
           </div>
         </div>
