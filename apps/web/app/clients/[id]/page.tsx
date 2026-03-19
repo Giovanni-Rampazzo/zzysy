@@ -64,7 +64,7 @@ export default function ClientPage() {
             <div style={{display:"flex",gap:10}}>
               <button
                 onClick={() => setConfirmDeleteClient(true)}
-                style={{padding:"6px 14px",background:"#fee2e2",border:"none",borderRadius:6,color:"#dc2626",fontWeight:600,fontSize:12,cursor:"pointer"}}
+                style={{padding:"6px 14px",background:"#f0f0f0",border:"none",borderRadius:6,color:"#555",fontWeight:600,fontSize:12,cursor:"pointer"}}
               >
                 🗑 Apagar cliente
               </button>
@@ -129,7 +129,7 @@ export default function ClientPage() {
                             <button onClick={() => setConfirmDelete(null)} style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"5px 10px",borderRadius:6,background:"white",cursor:"pointer"}}>Não</button>
                           </div>
                         ) : (
-                          <button onClick={() => setConfirmDelete(c.id)} style={{fontSize:11,fontWeight:600,border:"none",padding:"5px 10px",borderRadius:6,background:"#fee2e2",color:"#dc2626",cursor:"pointer"}}>🗑</button>
+                          <button onClick={() => setConfirmDelete(c.id)} style={{fontSize:11,fontWeight:600,border:"none",padding:"5px 10px",borderRadius:6,background:"#f0f0f0",color:"#555",cursor:"pointer"}}>🗑</button>
                         )}
                       </div>
                     </td>
