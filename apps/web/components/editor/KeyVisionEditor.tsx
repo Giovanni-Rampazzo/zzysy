@@ -205,10 +205,22 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",flexDirection:"column" as const,alignItems:"center",justifyContent:"flex-start",padding:"40px 0"}}>
-            <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0}}>
-              <canvas ref={canvasRef}/>
-            </div>
+          <div
+            ref={(el) => {
+              if(el && canvasRef.current){
+                const fabricDiv = canvasRef.current.parentElement
+                if(fabricDiv){
+                  // Centralizar o canvas-container dentro do scroll container
+                  const padH = Math.max(40, (el.clientWidth - fabricDiv.offsetWidth) / 2)
+                  const padV = Math.max(40, (el.clientHeight - fabricDiv.offsetHeight) / 2)
+                  fabricDiv.style.marginLeft = padH + "px"
+                  fabricDiv.style.marginTop = padV + "px"
+                }
+              }
+            }}
+            style={{flex:1,overflow:"auto",background:"#2a2a2a",position:"relative" as const}}
+          >
+            <canvas ref={canvasRef}/>
           </div>
         </div>
         <PropertiesPanel selectedObj={selected} fabricRef={fabricRef} onUpdate={doSave} onBgColorChange={bgColor}/>
