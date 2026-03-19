@@ -42,7 +42,7 @@ export function PropertiesPanel({ selectedObj, fabricRef, onUpdate, onBgColorCha
   }
 
   const isBg=selectedObj?.isBackground===true
-  const isText=selectedObj?.type==="i-text"||selectedObj?.type==="IText"
+  const isText=selectedObj?.type==="i-text"||selectedObj?.type==="IText"||selectedObj?.type==="textbox"
 
   const sec={fontSize:10,fontWeight:700 as const,textTransform:"uppercase" as const,letterSpacing:"0.8px",color:"#555",marginBottom:10}
   const inp={width:"100%",background:"#111",border:"1px solid #2a2a2a",color:"white",fontSize:12,padding:"5px 8px",borderRadius:4,fontFamily:"inherit",outline:"none"} as React.CSSProperties
