@@ -3,16 +3,14 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-type Params = { id: string }
+type Ctx = { params: Promise<{ id: string }> }
 
-export async function GET(_: Request, context: { params: Promise<Params> }) {
+export async function GET(req: Request, ctx: Ctx) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const tenantId = (session.user as any).tenantId
-  const { id } = await context.params
-
+  const { id } = await ctx.params
   const client = await prisma.client.findFirst({
-    where: { id, tenantId },
+    where: { id },
     include: {
       campaigns: {
         include: { _count: { select: { pieces: true } } },
@@ -24,23 +22,10 @@ export async function GET(_: Request, context: { params: Promise<Params> }) {
   return NextResponse.json(client)
 }
 
-export async function PUT(req: Request, context: { params: Promise<Params> }) {
+export async function DELETE(req: Request, ctx: Ctx) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const tenantId = (session.user as any).tenantId
-  const { id } = await context.params
-
-  const body = await req.json()
-  await prisma.client.updateMany({ where: { id, tenantId }, data: body })
-  return NextResponse.json({ ok: true })
-}
-
-export async function DELETE(_: Request, context: { params: Promise<Params> }) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const tenantId = (session.user as any).tenantId
-  const { id } = await context.params
-
-  await prisma.client.deleteMany({ where: { id, tenantId } })
+  const { id } = await ctx.params
+  await prisma.client.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }
