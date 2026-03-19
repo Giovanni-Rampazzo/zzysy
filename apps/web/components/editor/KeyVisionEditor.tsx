@@ -98,13 +98,15 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.renderAll()
       if(alive){
         refresh(fc)
-        setTimeout(()=>{
-          const cc = canvasRef.current?.parentElement as HTMLElement
-          if(cc){
-            cc.style.alignSelf = "center"
-            cc.style.marginTop = "40px"
-          }
-        }, 50)
+        // Centralizar canvas: margem = (containerWidth - canvasWidth) / 2
+        const cc = canvasRef.current?.parentElement as HTMLElement
+        if(cc){
+          const containerW = window.innerWidth - 200 - 230 // LayerPanel + PropertiesPanel
+          const canvasW = Math.round(CW * zoom)
+          const marginH = Math.max(40, (containerW - canvasW) / 2)
+          cc.style.marginLeft = marginH + "px"
+          cc.style.marginTop = "40px"
+        }
       }
     })()
     return()=>{alive=false;if(fabricRef.current){fabricRef.current.dispose();fabricRef.current=null}}
