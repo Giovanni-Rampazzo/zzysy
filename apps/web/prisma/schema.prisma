@@ -157,14 +157,28 @@ model Campaign {
 }
 
 // ─── ASSETS DA CAMPANHA ──────────────────────────────────────────
+// content: JSON array de spans [ { text, styles: { fontSize, color, fontWeight, fontFamily } } ]
+// imageUrl: URL da imagem (upload ou externa)
+// position/scale/rotation: posicionamento no layout (layer)
 model CampaignAsset {
   id         String    @id @default(cuid())
   campaignId String
   type       AssetType
   label      String
+  // Conteúdo de texto (novo modelo semântico)
+  content    Json?     // [ { text: string, styles: { fontSize, color, fontWeight, fontFamily } } ]
+  // Compatibilidade com campo antigo
   value      String?   @db.Text
   imageUrl   String?   @db.Text
   order      Int       @default(0)
+  // Posicionamento no layout (layer)
+  posX       Float     @default(100)
+  posY       Float     @default(100)
+  scaleX     Float     @default(1)
+  scaleY     Float     @default(1)
+  rotation   Float     @default(0)
+  width      Int       @default(600)
+  visible    Boolean   @default(true)
   layerId    String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -187,10 +201,13 @@ enum AssetType {
 }
 
 // ─── KEY VISION ──────────────────────────────────────────────────
+// layers: JSON array [ { assetId, posX, posY, scaleX, scaleY, rotation, zIndex } ]
 model KeyVision {
   id         String   @id @default(cuid())
   campaignId String   @unique
-  data       Json
+  data       Json     // legado Fabric — manter por ora
+  layers     Json?    // novo modelo: [ { assetId, posX, posY, scaleX, scaleY, rotation, zIndex, width } ]
+  bgColor    String   @default("#ffffff")
   width      Int      @default(1920)
   height     Int      @default(1080)
   createdAt  DateTime @default(now())
