@@ -5,6 +5,15 @@ import { prisma } from "@/lib/prisma"
 
 type Ctx = { params: Promise<{ id: string; assetId: string }> }
 
+export async function PUT(req: Request, ctx: Ctx) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { assetId } = await ctx.params
+  const body = await req.json()
+  const asset = await prisma.campaignAsset.update({ where: { id: assetId }, data: body })
+  return NextResponse.json(asset)
+}
+
 export async function PATCH(req: Request, ctx: Ctx) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
