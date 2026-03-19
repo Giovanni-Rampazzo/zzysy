@@ -80,6 +80,25 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [saving, setSaving] = useState(false)
   const [editingTextIdx, setEditingTextIdx] = useState<number | null>(null)
   const [editingColor, setEditingColor] = useState("#111111")
+
+  // Auto focus quando entra em modo de edição
+  useEffect(() => {
+    if (editingTextIdx !== null) {
+      setTimeout(() => {
+        const el = editableRefs.current[editingTextIdx]
+        if (el) {
+          el.focus()
+          // Posicionar cursor no final
+          const range = document.createRange()
+          const sel = window.getSelection()
+          range.selectNodeContents(el)
+          range.collapse(false)
+          sel?.removeAllRanges()
+          sel?.addRange(range)
+        }
+      }, 30)
+    }
+  }, [editingTextIdx])
   const [editingFontSize, setEditingFontSize] = useState(80)
   const canvasRef = useRef<HTMLDivElement>(null)
   const editableRefs = useRef<Record<number, HTMLDivElement | null>>({})
@@ -240,7 +259,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           return (
             <div
               key={`${layer.assetId}-${idx}`}
-              onMouseDown={e => { if (editingTextIdx === idx) return; onMouseDown(e, idx) }}
+              onMouseDown={e => { if (editingTextIdx === idx) { e.stopPropagation(); return; } onMouseDown(e, idx) }}
+              onDoubleClick={e => {
+                e.stopPropagation()
+                if (IMAGE_TYPES.includes(asset.type)) return
+                setEditingTextIdx(idx)
+                setSelectedLayerIdx(idx)
+              }}
               style={{
                 position: "absolute",
                 left: layer.posX * zoom,
@@ -277,14 +302,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                   ref={el => { editableRefs.current[idx] = el }}
                   contentEditable={editingTextIdx === idx}
                   suppressContentEditableWarning
-                  onDoubleClick={e => {
-                    e.stopPropagation()
-                    setEditingTextIdx(idx)
-                    setTimeout(() => {
-                      const el = editableRefs.current[idx]
-                      if (el) { el.focus(); document.execCommand("selectAll", false) }
-                    }, 50)
-                  }}
+
                   onBlur={async e => {
                     // Salvar texto editado de volta no asset
                     const newText = e.currentTarget.innerText
