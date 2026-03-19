@@ -205,8 +205,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",textAlign:"center" as const,padding:"40px 0"}}>
-            <div style={{display:"inline-block",boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0}}>
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",flexDirection:"column" as const,alignItems:"center",justifyContent:"flex-start",padding:"40px 0"}}>
+            <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0}}>
               <canvas ref={canvasRef}/>
             </div>
           </div>
