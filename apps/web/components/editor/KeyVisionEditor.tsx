@@ -96,18 +96,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         }
       }catch{}
       fc.renderAll()
-      if(alive){
-        refresh(fc)
-        // Centralizar canvas: margem = (containerWidth - canvasWidth) / 2
-        const cc = canvasRef.current?.parentElement as HTMLElement
-        if(cc){
-          const containerW = window.innerWidth - 200 - 230 // LayerPanel + PropertiesPanel
-          const canvasW = Math.round(CW * zoom)
-          const marginH = Math.max(40, (containerW - canvasW) / 2)
-          cc.style.marginLeft = marginH + "px"
-          cc.style.marginTop = "40px"
-        }
-      }
+      if(alive) refresh(fc)
     })()
     return()=>{alive=false;if(fabricRef.current){fabricRef.current.dispose();fabricRef.current=null}}
   },[campaign])
@@ -198,9 +187,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a"}}>
-            <div style={{minHeight:"100%",minWidth:"100%",display:"flex",alignItems:"center",justifyContent:"center",padding:40,boxSizing:"border-box" as const}}>
-              <canvas ref={canvasRef} style={{display:"block",boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}/>
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",position:"relative" as const}}>
+            <div style={{
+              position:"absolute" as const,
+              left:"50%",
+              top:"40px",
+              transform:"translateX(-50%)",
+              boxShadow:"0 8px 48px rgba(0,0,0,0.7)",
+              lineHeight:0,
+            }}>
+              <canvas ref={canvasRef}/>
             </div>
           </div>
         </div>
