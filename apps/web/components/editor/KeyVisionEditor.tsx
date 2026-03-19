@@ -198,13 +198,17 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div className="canvas-scroll-container" style={{flex:1,overflow:"auto",background:"#2a2a2a"}}>
-            <style>{`
-              .canvas-container { margin: 0 auto !important; display: block !important; }
-              .canvas-scroll-container { display: flex; align-items: flex-start; justify-content: center; padding: 40px; box-sizing: border-box; min-height: 100%; }
-            `}</style>
-            <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0,alignSelf:"center"}}>
-              <canvas ref={canvasRef}/>
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",padding:"40px",boxSizing:"border-box" as const}}>
+            <div style={{
+              boxShadow:"0 8px 48px rgba(0,0,0,0.7)",
+              lineHeight:0,
+              flexShrink:0,
+              width:Math.round(CW*zoom)+"px",
+              height:Math.round(CH*zoom)+"px",
+              position:"relative" as const,
+              overflow:"hidden",
+            }}>
+              <canvas ref={canvasRef} style={{position:"absolute",top:0,left:0}}/>
             </div>
           </div>
         </div>
