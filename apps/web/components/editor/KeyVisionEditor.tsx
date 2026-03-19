@@ -138,7 +138,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.add(r);fc.setActiveObject(r)
     } else {
       const txt=asset.value?.trim()?asset.value:`{{ ${asset.label} }}`
-      const t=new Textbox(txt,{left:80,top:80,width:800,fontSize:100,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:true})
+      const t=new Textbox(txt,{left:200,top:200,width:1520,fontSize:100,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:true,textAlign:"left"})
       ;(t as any).layerId=asset.id;(t as any).layerLabel=asset.label
       fc.add(t);fc.setActiveObject(t)
     }
@@ -185,10 +185,14 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",padding:40}}>
-            <style>{`.canvas-container { margin: 0 auto !important; display: block !important; }`}</style>
-            <div style={{flexShrink:0,boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0}}>
-              <canvas ref={canvasRef}/>
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a"}}>
+            <style>{`
+              .canvas-container { margin: 40px auto !important; display: block !important; }
+            `}</style>
+            <div style={{display:"flex",justifyContent:"center",padding:"40px 0"}}>
+              <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0}}>
+                <canvas ref={canvasRef}/>
+              </div>
             </div>
           </div>
         </div>
