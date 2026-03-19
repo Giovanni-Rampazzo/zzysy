@@ -132,7 +132,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       scaleY: 1,
       rotation: 0,
       zIndex: layers.length,
-      width: asset.width || 600,
+      width: asset.width || 900,
     }
     const newLayers = [...layers, newLayer]
     setLayers(newLayers)
@@ -279,7 +279,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                       fontFamily: span.styles.fontFamily ?? "Arial",
                       fontStyle: span.styles.fontStyle ?? "normal",
                       whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
                     }}>
                       {span.text}
                     </span>
