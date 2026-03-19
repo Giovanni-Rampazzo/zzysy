@@ -184,6 +184,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           </div>
 
           <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",padding:40}}>
+            <style>{`.canvas-container { margin: 0 auto !important; display: block !important; }`}</style>
             <div style={{flexShrink:0,boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0}}>
               <canvas ref={canvasRef}/>
             </div>
