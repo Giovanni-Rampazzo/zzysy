@@ -48,17 +48,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       const { Canvas, Rect, IText } = await import("fabric")
       if (!alive || !canvasElRef.current) return
 
-      const fc = new Canvas(canvasElRef.current, {
-        width: Math.round(CANVAS_W * zoom),
-        height: Math.round(CANVAS_H * zoom),
-      })
+      const w = Math.round(CANVAS_W * zoom)
+      const h = Math.round(CANVAS_H * zoom)
+
+      const fc = new Canvas(canvasElRef.current, { width: w, height: h })
       fc.setZoom(zoom)
       fabricRef.current = fc
 
       const bg = new Rect({
         left: 0, top: 0, width: CANVAS_W, height: CANVAS_H,
-        fill: "#ffffff",
-        selectable: true, evented: true,
+        fill: "#ffffff", selectable: true, evented: true,
         hasControls: false, hasBorders: false,
         lockMovementX: true, lockMovementY: true,
         lockScalingX: true, lockScalingY: true, lockRotation: true,
@@ -90,9 +89,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                 fontWeight: obj.fontWeight ?? "normal", fill: obj.fill ?? "#111",
                 scaleX: obj.scaleX ?? 1, scaleY: obj.scaleY ?? 1, angle: obj.angle ?? 0, editable: false,
               })
-              ;(t as any).layerId = obj.layerId
-              ;(t as any).layerLabel = obj.layerLabel
-              ;(t as any).locked = obj.locked
+              ;(t as any).layerId = obj.layerId; ;(t as any).layerLabel = obj.layerLabel; ;(t as any).locked = obj.locked
               fc.add(t)
             } else if (obj.type === "rect" && !obj.isBackground) {
               const r = new Rect({
@@ -101,9 +98,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                 fill: obj.fill ?? "#e8e8e8", stroke: obj.stroke, strokeWidth: obj.strokeWidth,
                 strokeDashArray: obj.strokeDashArray, scaleX: obj.scaleX ?? 1, scaleY: obj.scaleY ?? 1, angle: obj.angle ?? 0,
               })
-              ;(r as any).layerId = obj.layerId
-              ;(r as any).layerLabel = obj.layerLabel
-              ;(r as any).locked = obj.locked
+              ;(r as any).layerId = obj.layerId; ;(r as any).layerLabel = obj.layerLabel; ;(r as any).locked = obj.locked
               fc.add(r)
             }
           }
@@ -165,7 +160,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.add(r); fc.setActiveObject(r)
     } else {
       const displayText = asset.value?.trim() ? asset.value : `{{ ${asset.label} }}`
-      const t = new IText(displayText, { left:80,top:80,fontSize:100,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:false })
+      const t = new IText(displayText, { left:80, top:80, fontSize:100, fontFamily:"Arial", fontWeight:"normal", fill:"#111111", editable:false })
       ;(t as any).layerId = asset.id; ;(t as any).layerLabel = asset.label; ;(t as any).locked = true
       fc.add(t); fc.setActiveObject(t)
     }
@@ -217,6 +212,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",background:"#111"}}>
+      {/* Topbar */}
       <div style={{height:48,background:"#111",borderBottom:"1px solid #222",display:"flex",alignItems:"center",padding:"0 16px",gap:12,flexShrink:0}}>
         <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{...btnS,fontSize:13,color:"#666"}}>← {campaign.name}</button>
         <div style={{flex:1}}/>
@@ -229,6 +225,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         <LayerPanel layers={layers} selectedObj={selectedObj} onSelect={selectLayer} onDelete={deleteLayer}/>
 
         <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+          {/* Asset bar */}
           <div style={{height:44,background:"#1a1a1a",borderBottom:"1px solid #222",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0}}>
             <span style={{fontSize:12,color:"#555",fontWeight:600}}>Adicionar asset:</span>
             <select value={selectedAssetId} onChange={e=>setSelectedAssetId(e.target.value)}
@@ -248,10 +245,29 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...btnS,padding:"0 8px"}}>↩</button>
           </div>
 
-          {/* Canvas — centralizado */}
-          <div style={{flex:1,background:"#2a2a2a",display:"flex",alignItems:"center",justifyContent:"center",overflow:"auto",padding:40}}>
-            <div style={{flexShrink:0,display:"inline-block",lineHeight:0,boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
-              <canvas ref={canvasElRef}/>
+          {/* Canvas area — scroll container com canvas centralizado */}
+          <div style={{
+            flex:1,
+            overflow:"auto",
+            background:"#2a2a2a",
+            position:"relative",
+          }}>
+            <div style={{
+              minWidth:"100%",
+              minHeight:"100%",
+              display:"flex",
+              alignItems:"center",
+              justifyContent:"center",
+              padding:40,
+              boxSizing:"border-box",
+            }}>
+              <div style={{
+                display:"inline-block",
+                boxShadow:"0 8px 48px rgba(0,0,0,0.7)",
+                lineHeight:0,
+              }}>
+                <canvas ref={canvasElRef}/>
+              </div>
             </div>
           </div>
         </div>
