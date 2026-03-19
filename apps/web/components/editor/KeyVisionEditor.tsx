@@ -94,7 +94,20 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         }
       }catch{}
       fc.renderAll()
-      if(alive) refresh(fc)
+      if(alive){
+        refresh(fc)
+        // Centralizar canvas no scroll container
+        setTimeout(()=>{
+          const container = canvasRef.current?.closest(".canvas-scroll-container") as HTMLElement
+          const canvas = canvasRef.current?.parentElement as HTMLElement
+          if(container && canvas){
+            const left = (canvas.offsetWidth - container.clientWidth) / 2
+            const top = (canvas.offsetHeight - container.clientHeight) / 2
+            container.scrollLeft = left > 0 ? left : 0
+            container.scrollTop = top > 0 ? top : 0
+          }
+        }, 200)
+      }
     })()
     return()=>{alive=false;if(fabricRef.current){fabricRef.current.dispose();fabricRef.current=null}}
   },[campaign])
@@ -185,14 +198,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a"}}>
+          <div className="canvas-scroll-container" style={{flex:1,overflow:"auto",background:"#2a2a2a"}}>
             <style>{`
-              .canvas-container { margin: 40px auto !important; display: block !important; }
+              .canvas-container { margin: 0 auto !important; display: block !important; }
+              .canvas-scroll-container { display: flex; align-items: flex-start; justify-content: center; padding: 40px; box-sizing: border-box; min-height: 100%; }
             `}</style>
-            <div style={{display:"flex",justifyContent:"center",padding:"40px 0"}}>
-              <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0}}>
-                <canvas ref={canvasRef}/>
-              </div>
+            <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0,alignSelf:"center"}}>
+              <canvas ref={canvasRef}/>
             </div>
           </div>
         </div>
