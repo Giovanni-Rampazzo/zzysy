@@ -80,12 +80,12 @@ export default function DashboardPage() {
                       <button onClick={() => router.push(`/clients/${c.id}`)} style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"5px 10px",borderRadius:5,background:"white",cursor:"pointer"}}>Ver</button>
                       {confirmDelete === c.id ? (
                         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                          <span style={{fontSize:11,color:"#dc2626"}}>Confirmar?</span>
-                          <button onClick={() => deleteClient(c.id)} style={{fontSize:11,border:"none",padding:"5px 10px",borderRadius:5,background:"#dc2626",color:"white",cursor:"pointer",fontWeight:600}}>Sim</button>
+                          <span style={{fontSize:11,color:"#666"}}>Confirmar?</span>
+                          <button onClick={() => deleteClient(c.id)} style={{fontSize:11,border:"none",padding:"5px 10px",borderRadius:5,background:"#555",color:"white",cursor:"pointer",fontWeight:600}}>Sim</button>
                           <button onClick={() => setConfirmDelete(null)} style={{fontSize:11,border:"1px solid #E0E0E0",padding:"5px 10px",borderRadius:5,background:"white",cursor:"pointer",fontWeight:600}}>Não</button>
                         </div>
                       ) : (
-                        <button onClick={() => setConfirmDelete(c.id)} style={{fontSize:11,border:"none",padding:"5px 10px",borderRadius:5,background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontWeight:600}}>🗑</button>
+                        <button onClick={() => setConfirmDelete(c.id)} style={{fontSize:11,border:"none",padding:"5px 10px",borderRadius:5,background:"#f0f0f0",color:"#666",cursor:"pointer",fontWeight:600}}>🗑</button>
                       )}
                     </div>
                   </td>
@@ -117,7 +117,7 @@ export default function DashboardPage() {
                   />
                 </div>
               ))}
-              {error && <p style={{color:"#dc2626",fontSize:12,margin:0}}>{error}</p>}
+              {error && <p style={{color:"#666",fontSize:12,margin:0}}>{error}</p>}
               <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:4}}>
                 <button type="button" onClick={() => setShowModal(false)} style={{padding:"8px 16px",border:"1px solid #E0E0E0",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>Cancelar</button>
                 <button type="submit" disabled={saving} style={{padding:"8px 16px",border:"none",borderRadius:6,background:"#F5C400",cursor:"pointer",fontSize:12,fontWeight:600,opacity:saving?0.7:1}}>
