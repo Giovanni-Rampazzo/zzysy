@@ -165,7 +165,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.add(r); fc.setActiveObject(r)
     } else {
       const displayText = asset.value?.trim() ? asset.value : `{{ ${asset.label} }}`
-      const t = new IText(displayText, { left:80, top:80, fontSize:100, fontFamily:"Arial", fontWeight:"normal", fill:"#111111", editable:false })
+      const t = new IText(displayText, { left:80,top:80,fontSize:100,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:false })
       ;(t as any).layerId = asset.id; ;(t as any).layerLabel = asset.label; ;(t as any).locked = true
       fc.add(t); fc.setActiveObject(t)
     }
@@ -248,14 +248,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...btnS,padding:"0 8px"}}>↩</button>
           </div>
 
-          {/* Canvas — centralizado */}
-          <div style={{
-            flex:1, overflow:"auto", background:"#2a2a2a",
-            display:"flex", alignItems:"center", justifyContent:"center",
-            padding:40, boxSizing:"border-box"
-          }}>
-            <div style={{flexShrink:0, boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
-              <canvas ref={canvasElRef}/>
+          {/* Canvas — centralizado com margin auto */}
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",position:"relative"}}>
+            <div style={{
+              position:"absolute", inset:0,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              padding:40, overflow:"auto"
+            }}>
+              <div style={{flexShrink:0,boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}>
+                <canvas ref={canvasElRef}/>
+              </div>
             </div>
           </div>
         </div>
