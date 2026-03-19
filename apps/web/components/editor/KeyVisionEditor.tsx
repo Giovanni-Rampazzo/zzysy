@@ -79,7 +79,10 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [editingTextIdx, setEditingTextIdx] = useState<number | null>(null)
+  const [editingColor, setEditingColor] = useState("#111111")
+  const [editingFontSize, setEditingFontSize] = useState(80)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const editableRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const saveTimer = useRef<any>()
 
   // Calcular posição do canvas
@@ -237,7 +240,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           return (
             <div
               key={`${layer.assetId}-${idx}`}
-              onMouseDown={e => onMouseDown(e, idx)}
+              onMouseDown={e => { if (editingTextIdx === idx) return; onMouseDown(e, idx) }}
               style={{
                 position: "absolute",
                 left: layer.posX * zoom,
@@ -270,7 +273,46 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                   }
                 </div>
               ) : (
-                <div style={{ lineHeight: 1.2 }}>
+                <div
+                  ref={el => { editableRefs.current[idx] = el }}
+                  contentEditable={editingTextIdx === idx}
+                  suppressContentEditableWarning
+                  onDoubleClick={e => {
+                    e.stopPropagation()
+                    setEditingTextIdx(idx)
+                    setTimeout(() => {
+                      const el = editableRefs.current[idx]
+                      if (el) { el.focus(); document.execCommand("selectAll", false) }
+                    }, 50)
+                  }}
+                  onBlur={async e => {
+                    // Salvar texto editado de volta no asset
+                    const newText = e.currentTarget.innerText
+                    const newContent: TextSpan[] = [{ text: newText, styles: spans[0]?.styles ?? { fontSize: 80, color: "#111111" } }]
+                    await fetch(`/api/campaigns/${campaignId}/assets/${asset.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ content: newContent }),
+                    })
+                    setCampaign(prev => prev ? {
+                      ...prev,
+                      assets: prev.assets.map(a => a.id === asset.id ? { ...a, content: newContent } : a)
+                    } : prev)
+                    setEditingTextIdx(null)
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === "Escape") {
+                      e.currentTarget.blur()
+                    }
+                  }}
+                  style={{
+                    lineHeight: 1.2,
+                    outline: editingTextIdx === idx ? "2px dashed #F5C400" : "none",
+                    cursor: editingTextIdx === idx ? "text" : "grab",
+                    minWidth: 50,
+                    padding: editingTextIdx === idx ? 4 : 0,
+                  }}
+                >
                   {spans.map((span, si) => (
                     <span key={si} style={{
                       fontSize: (span.styles.fontSize ?? 80) * zoom,
