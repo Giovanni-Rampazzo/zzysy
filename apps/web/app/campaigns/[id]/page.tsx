@@ -138,7 +138,7 @@ export default function CampaignPage() {
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       {savingFields[asset.id] && <span style={{fontSize:10,color:"#888"}}>Salvando...</span>}
                       {!TEXT_TYPES.slice(0,5).includes(asset.type) && (
-                        <button onClick={() => deleteAsset(asset.id)} style={{fontSize:10,border:"none",background:"#fee2e2",color:"#dc2626",padding:"2px 6px",borderRadius:4,cursor:"pointer"}}>✕</button>
+                        <button onClick={() => deleteAsset(asset.id)} style={{fontSize:10,border:"none",background:"#f0f0f0",color:"#666",padding:"2px 6px",borderRadius:4,cursor:"pointer"}}>✕</button>
                       )}
                     </div>
                   </div>
@@ -180,7 +180,7 @@ export default function CampaignPage() {
                       <div style={{display:"flex",gap:6}}>
                         <button onClick={() => { setEditingUrl(asset.id); setUrlInput(asset.imageUrl ?? "") }} style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"4px 10px",borderRadius:5,background:"white",cursor:"pointer"}}>URL</button>
                         {!["LOGOMARCA","PERSONA","PRODUTO","FUNDO"].includes(asset.type) && (
-                          <button onClick={() => deleteAsset(asset.id)} style={{fontSize:11,border:"none",padding:"4px 8px",borderRadius:5,background:"#fee2e2",color:"#dc2626",cursor:"pointer"}}>✕</button>
+                          <button onClick={() => deleteAsset(asset.id)} style={{fontSize:11,border:"none",padding:"4px 8px",borderRadius:5,background:"#f0f0f0",color:"#666",cursor:"pointer"}}>✕</button>
                         )}
                       </div>
                     </div>
