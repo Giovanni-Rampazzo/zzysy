@@ -4,12 +4,8 @@ import { useRouter } from "next/navigation"
 import { PageShell } from "@/components/layout/PageShell"
 
 interface Client {
-  id: string
-  name: string
-  email: string | null
-  contact: string | null
-  _count: { campaigns: number }
-  createdAt: string
+  id: string; name: string; email: string | null; contact: string | null
+  _count: { campaigns: number }; createdAt: string
 }
 
 export default function DashboardPage() {
@@ -20,6 +16,7 @@ export default function DashboardPage() {
   const [form, setForm] = useState({ name: "", contact: "", email: "", phone: "", address: "" })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => { fetchClients() }, [])
 
@@ -32,60 +29,65 @@ export default function DashboardPage() {
   async function createClient(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim()) { setError("Nome obrigatório"); return }
-    setSaving(true)
-    setError("")
+    setSaving(true); setError("")
     const res = await fetch("/api/clients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form)
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form)
     })
-    if (res.ok) {
-      setShowModal(false)
-      setForm({ name: "", contact: "", email: "", phone: "", address: "" })
-      fetchClients()
-    } else {
-      const data = await res.json()
-      setError(data.error ?? "Erro ao criar cliente")
-    }
+    if (res.ok) { setShowModal(false); setForm({ name:"",contact:"",email:"",phone:"",address:"" }); fetchClients() }
+    else { const d = await res.json(); setError(d.error ?? "Erro ao criar cliente") }
     setSaving(false)
+  }
+
+  async function deleteClient(clientId: string) {
+    await fetch(`/api/clients/${clientId}`, { method: "DELETE" })
+    setClients(prev => prev.filter(c => c.id !== clientId))
+    setConfirmDelete(null)
   }
 
   return (
     <PageShell>
       <div className="p-8">
-        <div className="flex items-center justify-between mb-6">
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
           <div>
-            <h1 className="text-[22px] font-bold">Clientes</h1>
-            <p className="text-[#888] text-[12px] mt-1">Gerencie todos os clientes da sua agência</p>
+            <h1 style={{fontSize:22,fontWeight:700,margin:0}}>Clientes</h1>
+            <p style={{fontSize:12,color:"#888",margin:"4px 0 0"}}>Gerencie todos os clientes da sua agência</p>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-[#F5C400] text-black font-semibold text-[12px] px-4 py-2 rounded-md hover:bg-[#e0b000]"
-          >
+          <button onClick={() => setShowModal(true)} style={{background:"#F5C400",border:"none",borderRadius:6,padding:"8px 16px",fontWeight:600,fontSize:12,cursor:"pointer"}}>
             + Novo Cliente
           </button>
         </div>
 
-        <div className="bg-white rounded-xl border border-[#E0E0E0] overflow-hidden">
-          <table className="w-full">
+        <div style={{background:"white",borderRadius:10,border:"1px solid #E0E0E0",overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead>
-              <tr className="border-b border-[#E0E0E0]">
+              <tr style={{borderBottom:"1px solid #E0E0E0"}}>
                 {["Cliente","Contato","E-mail","Campanhas",""].map(h => (
-                  <th key={h} className="text-left text-[11px] font-semibold text-[#888] uppercase tracking-wider px-4 py-3">{h}</th>
+                  <th key={h} style={{textAlign:"left",fontSize:11,fontWeight:600,color:"#888",textTransform:"uppercase",letterSpacing:"0.5px",padding:"8px 16px"}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={5} className="text-center py-12 text-[#888] text-[13px]">Carregando...</td></tr>}
-              {!loading && clients.length === 0 && <tr><td colSpan={5} className="text-center py-12 text-[#888] text-[13px]">Nenhum cliente ainda. Crie o primeiro!</td></tr>}
+              {loading && <tr><td colSpan={5} style={{textAlign:"center",padding:48,color:"#888",fontSize:13}}>Carregando...</td></tr>}
+              {!loading && clients.length === 0 && <tr><td colSpan={5} style={{textAlign:"center",padding:48,color:"#888",fontSize:13}}>Nenhum cliente ainda. Crie o primeiro!</td></tr>}
               {clients.map(c => (
-                <tr key={c.id} className="border-b border-[#f0f0f0] hover:bg-[#fafafa] cursor-pointer" onClick={() => router.push(`/clients/${c.id}`)}>
-                  <td className="px-4 py-3 font-semibold text-[13px]">{c.name}</td>
-                  <td className="px-4 py-3 text-[13px] text-[#555]">{c.contact ?? "—"}</td>
-                  <td className="px-4 py-3 text-[13px] text-[#555]">{c.email ?? "—"}</td>
-                  <td className="px-4 py-3 text-[13px]">{c._count.campaigns}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={e => { e.stopPropagation(); router.push(`/clients/${c.id}`) }} className="text-[11px] font-semibold border border-[#E0E0E0] px-3 py-1.5 rounded-md hover:bg-[#F5F5F0]">Ver</button>
+                <tr key={c.id} style={{borderBottom:"1px solid #f0f0f0"}}>
+                  <td style={{padding:"12px 16px",fontWeight:600,fontSize:13,cursor:"pointer"}} onClick={() => router.push(`/clients/${c.id}`)}>{c.name}</td>
+                  <td style={{padding:"12px 16px",fontSize:13,color:"#555"}}>{c.contact ?? "—"}</td>
+                  <td style={{padding:"12px 16px",fontSize:13,color:"#555"}}>{c.email ?? "—"}</td>
+                  <td style={{padding:"12px 16px",fontSize:13}}>{c._count.campaigns}</td>
+                  <td style={{padding:"12px 16px",textAlign:"right"}}>
+                    <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+                      <button onClick={() => router.push(`/clients/${c.id}`)} style={{fontSize:11,fontWeight:600,border:"1px solid #E0E0E0",padding:"5px 10px",borderRadius:5,background:"white",cursor:"pointer"}}>Ver</button>
+                      {confirmDelete === c.id ? (
+                        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                          <span style={{fontSize:11,color:"#dc2626"}}>Confirmar?</span>
+                          <button onClick={() => deleteClient(c.id)} style={{fontSize:11,border:"none",padding:"5px 10px",borderRadius:5,background:"#dc2626",color:"white",cursor:"pointer",fontWeight:600}}>Sim</button>
+                          <button onClick={() => setConfirmDelete(null)} style={{fontSize:11,border:"1px solid #E0E0E0",padding:"5px 10px",borderRadius:5,background:"white",cursor:"pointer",fontWeight:600}}>Não</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDelete(c.id)} style={{fontSize:11,border:"none",padding:"5px 10px",borderRadius:5,background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontWeight:600}}>🗑</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -95,42 +97,31 @@ export default function DashboardPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl w-[480px] shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E0E0E0]">
-              <div className="text-[16px] font-bold">Novo Cliente</div>
-              <button onClick={() => setShowModal(false)} className="text-[#888] text-xl leading-none bg-transparent border-0 cursor-pointer">✕</button>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"white",borderRadius:12,width:480,boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 24px",borderBottom:"1px solid #E0E0E0"}}>
+              <div style={{fontWeight:700,fontSize:16}}>Novo Cliente</div>
+              <button onClick={() => setShowModal(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#888"}}>✕</button>
             </div>
-            <form onSubmit={createClient} className="p-6 flex flex-col gap-4">
-              <div>
-                <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Nome *</label>
-                <input className="w-full border border-[#E0E0E0] rounded-md px-3 py-2 text-[13px] outline-none focus:border-[#F5C400]" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} required placeholder="Nome do cliente" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Contato</label>
-                  <input className="w-full border border-[#E0E0E0] rounded-md px-3 py-2 text-[13px] outline-none focus:border-[#F5C400]" value={form.contact} onChange={e => setForm(f => ({...f, contact: e.target.value}))} placeholder="Nome do contato" />
+            <form onSubmit={createClient} style={{padding:24,display:"flex",flexDirection:"column",gap:14}}>
+              {[["name","Nome *","Nome do cliente"],["contact","Contato","Nome do contato"],["email","E-mail","email@cliente.com"],["phone","Telefone","(11) 99999-9999"],["address","Endereço","Cidade, Estado"]].map(([k,l,p]) => (
+                <div key={k}>
+                  <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase" as const,letterSpacing:"0.5px",color:"#888",display:"block",marginBottom:5}}>{l}</label>
+                  <input
+                    type={k==="email"?"email":"text"}
+                    value={(form as any)[k]}
+                    onChange={e => setForm(f => ({...f,[k]:e.target.value}))}
+                    placeholder={p}
+                    required={k==="name"}
+                    style={{width:"100%",padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit",boxSizing:"border-box" as const}}
+                  />
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">E-mail</label>
-                  <input type="email" className="w-full border border-[#E0E0E0] rounded-md px-3 py-2 text-[13px] outline-none focus:border-[#F5C400]" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} placeholder="email@cliente.com" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Telefone</label>
-                  <input className="w-full border border-[#E0E0E0] rounded-md px-3 py-2 text-[13px] outline-none focus:border-[#F5C400]" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} placeholder="(11) 99999-9999" />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Endereço</label>
-                  <input className="w-full border border-[#E0E0E0] rounded-md px-3 py-2 text-[13px] outline-none focus:border-[#F5C400]" value={form.address} onChange={e => setForm(f => ({...f, address: e.target.value}))} placeholder="Cidade, Estado" />
-                </div>
-              </div>
-              {error && <p className="text-red-500 text-[12px]">{error}</p>}
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="text-[12px] font-semibold border border-[#E0E0E0] px-4 py-2 rounded-md hover:bg-[#F5F5F0] bg-white cursor-pointer">Cancelar</button>
-                <button type="submit" disabled={saving} className="bg-[#F5C400] text-black font-bold text-[12px] px-4 py-2 rounded-md hover:bg-[#e0b000] disabled:opacity-60 cursor-pointer border-0">
-                  {saving ? "Salvando..." : "Criar cliente"}
+              ))}
+              {error && <p style={{color:"#dc2626",fontSize:12,margin:0}}>{error}</p>}
+              <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:4}}>
+                <button type="button" onClick={() => setShowModal(false)} style={{padding:"8px 16px",border:"1px solid #E0E0E0",borderRadius:6,background:"white",cursor:"pointer",fontSize:12,fontWeight:600}}>Cancelar</button>
+                <button type="submit" disabled={saving} style={{padding:"8px 16px",border:"none",borderRadius:6,background:"#F5C400",cursor:"pointer",fontSize:12,fontWeight:600,opacity:saving?0.7:1}}>
+                  {saving ? "Criando..." : "Criar cliente"}
                 </button>
               </div>
             </form>
