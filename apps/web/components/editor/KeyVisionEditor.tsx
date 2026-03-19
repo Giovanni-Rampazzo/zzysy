@@ -84,7 +84,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             if(o.type==="textbox"||o.type==="i-text"||o.type==="IText"){
               const asset=am[o.layerId]
               const txt=asset?.value?.trim()?asset.value:(o.text??`{{ ${o.layerLabel} }}`)
-              const t=new Textbox(txt,{left:o.left??80,top:o.top??80,width:o.width??800,fontSize:o.fontSize??80,fontFamily:o.fontFamily??"Arial",fontWeight:o.fontWeight??"normal",fill:o.fill??"#111",scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0,editable:true})
+              const t=new Textbox(txt,{left:o.left??80,top:o.top??80,width:o.width??600,fontSize:o.fontSize??80,fontFamily:o.fontFamily??"Arial",fontWeight:o.fontWeight??"normal",fill:o.fill??"#111",scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0,editable:true,splitByGrapheme:false})
               ;(t as any).layerId=o.layerId;(t as any).layerLabel=o.layerLabel
               fc.add(t)
             } else if(o.type==="rect"&&!o.isBackground){
@@ -153,7 +153,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.add(r);fc.setActiveObject(r)
     } else {
       const txt=asset.value?.trim()?asset.value:`{{ ${asset.label} }}`
-      const t=new Textbox(txt,{left:100,top:100,width:600,fontSize:80,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:true,textAlign:"left"})
+      const t=new Textbox(txt,{left:100,top:100,width:600,fontSize:80,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:true,splitByGrapheme:false})
       ;(t as any).layerId=asset.id;(t as any).layerLabel=asset.label
       fc.add(t);fc.setActiveObject(t)
     }
