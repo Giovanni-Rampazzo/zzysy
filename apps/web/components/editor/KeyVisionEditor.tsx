@@ -27,7 +27,20 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [saving, setSaving] = useState(false)
   const [assetId, setAssetId] = useState("")
   const [msg, setMsg] = useState("")
-  const [canvasPos, setCanvasPos] = useState({ left: 0, top: 0 })
+  const [canvasPos, setCanvasPos] = useState(() => {
+    // Calcular posição inicial antes do primeiro render
+    if(typeof window === "undefined") return { left: LAYER_W + 40, top: TOPBAR_H + ASSETBAR_H + 40 }
+    const availW = window.innerWidth - LAYER_W - PROPS_W
+    const availH = window.innerHeight - TOPBAR_H - ASSETBAR_H
+    const initialZoom = Math.min(1, (availW-80)/CW, (availH-80)/CH)
+    const z = Math.round(initialZoom * 10) / 10
+    const cW = Math.round(CW * z)
+    const cH = Math.round(CH * z)
+    return {
+      left: LAYER_W + Math.max(40, (availW - cW) / 2),
+      top: TOPBAR_H + ASSETBAR_H + Math.max(40, (availH - cH) / 2)
+    }
+  })
 
   function setAsset(id: string) { setAssetId(id); assetIdRef.current = id }
 
