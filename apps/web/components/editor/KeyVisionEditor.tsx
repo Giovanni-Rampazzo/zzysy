@@ -9,12 +9,10 @@ interface Asset { id:string;type:string;label:string;value:string|null;imageUrl:
 interface Campaign { id:string;name:string;client:{id:string;name:string};assets:Asset[] }
 
 const CW=1920, CH=1080, BG="__background__"
-const PAD=40
 
 export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const fabricRef = useRef<any>(null)
   const bgRef = useRef<any>(null)
   const [campaign, setCampaign] = useState<Campaign|null>(null)
@@ -33,16 +31,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       if(d.assets?.length>0) setAssetId(d.assets[0].id)
     })
   },[campaignId])
-
-  // Centralizar scroll após render
-  function centerScroll(z: number) {
-    const el = scrollRef.current
-    if (!el) return
-    const cw = Math.round(CW*z) + PAD*2
-    const ch = Math.round(CH*z) + PAD*2
-    el.scrollLeft = Math.max(0, (cw - el.clientWidth) / 2)
-    el.scrollTop = Math.max(0, (ch - el.clientHeight) / 2)
-  }
 
   useEffect(()=>{
     if(!campaign||!canvasRef.current||fabricRef.current) return
@@ -66,7 +54,24 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.on("object:added",()=>alive&&refresh(fc))
       fc.on("object:removed",()=>alive&&refresh(fc))
 
-      const assetMap: Record<string,Asset> = {}
+      // Ao terminar de editar texto — proteger conteúdo
+      fc.on("text:editing:exited",(e:any)=>{
+        const obj=e.target
+        if(!obj||(obj as any).isBackground) return
+        const assetMap: Record<string,Asset>={}
+        for(const a of campaign.assets) assetMap[a.id]=a
+        const asset=assetMap[(obj as any).layerId]
+        if(asset&&asset.value?.trim()){
+          // Reverter texto para valor do asset se foi alterado
+          if(obj.text!==asset.value){
+            obj.set("text",asset.value)
+            fc.renderAll()
+          }
+        }
+        save(fc)
+      })
+
+      const assetMap: Record<string,Asset>={}
       for(const a of campaign.assets) assetMap[a.id]=a
 
       try{
@@ -76,13 +81,19 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             if(o.layerId===BG){bg.set("fill",o.fill??"#ffffff");continue}
             if(o.type==="i-text"||o.type==="IText"){
               const asset=assetMap[o.layerId]
-              const txt=asset?.value?.trim()?asset.value:o.text??`{{ ${o.layerLabel} }}`
-              const t=new IText(txt,{left:o.left??80,top:o.top??80,fontSize:o.fontSize??80,fontFamily:o.fontFamily??"Arial",fontWeight:o.fontWeight??"normal",fill:o.fill??"#111",scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0,editable:false})
-              ;(t as any).layerId=o.layerId;(t as any).layerLabel=o.layerLabel;(t as any).locked=o.locked
+              const txt=asset?.value?.trim()?asset.value:(o.text??`{{ ${o.layerLabel} }}`)
+              const t=new IText(txt,{
+                left:o.left??80,top:o.top??80,
+                fontSize:o.fontSize??80,fontFamily:o.fontFamily??"Arial",
+                fontWeight:o.fontWeight??"normal",fill:o.fill??"#111",
+                scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0,
+                editable:true, // EDITÁVEL
+              })
+              ;(t as any).layerId=o.layerId;(t as any).layerLabel=o.layerLabel;(t as any).locked=false
               fc.add(t)
             } else if(o.type==="rect"&&!o.isBackground){
               const r=new Rect({left:o.left??100,top:o.top??100,width:o.width??400,height:o.height??300,fill:o.fill??"#e8e8e8",stroke:o.stroke,strokeWidth:o.strokeWidth,strokeDashArray:o.strokeDashArray,scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0})
-              ;(r as any).layerId=o.layerId;(r as any).layerLabel=o.layerLabel;(r as any).locked=o.locked
+              ;(r as any).layerId=o.layerId;(r as any).layerLabel=o.layerLabel;(r as any).locked=false
               fc.add(r)
             }
           }
@@ -90,10 +101,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       }catch{}
 
       fc.renderAll()
-      if(alive){
-        refresh(fc);setReady(true)
-        setTimeout(()=>centerScroll(zoom),100)
-      }
+      if(alive){refresh(fc);setReady(true)}
     })()
     return()=>{alive=false;if(fabricRef.current){fabricRef.current.dispose();fabricRef.current=null}}
   },[campaign])
@@ -101,7 +109,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   function refresh(fc:any){
     setLayers([...fc.getObjects()].reverse().map((o:any,i:number)=>({
       id:o.layerId??`obj-${i}`,label:o.layerLabel??o.type??"Layer",
-      type:o.type,locked:o.locked??false,isBackground:o.isBackground??false,obj:o
+      type:o.type,locked:false,isBackground:o.isBackground??false,obj:o
     })))
   }
 
@@ -111,24 +119,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       setSaving(true)
       const objects=fc.getObjects().map((o:any)=>{
         if((o as any).isBackground) return{type:"rect",layerId:BG,layerLabel:"Background",isBackground:true,fill:o.fill,left:0,top:0,width:CW,height:CH}
-        return{type:o.type,layerId:(o as any).layerId,layerLabel:(o as any).layerLabel,locked:(o as any).locked,left:o.left,top:o.top,scaleX:o.scaleX,scaleY:o.scaleY,angle:o.angle,fill:o.fill,
+        return{type:o.type,layerId:(o as any).layerId,layerLabel:(o as any).layerLabel,locked:false,left:o.left,top:o.top,scaleX:o.scaleX,scaleY:o.scaleY,angle:o.angle,fill:o.fill,
           ...(o.type==="i-text"||o.type==="IText"?{text:(o as any).text,fontSize:o.fontSize,fontFamily:o.fontFamily,fontWeight:o.fontWeight}:{width:o.width,height:o.height,stroke:o.stroke,strokeWidth:o.strokeWidth,strokeDashArray:o.strokeDashArray})}
       })
       await fetch(`/api/campaigns/${campaignId}/key-vision`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:{objects}})})
       setSaving(false)
     },800)
-  }
-
-  async function clearCanvas(){
-    const fc=fabricRef.current;if(!fc) return
-    if(!confirm("Limpar o canvas? Todos os layers serão removidos.")) return
-    const{Rect}=await import("fabric")
-    fc.clear()
-    const bg=new Rect({left:0,top:0,width:CW,height:CH,fill:"#ffffff",selectable:true,evented:true,hasControls:false,hasBorders:false,lockMovementX:true,lockMovementY:true,lockScalingX:true,lockScalingY:true,lockRotation:true})
-    ;(bg as any).layerId=BG;(bg as any).layerLabel="Background";(bg as any).isBackground=true
-    bgRef.current=bg; fc.add(bg); fc.sendObjectToBack(bg); fc.renderAll()
-    await fetch(`/api/campaigns/${campaignId}/key-vision`,{method:"DELETE"})
-    refresh(fc)
   }
 
   async function add(){
@@ -142,8 +138,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.add(r);fc.setActiveObject(r)
     } else {
       const txt=asset.value?.trim()?asset.value:`{{ ${asset.label} }}`
-      const t=new IText(txt,{left:80,top:80,fontSize:100,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:false})
-      ;(t as any).layerId=asset.id;(t as any).layerLabel=asset.label;(t as any).locked=true
+      const t=new IText(txt,{left:80,top:80,fontSize:100,fontFamily:"Arial",fontWeight:"normal",fill:"#111111",editable:true})
+      ;(t as any).layerId=asset.id;(t as any).layerLabel=asset.label;(t as any).locked=false
       fc.add(t);fc.setActiveObject(t)
     }
     fc.renderAll();save(fc)
@@ -151,21 +147,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
   function selLayer(lid:string){const fc=fabricRef.current;if(!fc)return;const o=fc.getObjects().find((x:any)=>x.layerId===lid);if(o){fc.setActiveObject(o);fc.renderAll();setSelected(o)}}
   function delLayer(lid:string){const fc=fabricRef.current;if(!fc)return;const o=fc.getObjects().find((x:any)=>x.layerId===lid&&!(x as any).isBackground);if(o){fc.remove(o);fc.renderAll();save(fc)}}
-
-  function chZoom(d:number){
-    const fc=fabricRef.current;if(!fc)return
-    const z=Math.min(2,Math.max(0.1,zoom+d));setZoom(z)
-    fc.setZoom(z);fc.setDimensions({width:Math.round(CW*z),height:Math.round(CH*z)});fc.renderAll()
-    setTimeout(()=>centerScroll(z),50)
-  }
-
+  function chZoom(d:number){const fc=fabricRef.current;if(!fc)return;const z=Math.min(2,Math.max(0.1,zoom+d));setZoom(z);fc.setZoom(z);fc.setDimensions({width:Math.round(CW*z),height:Math.round(CH*z)});fc.renderAll()}
   function undo(){const fc=fabricRef.current;if(!fc)return;const o=fc.getObjects().filter((x:any)=>!(x as any).isBackground);if(o.length>0){fc.remove(o[o.length-1]);fc.renderAll();save(fc)}}
   function bgColor(c:string){const bg=bgRef.current;const fc=fabricRef.current;if(!bg||!fc)return;bg.set("fill",c);fc.renderAll();save(fc);setSelected((p:any)=>p?{...p,fill:c}:p)}
 
   if(!campaign) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1a1a1a",color:"#888",fontSize:14}}>Carregando...</div>
 
   const bS={background:"transparent",border:"none",cursor:"pointer",color:"#888",fontSize:18,lineHeight:1,padding:"0 4px"} as React.CSSProperties
-  const cW=Math.round(CW*zoom), cH=Math.round(CH*zoom)
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",background:"#111"}}>
@@ -181,32 +169,21 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
         <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
           <div style={{height:44,background:"#1a1a1a",borderBottom:"1px solid #222",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0}}>
-            <span style={{fontSize:12,color:"#555",fontWeight:600}}>Asset:</span>
-            <select value={assetId} onChange={e=>setAssetId(e.target.value)} style={{background:"#222",color:"white",border:"1px solid #333",borderRadius:4,padding:"4px 8px",fontSize:12,fontFamily:"inherit",maxWidth:220}}>
-              {campaign.assets.map(a=><option key={a.id} value={a.id}>{a.label}{a.value?` — "${a.value.substring(0,18)}"`:""}</option>)}
+            <span style={{fontSize:12,color:"#555",fontWeight:600}}>Adicionar asset:</span>
+            <select value={assetId} onChange={e=>setAssetId(e.target.value)} style={{background:"#222",color:"white",border:"1px solid #333",borderRadius:4,padding:"4px 8px",fontSize:12,fontFamily:"inherit"}}>
+              {campaign.assets.map(a=><option key={a.id} value={a.id}>{a.label}{a.value?` — "${a.value.substring(0,20)}"`:""}</option>)}
             </select>
             <button onClick={add} disabled={!ready} style={{background:ready?"#F5C400":"#444",color:"#111",border:"none",padding:"5px 14px",borderRadius:4,fontSize:12,fontWeight:700,cursor:ready?"pointer":"not-allowed"}}>+ Adicionar</button>
             <div style={{flex:1}}/>
-            <button onClick={clearCanvas} title="Limpar canvas" style={{...bS,fontSize:13,color:"#555",marginRight:8}}>🗑</button>
             <button onClick={()=>chZoom(-0.1)} style={bS}>−</button>
             <span style={{fontSize:11,color:"#555",minWidth:40,textAlign:"center"}}>{Math.round(zoom*100)}%</span>
             <button onClick={()=>chZoom(+0.1)} style={bS}>+</button>
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          {/* Canvas area com scroll e centralização via JS */}
-          <div
-            ref={scrollRef}
-            style={{flex:1,overflow:"auto",background:"#2a2a2a",position:"relative"}}
-          >
-            <div style={{
-              width: cW + PAD*2,
-              height: cH + PAD*2,
-              display:"flex",
-              alignItems:"center",
-              justifyContent:"center",
-            }}>
-              <div style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0,flexShrink:0}}>
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"table"}}>
+            <div style={{display:"table-cell",verticalAlign:"middle",textAlign:"center",padding:40}}>
+              <div style={{display:"inline-block",boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0}}>
                 <canvas ref={canvasRef}/>
               </div>
             </div>
