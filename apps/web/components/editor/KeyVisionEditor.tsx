@@ -8,12 +8,11 @@ import { PropertiesPanel } from "./PropertiesPanel"
 interface Asset { id:string;type:string;label:string;value:string|null;imageUrl:string|null }
 interface Campaign { id:string;name:string;client:{id:string;name:string};assets:Asset[] }
 
-const CW = 1920, CH = 1080, BG = "__background__"
+const CW=1920, CH=1080, BG="__background__"
 
 export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
   const fabricRef = useRef<any>(null)
   const bgRef = useRef<any>(null)
   const [campaign, setCampaign] = useState<Campaign|null>(null)
@@ -35,28 +34,47 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
   useEffect(()=>{
     if(!campaign||!canvasRef.current||fabricRef.current) return
-    let alive=true;
-    (async()=>{
+    let alive=true
+    ;(async()=>{
       const {Canvas,Rect,IText}=await import("fabric")
       if(!alive||!canvasRef.current) return
+
       const fc=new Canvas(canvasRef.current,{width:Math.round(CW*zoom),height:Math.round(CH*zoom)})
-      fc.setZoom(zoom); fabricRef.current=fc
+      fc.setZoom(zoom)
+      fabricRef.current=fc
+
+      // Background layer
       const bg=new Rect({left:0,top:0,width:CW,height:CH,fill:"#ffffff",selectable:true,evented:true,hasControls:false,hasBorders:false,lockMovementX:true,lockMovementY:true,lockScalingX:true,lockScalingY:true,lockRotation:true})
       ;(bg as any).layerId=BG;(bg as any).layerLabel="Background";(bg as any).isBackground=true
       bgRef.current=bg; fc.add(bg); fc.sendObjectToBack(bg)
+
       fc.on("selection:created",(e:any)=>setSelected(e.selected?.[0]??null))
       fc.on("selection:updated",(e:any)=>setSelected(e.selected?.[0]??null))
       fc.on("selection:cleared",()=>setSelected(null))
       fc.on("object:modified",()=>save(fc))
       fc.on("object:added",()=>alive&&refresh(fc))
       fc.on("object:removed",()=>alive&&refresh(fc))
+
+      // Construir mapa de assets para lookup rápido
+      const assetMap: Record<string,Asset> = {}
+      for(const a of campaign.assets) assetMap[a.id]=a
+
+      // Restaurar KV salvo — sempre usar valor atual do asset para textos
       try{
         const kv=await fetch(`/api/campaigns/${campaignId}/key-vision`).then(r=>r.json())
         if(alive&&kv?.data?.objects?.length){
           for(const o of kv.data.objects){
             if(o.layerId===BG){bg.set("fill",o.fill??"#ffffff");continue}
             if(o.type==="i-text"||o.type==="IText"){
-              const t=new IText(o.text??"",{left:o.left??80,top:o.top??80,fontSize:o.fontSize??80,fontFamily:o.fontFamily??"Arial",fontWeight:o.fontWeight??"normal",fill:o.fill??"#111",scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0,editable:false})
+              // Usar valor atual do asset se disponível, não o texto salvo
+              const asset=assetMap[o.layerId]
+              const currentText=asset?.value?.trim() ? asset.value : (o.text ?? `{{ ${o.layerLabel} }}`)
+              const t=new IText(currentText,{
+                left:o.left??80,top:o.top??80,
+                fontSize:o.fontSize??80,fontFamily:o.fontFamily??"Arial",
+                fontWeight:o.fontWeight??"normal",fill:o.fill??"#111",
+                scaleX:o.scaleX??1,scaleY:o.scaleY??1,angle:o.angle??0,editable:false
+              })
               ;(t as any).layerId=o.layerId;(t as any).layerLabel=o.layerLabel;(t as any).locked=o.locked
               fc.add(t)
             } else if(o.type==="rect"&&!o.isBackground){
@@ -67,6 +85,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           }
         }
       }catch{}
+
       fc.renderAll()
       if(alive){refresh(fc);setReady(true)}
     })()
@@ -95,8 +114,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   async function add(){
-    const fc=fabricRef.current; if(!fc||!campaign||!ready) return
-    const asset=campaign.assets.find(a=>a.id===assetId); if(!asset) return
+    const fc=fabricRef.current;if(!fc||!campaign||!ready) return
+    const asset=campaign.assets.find(a=>a.id===assetId);if(!asset) return
     const{Rect,IText}=await import("fabric")
     const isImg=["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"].includes(asset.type)
     if(isImg){
@@ -114,21 +133,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
   function selLayer(lid:string){const fc=fabricRef.current;if(!fc)return;const o=fc.getObjects().find((x:any)=>x.layerId===lid);if(o){fc.setActiveObject(o);fc.renderAll();setSelected(o)}}
   function delLayer(lid:string){const fc=fabricRef.current;if(!fc)return;const o=fc.getObjects().find((x:any)=>x.layerId===lid&&!(x as any).isBackground);if(o){fc.remove(o);fc.renderAll();save(fc)}}
-
-  function chZoom(d:number){
-    const fc=fabricRef.current;if(!fc)return
-    const z=Math.min(2,Math.max(0.1,zoom+d)); setZoom(z)
-    fc.setZoom(z);fc.setDimensions({width:Math.round(CW*z),height:Math.round(CH*z)});fc.renderAll()
-  }
-
+  function chZoom(d:number){const fc=fabricRef.current;if(!fc)return;const z=Math.min(2,Math.max(0.1,zoom+d));setZoom(z);fc.setZoom(z);fc.setDimensions({width:Math.round(CW*z),height:Math.round(CH*z)});fc.renderAll()}
   function undo(){const fc=fabricRef.current;if(!fc)return;const o=fc.getObjects().filter((x:any)=>!(x as any).isBackground);if(o.length>0){fc.remove(o[o.length-1]);fc.renderAll();save(fc)}}
-
   function bgColor(c:string){const bg=bgRef.current;const fc=fabricRef.current;if(!bg||!fc)return;bg.set("fill",c);fc.renderAll();save(fc);setSelected((p:any)=>p?{...p,fill:c}:p)}
 
   if(!campaign) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1a1a1a",color:"#888",fontSize:14}}>Carregando...</div>
 
   const bS={background:"transparent",border:"none",cursor:"pointer",color:"#888",fontSize:18,lineHeight:1,padding:"0 4px"} as React.CSSProperties
-  const cW=Math.round(CW*zoom), cH=Math.round(CH*zoom)
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",background:"#111"}}>
@@ -138,8 +149,10 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         <span style={{fontSize:11,color:"#444"}}>1920 × 1080 px</span>
         <button onClick={()=>setModal(true)} style={{background:"#F5C400",border:"none",borderRadius:6,padding:"6px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}>▶ Gerar Peças</button>
       </div>
+
       <div style={{display:"flex",flex:1,overflow:"hidden"}}>
         <LayerPanel layers={layers} selectedObj={selected} onSelect={selLayer} onDelete={delLayer}/>
+
         <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
           <div style={{height:44,background:"#1a1a1a",borderBottom:"1px solid #222",display:"flex",alignItems:"center",padding:"0 16px",gap:10,flexShrink:0}}>
             <span style={{fontSize:12,color:"#555",fontWeight:600}}>Adicionar asset:</span>
@@ -153,21 +166,20 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={()=>chZoom(+0.1)} style={bS}>+</button>
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
-          {/* Canvas centralizado — wrapper com overflow:auto, canvas com margin:auto */}
-          <div ref={wrapRef} style={{flex:1,overflow:"auto",background:"#2a2a2a",position:"relative"}}>
-            <div style={{
-              position:"absolute",
-              top:"50%", left:"50%",
-              transform:`translate(-50%, -50%)`,
-              boxShadow:"0 8px 48px rgba(0,0,0,0.7)",
-              lineHeight:0,
-            }}>
-              <canvas ref={canvasRef}/>
+
+          {/* Canvas — scroll com canvas centralizado via table-cell trick */}
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"table"}}>
+            <div style={{display:"table-cell",verticalAlign:"middle",textAlign:"center",padding:40,width:"100%",height:"100%"}}>
+              <div style={{display:"inline-block",boxShadow:"0 8px 48px rgba(0,0,0,0.7)",lineHeight:0}}>
+                <canvas ref={canvasRef}/>
+              </div>
             </div>
           </div>
         </div>
+
         <PropertiesPanel selectedObj={selected} fabricRef={fabricRef} onUpdate={save} onBgColorChange={bgColor}/>
       </div>
+
       {modal&&<GeneratePiecesModal campaignId={campaignId} fabricRef={fabricRef} onClose={()=>setModal(false)} onGenerated={()=>{setModal(false);router.push(`/pieces?campaignId=${campaignId}`)}}/>}
     </div>
   )
