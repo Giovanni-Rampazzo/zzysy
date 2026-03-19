@@ -125,9 +125,11 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     const fc=fabricRef.current
     const c=campaignRef.current
     const aid=assetIdRef.current
-    if(!fc||!c||!aid){ setMsg("Editor não pronto"); return }
+    if(!fc){ setMsg("Fabric não iniciado — recarregue a página"); return }
+    if(!c){ setMsg("Campanha não carregada"); return }
+    if(!aid){ setMsg("Nenhum asset selecionado"); return }
     const asset=c.assets.find(a=>a.id===aid)
-    if(!asset){ setMsg("Asset não encontrado"); return }
+    if(!asset){ setMsg(`Asset ${aid} não encontrado`); return }
     const{Rect,Textbox}=await import("fabric")
     const isImg=["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"].includes(asset.type)
     if(isImg){
