@@ -200,8 +200,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <button onClick={undo} style={{...bS,padding:"0 8px"}}>↩</button>
           </div>
 
-          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",display:"flex",flexDirection:"column" as const,alignItems:"center",justifyContent:"flex-start",padding:"40px 0"}}>
-            <canvas ref={canvasRef} style={{boxShadow:"0 8px 48px rgba(0,0,0,0.7)"}}/>
+          <div style={{flex:1,overflow:"auto",background:"#2a2a2a",padding:"40px"}}>
+            <canvas ref={canvasRef}/>
           </div>
         </div>
         <PropertiesPanel selectedObj={selected} fabricRef={fabricRef} onUpdate={doSave} onBgColorChange={bgColor}/>
