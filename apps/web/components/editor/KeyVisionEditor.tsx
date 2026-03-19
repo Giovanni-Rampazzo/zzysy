@@ -98,17 +98,14 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.renderAll()
       if(alive){
         refresh(fc)
-        // Centralizar canvas no scroll container
+        // Aplicar margin:auto no canvas-container criado pelo Fabric
         setTimeout(()=>{
-          const container = canvasRef.current?.closest(".canvas-scroll-container") as HTMLElement
-          const canvas = canvasRef.current?.parentElement as HTMLElement
-          if(container && canvas){
-            const left = (canvas.offsetWidth - container.clientWidth) / 2
-            const top = (canvas.offsetHeight - container.clientHeight) / 2
-            container.scrollLeft = left > 0 ? left : 0
-            container.scrollTop = top > 0 ? top : 0
+          const cc = canvasRef.current?.parentElement as HTMLElement
+          if(cc && cc.classList.contains("canvas-container")){
+            cc.style.marginLeft = "auto"
+            cc.style.marginRight = "auto"
           }
-        }, 200)
+        }, 50)
       }
     })()
     return()=>{alive=false;if(fabricRef.current){fabricRef.current.dispose();fabricRef.current=null}}
