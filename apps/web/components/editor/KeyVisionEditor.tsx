@@ -98,12 +98,11 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.renderAll()
       if(alive){
         refresh(fc)
-        // Aplicar margin:auto no canvas-container criado pelo Fabric
         setTimeout(()=>{
           const cc = canvasRef.current?.parentElement as HTMLElement
-          if(cc && cc.classList.contains("canvas-container")){
-            cc.style.marginLeft = "auto"
-            cc.style.marginRight = "auto"
+          if(cc){
+            cc.style.alignSelf = "center"
+            cc.style.marginTop = "40px"
           }
         }, 50)
       }
