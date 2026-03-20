@@ -49,8 +49,7 @@ function spansToHTML(spans: TextSpan[]): string {
       `font-weight:${span.styles.fontWeight ?? "normal"}`,
     ].join(";")
     // Preservar quebras de linha
-    const text = span.text.replace(/
-/g, "<br>")
+    const text = span.text.split("\n").join("<br>")
     return `<span style="${style}">${text}</span>`
   }).join("")
 }
