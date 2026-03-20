@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { GeneratePiecesModal } from "./GeneratePiecesModal"
+import { TextLayer } from "./TextLayer"
 
 interface TextSpan {
   text: string
@@ -71,7 +72,11 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [dragging, setDragging] = useState<{idx:number;sx:number;sy:number;ox:number;oy:number}|null>(null)
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [editText, setEditText] = useState<{assetId:string;text:string;spans:TextSpan[]}|null>(null)
+  const [editingLayerIdx, setEditingLayerIdx] = useState<number | null>(null)
+  const [hasTextSelection, setHasTextSelection] = useState(false)
+  const [applyColorSignal, setApplyColorSignal] = useState("")
+  const [applyFontSizeSignal, setApplyFontSizeSignal] = useState("")
+  const [pendingSpans, setPendingSpans] = useState<Record<string, TextSpan[]>>({})
   const [canvasPos, setCanvasPos] = useState({left:LAYER_W+40,top:TOP_H+BAR_H+40})
   const saveTimer = useRef<any>()
 
@@ -235,17 +240,28 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                   }
                 </div>
               ) : (
-                <div style={{lineHeight:1.2,pointerEvents:"none"}}>
-                  {spans.map((span,si)=>(
-                    <span key={si} style={{
-                      fontSize:(span.styles.fontSize??80)*zoom,
-                      color:span.styles.color??"#111",
-                      fontWeight:span.styles.fontWeight??"normal",
-                      fontFamily:span.styles.fontFamily??"Arial",
-                      whiteSpace:"pre-wrap",
-                    }}>{span.text}</span>
-                  ))}
-                </div>
+                <TextLayer
+                  spans={spans}
+                  zoom={zoom}
+                  editing={editingLayerIdx === idx}
+                  onStartEdit={() => { setEditingLayerIdx(idx); setSelectedIdx(idx) }}
+                  onEndEdit={async (newSpans) => {
+                    setEditingLayerIdx(null)
+                    await fetch(`/api/campaigns/${campaignId}/assets/${asset.id}`, {
+                      method: "PUT", headers: {"Content-Type":"application/json"},
+                      body: JSON.stringify({content: newSpans})
+                    })
+                    setCampaign(prev => prev ? {
+                      ...prev,
+                      assets: prev.assets.map(a => a.id === asset.id ? {...a, content: newSpans} : a)
+                    } : prev)
+                  }}
+                  onSelectionChange={setHasTextSelection}
+                  selectedColor={selAsset?.id === asset.id ? (getSpans(selAsset)[0]?.styles.color) : undefined}
+                  selectedFontSize={selAsset?.id === asset.id ? (getSpans(selAsset)[0]?.styles.fontSize) : undefined}
+                  applyColorSignal={selAsset?.id === asset.id ? applyColorSignal : undefined}
+                  applyFontSizeSignal={selAsset?.id === asset.id ? applyFontSizeSignal : undefined}
+                />
               )}
             </div>
           )
@@ -325,16 +341,10 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           </div>
         ) : isSelText && sel ? (
           <div style={{padding:16,display:"flex",flexDirection:"column" as const,gap:14}}>
-            {/* Editar texto */}
-            <div>
-              <div style={secS}>Texto</div>
-              <button onClick={()=>{
-                const spans = getSpans(selAsset!)
-                setEditText({assetId:selAsset!.id,text:spans.map(s=>s.text).join(""),spans})
-              }}
-                style={{width:"100%",padding:"8px 12px",background:"#F5C400",border:"none",borderRadius:6,fontWeight:700,fontSize:12,cursor:"pointer",color:"#111"}}>
-                ✏️ Editar texto
-              </button>
+            {/* Hint de edição */}
+            <div style={{padding:8,background:"rgba(245,196,0,0.08)",borderRadius:6,border:"1px solid rgba(245,196,0,0.2)",fontSize:10,color:"#F5C400"}}>
+              Duplo clique no texto para editar.<br/>
+              {hasTextSelection ? "✓ Texto selecionado — mude a cor abaixo" : "Selecione letras para mudar cor/tamanho individual."}
             </div>
 
             {/* Posição */}
@@ -357,7 +367,14 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
               const s = spans[0]?.styles ?? {}
 
               async function updateStyle(key: string, val: any) {
-                const newContent = spans.map((sp,i)=>i===0?{...sp,styles:{...sp.styles,[key]:val}}:sp)
+                // Se tem seleção de texto ativa → aplica via signal no Lexical
+                if (hasTextSelection && editingLayerIdx !== null) {
+                  if (key === "color") setApplyColorSignal(`${val}-${Date.now()}`)
+                  if (key === "fontSize") setApplyFontSizeSignal(`${val}-${Date.now()}`)
+                  return
+                }
+                // Sem seleção → aplica no objeto todo
+                const newContent = spans.map(sp=>({...sp,styles:{...sp.styles,[key]:val}}))
                 await fetch(`/api/campaigns/${campaignId}/assets/${selAsset!.id}`,{
                   method:"PUT",headers:{"Content-Type":"application/json"},
                   body:JSON.stringify({content:newContent})
@@ -409,35 +426,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         ) : null}
       </div>
 
-      {/* MODAL EDIÇÃO DE TEXTO */}
-      {editText && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <div style={{background:"#1a1a1a",border:"1px solid #333",borderRadius:12,padding:24,width:560,maxWidth:"90vw"}}>
-            <div style={{fontSize:14,fontWeight:700,color:"white",marginBottom:4}}>Editar texto</div>
-            <div style={{fontSize:11,color:"#555",marginBottom:16}}>
-              {campaign.assets.find(a=>a.id===editText.assetId)?.label}
-            </div>
-            <textarea
-              value={editText.text}
-              onChange={e=>setEditText({...editText,text:e.target.value})}
-              autoFocus
-              rows={4}
-              style={{width:"100%",background:"#111",border:"1px solid #333",color:"white",fontSize:16,padding:"12px",borderRadius:8,fontFamily:"inherit",outline:"none",resize:"vertical",boxSizing:"border-box" as const}}
-            />
-            <div style={{fontSize:10,color:"#555",marginBottom:16}}>Enter para quebrar linha</div>
-            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-              <button onClick={()=>setEditText(null)}
-                style={{padding:"8px 20px",border:"1px solid #333",borderRadius:6,background:"transparent",color:"#888",cursor:"pointer",fontSize:13}}>
-                Cancelar
-              </button>
-              <button onClick={saveEditText}
-                style={{padding:"8px 20px",border:"none",borderRadius:6,background:"#F5C400",color:"#111",cursor:"pointer",fontSize:13,fontWeight:700}}>
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {modal&&<GeneratePiecesModal campaignId={campaignId} fabricRef={{current:null}}
         onClose={()=>setModal(false)}
