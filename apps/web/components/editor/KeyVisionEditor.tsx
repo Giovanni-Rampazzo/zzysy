@@ -164,7 +164,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   function addLayer(asset: Asset) {
-    const l: Layer = {assetId:asset.id,posX:100,posY:100,scaleX:1,scaleY:1,rotation:0,zIndex:layers.length,width:900}
+    const l: Layer = {assetId:asset.id,posX:100,posY:100,scaleX:1,scaleY:1,rotation:0,zIndex:layers.length,width:600}
     const nl = [...layers,l]
     setLayers(nl); setSelectedIdx(nl.length-1); doSave(nl,bgColor)
   }
@@ -343,14 +343,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                     fontWeight:base.fontWeight??"normal",
                     color:base.color??"#111",
                     caretColor:"#F5C400",
-                    whiteSpace:"pre-wrap",
-                    wordBreak:"break-word",
+                    whiteSpace:"nowrap",
                     userSelect:"text",
                   }}
                 />
               ) : (
                 // Modo de visualização: spans com estilos
-                <div style={{lineHeight:1.2,pointerEvents:"none",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+                <div style={{lineHeight:1.2,pointerEvents:"none",whiteSpace:"nowrap"}}>
                   {spans.map((span,si)=>(
                     <span key={si} style={{
                       fontSize:(span.styles.fontSize??80)*zoom,
