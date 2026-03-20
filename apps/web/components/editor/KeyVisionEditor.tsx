@@ -69,8 +69,14 @@ function LexicalController({
     editor.update(() => {
       const root = $getRoot()
       root.clear()
-      const para = $createParagraphNode()
+      // Agrupar spans por parágrafo (separados por \n)
+      let para = $createParagraphNode()
       spans.forEach(span => {
+        if (span.text === "\n") {
+          root.append(para)
+          para = $createParagraphNode()
+          return
+        }
         const node = $createTextNode(span.text)
         const css = [
           `color:${span.styles.color ?? "#111"}`,
@@ -133,11 +139,17 @@ function LexicalController({
     })
   }, [applyCmd])
 
-  // Serializar estado para TextSpan[]
+  // Serializar estado para TextSpan[] — preserva quebras de linha
   function serialize(): TextSpan[] {
     const result: TextSpan[] = []
     editor.getEditorState().read(() => {
-      $getRoot().getChildren().forEach((child: any) => {
+      const children = $getRoot().getChildren()
+      children.forEach((child: any, paraIdx: number) => {
+        // Adicionar 
+ entre parágrafos
+        if (paraIdx > 0) {
+          result.push({ text: "\n", styles: baseStyles })
+        }
         child.getChildren?.().forEach((node: any) => {
           if (!(node instanceof TextNode)) return
           const map = styleToMap(node.getStyle())
@@ -160,7 +172,12 @@ function LexicalController({
     <RichTextPlugin
       contentEditable={
         <ContentEditable
-          onBlur={() => onSave(serialize())}
+          onBlur={e => {
+            // Só sair se o foco foi para fora do editor (não para o painel)
+            const related = e.relatedTarget as HTMLElement | null
+            if (related && (related.closest("[data-props-panel]") || related.tagName === "INPUT")) return
+            onSave(serialize())
+          }}
           style={{
             outline: "none",
             minWidth: 50,
@@ -439,7 +456,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       </div>
 
       {/* PROPERTIES PANEL */}
-      <div style={{...pS,right:0,width:PW,borderLeft:"1px solid #2a2a2a",paddingTop:TH}}>
+      <div data-props-panel="true" style={{...pS,right:0,width:PW,borderLeft:"1px solid #2a2a2a",paddingTop:TH}}>
         <div style={{padding:"12px 16px",...secS,borderBottom:"1px solid #2a2a2a",marginBottom:0}}>Propriedades</div>
 
         {selectedIdx===null ? (
@@ -521,7 +538,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                 style={{width:"100%",height:44,cursor:"pointer",border:"none",borderRadius:6,padding:0}}/>
               <div style={{display:"flex",flexWrap:"wrap" as const,gap:5,marginTop:8}}>
                 {COLORS.map(c=>(
-                  <div key={c} onClick={()=>apply("color",c)}
+                  <div key={c}
+                    onMouseDown={e=>{ e.preventDefault(); e.stopPropagation() }}
+                    onClick={()=>apply("color",c)}
                     style={{width:24,height:24,borderRadius:4,background:c,cursor:"pointer",border:(hasSel?selColor:(selAsset?getSpans(selAsset)[0]?.styles.color??"#111":"#111"))===c?"2px solid #F5C400":"2px solid #2a2a2a"}}/>
                 ))}
               </div>
