@@ -1,16 +1,7 @@
 "use client"
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { GeneratePiecesModal } from "./GeneratePiecesModal"
-import { LexicalComposer } from "@lexical/react/LexicalComposer"
-import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin"
-import { ContentEditable } from "@lexical/react/LexicalContentEditable"
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
-import {
-  $getRoot, $getSelection, $isRangeSelection,
-  $createParagraphNode, $createTextNode,
-  TextNode, ElementNode
-} from "lexical"
 
 // ─── Tipos ───────────────────────────────────────────────────────
 interface TextSpan {
@@ -37,9 +28,10 @@ interface Campaign {
 const CW = 1920, CH = 1080
 const IMAGE_TYPES = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"]
 const LW = 220, PW = 260, TH = 48, BH = 44
-const FONTS = ["Arial","Arial Black","Georgia","Times New Roman","Courier New","Verdana","Impact","Trebuchet MS","DM Sans"]
+const FONTS = ["Arial","Arial Black","Georgia","Times New Roman","Courier New","Verdana","Impact","Trebuchet MS"]
 const COLORS = ["#111111","#ffffff","#F5C400","#e63946","#457b9d","#2a9d8f","#264653","#f4a261","#8338ec","#ff006e","#06d6a0","#118ab2"]
 
+// ─── Helpers ─────────────────────────────────────────────────────
 function getSpans(asset: Asset): TextSpan[] {
   if (asset.content && Array.isArray(asset.content) && asset.content.length > 0)
     return asset.content as TextSpan[]
@@ -47,164 +39,54 @@ function getSpans(asset: Asset): TextSpan[] {
   return [{ text, styles: { fontSize: 80, color: "#111111", fontWeight: "normal", fontFamily: "Arial" } }]
 }
 
-// ─── Plugin de controle do Lexical ───────────────────────────────
-function LexicalController({
-  spans, editing, zoom, baseStyles, onSave, onSelChange, applyCmd
-}: {
-  spans: TextSpan[]
-  editing: boolean
-  zoom: number
-  baseStyles: TextSpan["styles"]
-  onSave: (spans: TextSpan[]) => void
-  onSelChange: (hasSel: boolean, color: string, size: number) => void
-  applyCmd: { type: string; value: string } | null
-}) {
-  const [editor] = useLexicalComposerContext()
-  const loaded = useRef(false)
+// Converte spans para HTML para o contentEditable
+function spansToHTML(spans: TextSpan[]): string {
+  return spans.map(span => {
+    const style = [
+      `color:${span.styles.color ?? "#111111"}`,
+      `font-size:${span.styles.fontSize ?? 80}px`,
+      `font-family:${span.styles.fontFamily ?? "Arial"}`,
+      `font-weight:${span.styles.fontWeight ?? "normal"}`,
+    ].join(";")
+    // Preservar quebras de linha
+    const text = span.text.replace(/
+/g, "<br>")
+    return `<span style="${style}">${text}</span>`
+  }).join("")
+}
 
-  // Carregar conteúdo inicial uma vez
-  useEffect(() => {
-    if (loaded.current) return
-    loaded.current = true
-    editor.update(() => {
-      const root = $getRoot()
-      root.clear()
-      // Agrupar spans por parágrafo (separados por \n)
-      let para = $createParagraphNode()
-      spans.forEach(span => {
-        if (span.text === "\n") {
-          root.append(para)
-          para = $createParagraphNode()
-          return
-        }
-        const node = $createTextNode(span.text)
-        const css = [
-          `color:${span.styles.color ?? "#111"}`,
-          `font-size:${span.styles.fontSize ?? 80}px`,
-          `font-family:${span.styles.fontFamily ?? "Arial"}`,
-          `font-weight:${span.styles.fontWeight ?? "normal"}`,
-        ].join(";")
-        node.setStyle(css)
-        para.append(node)
-      })
-      root.append(para)
-    })
-  }, [])
+// Converte HTML do contentEditable de volta para spans
+function htmlToSpans(html: string, baseStyles: TextSpan["styles"]): TextSpan[] {
+  const div = document.createElement("div")
+  div.innerHTML = html
+  const result: TextSpan[] = []
 
-  // Editar/readonly
-  useEffect(() => {
-    editor.setEditable(editing)
-    if (editing) {
-      setTimeout(() => editor.focus(), 30)
-    }
-  }, [editing])
-
-  // Monitorar seleção
-  useEffect(() => {
-    return editor.registerUpdateListener(({ editorState }) => {
-      editorState.read(() => {
-        const sel = $getSelection()
-        if ($isRangeSelection(sel) && !sel.isCollapsed()) {
-          const nodes = sel.getNodes().filter(n => n instanceof TextNode) as TextNode[]
-          if (nodes.length > 0) {
-            const style = nodes[0].getStyle()
-            const map = styleToMap(style)
-            const color = map["color"] ?? baseStyles.color ?? "#111111"
-            const size = parseInt(map["font-size"] ?? String(baseStyles.fontSize ?? 80))
-            onSelChange(true, color, size)
+  function extractFromNode(node: Node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent ?? ""
+      if (text) {
+        const parent = node.parentElement
+        const style = parent?.style
+        result.push({
+          text,
+          styles: {
+            color: style?.color || baseStyles.color || "#111111",
+            fontSize: style?.fontSize ? parseInt(style.fontSize) : (baseStyles.fontSize ?? 80),
+            fontFamily: style?.fontFamily?.replace(/['"]/g,"") || baseStyles.fontFamily || "Arial",
+            fontWeight: style?.fontWeight || baseStyles.fontWeight || "normal",
           }
-        } else {
-          onSelChange(false, baseStyles.color ?? "#111111", baseStyles.fontSize ?? 80)
-        }
-      })
-    })
-  }, [baseStyles])
-
-  // Aplicar comando (cor ou tamanho na seleção)
-  useEffect(() => {
-    if (!applyCmd) return
-    editor.update(() => {
-      const sel = $getSelection()
-      if (!$isRangeSelection(sel)) return
-      const nodes = sel.getNodes()
-      nodes.forEach(node => {
-        if (!(node instanceof TextNode)) return
-        const map = styleToMap(node.getStyle())
-        if (applyCmd.type === "color") map["color"] = applyCmd.value
-        if (applyCmd.type === "fontSize") map["font-size"] = `${applyCmd.value}px`
-        if (applyCmd.type === "fontFamily") map["font-family"] = applyCmd.value
-        if (applyCmd.type === "fontWeight") map["font-weight"] = applyCmd.value
-        node.setStyle(mapToStyle(map))
-      })
-    })
-  }, [applyCmd])
-
-  // Serializar estado para TextSpan[] — preserva quebras de linha
-  function serialize(): TextSpan[] {
-    const result: TextSpan[] = []
-    editor.getEditorState().read(() => {
-      const children = $getRoot().getChildren()
-      children.forEach((child: any, paraIdx: number) => {
-        // Adicionar 
- entre parágrafos
-        if (paraIdx > 0) {
-          result.push({ text: "\n", styles: baseStyles })
-        }
-        child.getChildren?.().forEach((node: any) => {
-          if (!(node instanceof TextNode)) return
-          const map = styleToMap(node.getStyle())
-          result.push({
-            text: node.getTextContent(),
-            styles: {
-              color: map["color"] ?? baseStyles.color ?? "#111111",
-              fontSize: parseInt(map["font-size"] ?? String(baseStyles.fontSize ?? 80)),
-              fontFamily: map["font-family"] ?? baseStyles.fontFamily ?? "Arial",
-              fontWeight: map["font-weight"] ?? baseStyles.fontWeight ?? "normal",
-            }
-          })
         })
-      })
-    })
-    return result.length ? result : spans
+      }
+    } else if (node.nodeName === "BR") {
+      result.push({ text: "
+", styles: baseStyles })
+    } else {
+      node.childNodes.forEach(extractFromNode)
+    }
   }
 
-  return (
-    <RichTextPlugin
-      contentEditable={
-        <ContentEditable
-          onBlur={e => {
-            // Só sair se o foco foi para fora do editor (não para o painel)
-            const related = e.relatedTarget as HTMLElement | null
-            if (related && (related.closest("[data-props-panel]") || related.tagName === "INPUT")) return
-            onSave(serialize())
-          }}
-          style={{
-            outline: "none",
-            minWidth: 50,
-            lineHeight: 1.2,
-            caretColor: "#F5C400",
-            cursor: editing ? "text" : "default",
-            userSelect: editing ? "text" : "none",
-            pointerEvents: editing ? "auto" : "none",
-          }}
-        />
-      }
-      placeholder={null}
-      ErrorBoundary={({ children }) => <>{children}</>}
-    />
-  )
-}
-
-function styleToMap(style: string): Record<string, string> {
-  const map: Record<string, string> = {}
-  style.split(";").forEach(s => {
-    const [k, v] = s.split(":").map(x => x.trim())
-    if (k && v) map[k] = v
-  })
-  return map
-}
-function mapToStyle(map: Record<string, string>) {
-  return Object.entries(map).map(([k, v]) => `${k}:${v}`).join(";")
+  div.childNodes.forEach(extractFromNode)
+  return result.length ? result : [{ text: div.innerText || "", styles: baseStyles }]
 }
 
 // ─── Editor Principal ─────────────────────────────────────────────
@@ -220,11 +102,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [canvasPos, setCanvasPos] = useState({left:LW+40,top:TH+BH+40})
-  // Estado do painel para tipografia
   const [hasSel, setHasSel] = useState(false)
-  const [selColor, setSelColor] = useState("#111111")
-  const [selSize, setSelSize] = useState(80)
-  const [applyCmd, setApplyCmd] = useState<{type:string;value:string}|null>(null)
+  const editableRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const saveTimer = useRef<any>()
 
   function calcPos(z: number) {
@@ -252,6 +131,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       if (d.keyVision?.layers?.length) setLayers(d.keyVision.layers)
     })
   }, [campaignId])
+
+  // Monitorar seleção de texto
+  useEffect(() => {
+    function onSelChange() {
+      const sel = window.getSelection()
+      setHasSel(!!(sel && !sel.isCollapsed && sel.toString().length > 0))
+    }
+    document.addEventListener("selectionchange", onSelChange)
+    return () => document.removeEventListener("selectionchange", onSelChange)
+  }, [])
 
   function doSave(l: Layer[], bg: string) {
     clearTimeout(saveTimer.current)
@@ -290,6 +179,72 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     setLayers(nl); doSave(nl,bgColor)
   }
 
+  // Entrar em modo de edição
+  function startEdit(idx: number) {
+    const asset = campaign?.assets.find(a=>a.id===layers[idx].assetId)
+    if (!asset) return
+    setEditingIdx(idx)
+    setSelectedIdx(idx)
+    setTimeout(() => {
+      const el = editableRefs.current[idx]
+      if (!el) return
+      el.innerHTML = spansToHTML(getSpans(asset))
+      el.focus()
+      // Cursor no final
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      range.collapse(false)
+      window.getSelection()?.removeAllRanges()
+      window.getSelection()?.addRange(range)
+    }, 20)
+  }
+
+  // Sair do modo de edição e salvar
+  function endEdit(idx: number) {
+    const el = editableRefs.current[idx]
+    const asset = campaign?.assets.find(a=>a.id===layers[idx].assetId)
+    if (!el || !asset) { setEditingIdx(null); return }
+    const baseStyles = getSpans(asset)[0]?.styles ?? {}
+    const spans = htmlToSpans(el.innerHTML, baseStyles)
+    setEditingIdx(null)
+    saveAssetContent(asset.id, spans)
+  }
+
+  // Aplicar estilo via execCommand (mantém foco no editor)
+  function applyStyle(cmd: string, value?: string) {
+    const el = editingIdx !== null ? editableRefs.current[editingIdx] : null
+    if (!el) return
+    el.focus()
+    document.execCommand(cmd, false, value)
+  }
+
+  // Aplicar cor: usa execCommand foreColor
+  function applyColor(color: string) {
+    applyStyle("foreColor", color)
+  }
+
+  // Aplicar fonte
+  function applyFont(font: string) {
+    applyStyle("fontName", font)
+  }
+
+  // Aplicar tamanho (1-7 para execCommand, mas usamos span inline)
+  function applyFontSize(size: number) {
+    if (editingIdx === null) return
+    const el = editableRefs.current[editingIdx]
+    if (!el) return
+    el.focus()
+    // execCommand fontSize só aceita 1-7, então usamos um workaround
+    document.execCommand("fontSize", false, "7")
+    // Substituir o font-size do elemento criado
+    el.querySelectorAll("font[size='7']").forEach(node => {
+      const span = document.createElement("span")
+      span.style.fontSize = `${size}px`
+      span.innerHTML = (node as HTMLElement).innerHTML
+      node.parentNode?.replaceChild(span, node)
+    })
+  }
+
   // Drag
   function onMouseDown(e: React.MouseEvent, idx: number) {
     if (editingIdx === idx) return
@@ -314,11 +269,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     setZoom(z); setCanvasPos(calcPos(z))
   }
 
-  function apply(type: string, value: string) {
-    setApplyCmd({type,value})
-    setTimeout(()=>setApplyCmd(null),100)
-  }
-
   if (!campaign) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1a1a1a",color:"#888",fontSize:14}}>
       Carregando editor...
@@ -340,7 +290,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       {/* CANVAS */}
       <div
         style={{position:"absolute",left:canvasPos.left,top:canvasPos.top,width:Math.round(CW*zoom),height:Math.round(CH*zoom),background:bgColor,boxShadow:"0 8px 64px rgba(0,0,0,0.8)",overflow:"hidden"}}
-        onClick={e=>{ if(e.target===e.currentTarget){setSelectedIdx(null);setEditingIdx(null)} }}
+        onMouseDown={e=>{ if(e.target===e.currentTarget){setSelectedIdx(null);if(editingIdx!==null)endEdit(editingIdx)} }}
       >
         {[...layers].sort((a,b)=>a.zIndex-b.zIndex).map((layer,idx)=>{
           const asset = campaign.assets.find(a=>a.id===layer.assetId)
@@ -354,10 +304,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           return (
             <div key={`${layer.assetId}-${idx}`}
               onMouseDown={e=>onMouseDown(e,idx)}
-              onDoubleClick={e=>{
-                e.stopPropagation()
-                if (!isImg){ setSelectedIdx(idx); setEditingIdx(idx) }
-              }}
+              onDoubleClick={e=>{ e.stopPropagation(); if(!isImg) startEdit(idx) }}
               style={{
                 position:"absolute",
                 left:layer.posX*zoom,
@@ -366,34 +313,54 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                 cursor:dragging?.idx===idx?"grabbing":(isEdit?"text":"grab"),
                 outline:isSel&&!isEdit?"2px solid #F5C400":"2px solid transparent",
                 outlineOffset:2,
-                userSelect:"none",
               }}
             >
               {isImg ? (
                 <div style={{width:400*zoom,height:300*zoom,background:"#e8e8e8",border:`${2*zoom}px dashed #aaa`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14*zoom,color:"#888",overflow:"hidden"}}>
                   {asset.imageUrl
                     ? <img src={asset.imageUrl} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                    : <span>{asset.label}</span>
-                  }
+                    : <span>{asset.label}</span>}
                 </div>
+              ) : isEdit ? (
+                // Modo de edição: contentEditable com HTML rico
+                <div
+                  ref={el=>editableRefs.current[idx]=el}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={e=>{
+                    // Não sair se o foco foi para o painel
+                    const related = e.relatedTarget as HTMLElement|null
+                    if(related?.closest("[data-panel]")) return
+                    endEdit(idx)
+                  }}
+                  style={{
+                    outline:"2px dashed #F5C400",
+                    outlineOffset:2,
+                    padding:4,
+                    minWidth:50,
+                    lineHeight:1.2,
+                    fontSize:(base.fontSize??80)*zoom,
+                    fontFamily:base.fontFamily??"Arial",
+                    fontWeight:base.fontWeight??"normal",
+                    color:base.color??"#111",
+                    caretColor:"#F5C400",
+                    whiteSpace:"pre-wrap",
+                    wordBreak:"break-word",
+                    userSelect:"text",
+                  }}
+                />
               ) : (
-                <div style={{outline:isEdit?"2px dashed #F5C400":"none",outlineOffset:2,padding:isEdit?4:0}}>
-                  <LexicalComposer initialConfig={{
-                    namespace:`layer-${idx}`,
-                    theme:{},
-                    onError:(e:Error)=>console.error(e),
-                    editable:false,
-                  }}>
-                    <LexicalController
-                      spans={spans}
-                      editing={isEdit}
-                      zoom={zoom}
-                      baseStyles={base}
-                      onSave={newSpans=>{ setEditingIdx(null); saveAssetContent(asset.id,newSpans) }}
-                      onSelChange={(has,color,size)=>{ if(isEdit){setHasSel(has);setSelColor(color);setSelSize(size)} }}
-                      applyCmd={isEdit?applyCmd:null}
-                    />
-                  </LexicalComposer>
+                // Modo de visualização: spans com estilos
+                <div style={{lineHeight:1.2,pointerEvents:"none",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+                  {spans.map((span,si)=>(
+                    <span key={si} style={{
+                      fontSize:(span.styles.fontSize??80)*zoom,
+                      color:span.styles.color??"#111",
+                      fontWeight:span.styles.fontWeight??"normal",
+                      fontFamily:span.styles.fontFamily??"Arial",
+                    }}>{span.text === "
+" ? <br/> : span.text}</span>
+                  ))}
                 </div>
               )}
             </div>
@@ -426,10 +393,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       </div>
 
       {/* LAYER PANEL */}
-      <div style={{...pS,left:0,width:LW,borderRight:"1px solid #2a2a2a",paddingTop:TH}}>
+      <div data-panel="true" style={{...pS,left:0,width:LW,borderRight:"1px solid #2a2a2a",paddingTop:TH}}>
         <div style={{padding:"10px 14px",...secS,borderBottom:"1px solid #2a2a2a",marginBottom:0}}>Layers</div>
         <div style={{flex:1,overflowY:"auto" as const,padding:"4px 0"}}>
-          <div onClick={()=>{setSelectedIdx(null);setEditingIdx(null)}}
+          <div
+            onMouseDown={e=>e.preventDefault()}
+            onClick={()=>{if(editingIdx!==null)endEdit(editingIdx);setSelectedIdx(null)}}
             style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",cursor:"pointer",borderLeft:selectedIdx===null?"2px solid #F5C400":"2px solid transparent",background:selectedIdx===null?"rgba(245,196,0,0.08)":"transparent"}}>
             <div style={{width:7,height:7,borderRadius:2,background:bgColor,border:"1px solid #555",flexShrink:0}}/>
             <span style={{fontSize:12,color:selectedIdx===null?"#fff":"#888"}}>🎨 Background</span>
@@ -439,13 +408,17 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             const asset=campaign.assets.find(a=>a.id===layer.assetId)
             const isSel=selectedIdx===idx
             return (
-              <div key={idx} onClick={()=>{setSelectedIdx(idx);setEditingIdx(null)}}
+              <div key={idx}
+                onMouseDown={e=>e.preventDefault()}
+                onClick={()=>{if(editingIdx!==null&&editingIdx!==idx)endEdit(editingIdx);setSelectedIdx(idx)}}
                 style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",cursor:"pointer",borderLeft:isSel?"2px solid #F5C400":"2px solid transparent",background:isSel?"rgba(245,196,0,0.08)":"transparent"}}>
                 <div style={{width:7,height:7,borderRadius:2,background:IMAGE_TYPES.includes(asset?.type??"")?"#86efac":"#F5C400",flexShrink:0}}/>
                 <span style={{fontSize:12,color:isSel?"#fff":"#888",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const}}>
                   {asset?.label??"Layer"}
                 </span>
-                <button onClick={e=>{e.stopPropagation();removeLayer(idx)}}
+                <button
+                  onMouseDown={e=>e.preventDefault()}
+                  onClick={e=>{e.stopPropagation();removeLayer(idx)}}
                   style={{color:"#555",background:"transparent",border:"none",cursor:"pointer",fontSize:12,padding:"0 2px"}}
                   onMouseOver={e=>e.currentTarget.style.color="#f87171"}
                   onMouseOut={e=>e.currentTarget.style.color="#555"}>✕</button>
@@ -456,37 +429,37 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       </div>
 
       {/* PROPERTIES PANEL */}
-      <div data-props-panel="true" style={{...pS,right:0,width:PW,borderLeft:"1px solid #2a2a2a",paddingTop:TH}}>
+      <div data-panel="true" style={{...pS,right:0,width:PW,borderLeft:"1px solid #2a2a2a",paddingTop:TH}}>
         <div style={{padding:"12px 16px",...secS,borderBottom:"1px solid #2a2a2a",marginBottom:0}}>Propriedades</div>
 
         {selectedIdx===null ? (
-          // Background
           <div style={{padding:16}}>
             <div style={{...secS,color:"#F5C400",marginBottom:12}}>🎨 Background</div>
             <input type="color" value={bgColor} onChange={e=>updateBg(e.target.value)}
               style={{width:"100%",height:52,cursor:"pointer",border:"none",borderRadius:8,padding:0}}/>
             <div style={{display:"flex",flexWrap:"wrap" as const,gap:6,marginTop:12}}>
               {COLORS.map(c=>(
-                <div key={c} onClick={()=>updateBg(c)}
+                <div key={c}
+                  onMouseDown={e=>e.preventDefault()}
+                  onClick={()=>updateBg(c)}
                   style={{width:26,height:26,borderRadius:5,background:c,cursor:"pointer",border:bgColor===c?"2px solid #F5C400":"2px solid #2a2a2a"}}/>
               ))}
             </div>
           </div>
         ) : isSelText && sel ? (
-          // Text layer
           <div style={{padding:16,display:"flex",flexDirection:"column" as const,gap:14}}>
-            {/* Hint */}
             {editingIdx===selectedIdx ? (
-              <div style={{padding:8,background:"rgba(245,196,0,0.08)",borderRadius:6,border:"1px solid rgba(245,196,0,0.2)",fontSize:10,color:"#F5C400",lineHeight:1.5}}>
-                {hasSel ? "✓ Letras selecionadas — aplique cor/tamanho abaixo" : "Selecione letras para mudar individualmente ou aplique ao texto todo"}
+              <div style={{padding:8,background:"rgba(245,196,0,0.08)",borderRadius:6,border:"1px solid rgba(245,196,0,0.2)",fontSize:10,color:"#F5C400",lineHeight:1.6}}>
+                {hasSel
+                  ? "✓ Letras selecionadas — aplique cor/tamanho abaixo"
+                  : "Selecione letras para editar individualmente"}
               </div>
             ) : (
-              <div style={{padding:8,background:"#111",borderRadius:6,fontSize:10,color:"#555",lineHeight:1.5}}>
-                Duplo clique no texto para editar.<br/>Selecione letras para mudar cor/tamanho individual.
+              <div style={{padding:8,background:"#111",borderRadius:6,fontSize:10,color:"#555",lineHeight:1.6}}>
+                Duplo clique para editar o texto
               </div>
             )}
 
-            {/* Posição */}
             <div>
               <div style={secS}>Posição</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -494,18 +467,19 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
                   <div key={k}>
                     <label style={{fontSize:9,color:"#555",display:"block",marginBottom:3}}>{l}</label>
                     <input type="number" value={Math.round(sel[k as keyof Layer] as number)}
+                      onMouseDown={e=>e.stopPropagation()}
                       onChange={e=>updateLayer(selectedIdx,{[k]:+e.target.value})} style={inpS}/>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Tipografia */}
             <div>
               <div style={secS}>Fonte</div>
               <select
-                value={hasSel ? (selAsset ? getSpans(selAsset)[0]?.styles.fontFamily??"Arial" : "Arial") : "Arial"}
-                onChange={e=>apply("fontFamily",e.target.value)}
+                onMouseDown={e=>e.preventDefault()}
+                onChange={e=>applyFont(e.target.value)}
+                defaultValue="Arial"
                 style={inpS}>
                 {FONTS.map(f=><option key={f} value={f}>{f}</option>)}
               </select>
@@ -514,46 +488,45 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               <div>
                 <div style={secS}>Tamanho</div>
-                <input type="number"
-                  value={hasSel ? selSize : (selAsset ? getSpans(selAsset)[0]?.styles.fontSize??80 : 80)}
-                  onChange={e=>apply("fontSize",e.target.value)}
+                <input type="number" defaultValue={80}
+                  onMouseDown={e=>e.stopPropagation()}
+                  onChange={e=>applyFontSize(+e.target.value)}
                   style={inpS}/>
               </div>
               <div>
                 <div style={secS}>Peso</div>
-                <select onChange={e=>apply("fontWeight",e.target.value)} style={inpS}>
+                <select
+                  onMouseDown={e=>e.preventDefault()}
+                  onChange={e=>applyStyle("bold", e.target.value==="bold"?"":"bold")}
+                  style={inpS}>
                   <option value="normal">Regular</option>
-                  <option value="500">Medium</option>
                   <option value="bold">Bold</option>
                 </select>
               </div>
             </div>
 
-            {/* Cor */}
             <div>
               <div style={secS}>Cor {hasSel?"(seleção)":"(texto todo)"}</div>
-              <input type="color"
-                value={hasSel ? selColor : (selAsset ? getSpans(selAsset)[0]?.styles.color??"#111111" : "#111111")}
-                onChange={e=>apply("color",e.target.value)}
+              <input type="color" defaultValue="#111111"
+                onMouseDown={e=>e.stopPropagation()}
+                onChange={e=>applyColor(e.target.value)}
                 style={{width:"100%",height:44,cursor:"pointer",border:"none",borderRadius:6,padding:0}}/>
               <div style={{display:"flex",flexWrap:"wrap" as const,gap:5,marginTop:8}}>
                 {COLORS.map(c=>(
                   <div key={c}
                     onMouseDown={e=>{ e.preventDefault(); e.stopPropagation() }}
-                    onClick={()=>apply("color",c)}
-                    style={{width:24,height:24,borderRadius:4,background:c,cursor:"pointer",border:(hasSel?selColor:(selAsset?getSpans(selAsset)[0]?.styles.color??"#111":"#111"))===c?"2px solid #F5C400":"2px solid #2a2a2a"}}/>
+                    onClick={()=>applyColor(c)}
+                    style={{width:24,height:24,borderRadius:4,background:c,cursor:"pointer",border:"2px solid #2a2a2a"}}/>
                 ))}
               </div>
             </div>
           </div>
         ) : selAsset ? (
-          // Image
           <div style={{padding:16}}>
             <div style={{fontWeight:600,color:"#888",marginBottom:8,fontSize:13}}>{selAsset.label}</div>
             {selAsset.imageUrl
               ? <img src={selAsset.imageUrl} style={{width:"100%",borderRadius:6}}/>
-              : <div style={{padding:"24px 0",textAlign:"center" as const,color:"#444",fontSize:12}}>Sem imagem — faça upload na página de Assets</div>
-            }
+              : <div style={{padding:"24px 0",textAlign:"center" as const,color:"#444",fontSize:12}}>Sem imagem — faça upload na página de Assets</div>}
           </div>
         ) : null}
       </div>
