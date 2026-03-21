@@ -12,48 +12,43 @@ export async function PUT(req: Request, ctx: Ctx) {
   const { assetId } = await ctx.params
   const body = await req.json()
 
-  const existing = await prisma.campaignAsset.findUnique({ where: { id: assetId } })
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
-
-  const existingContent = existing.content as any[] | null
-  let finalContent = body.content
-  let finalValue = body.value
-
-  // CASO 1: vem só value (página de Assets atualizou o texto puro)
-  if (typeof body.value === "string" && !body.content) {
-    finalValue = body.value
-    if (existingContent && existingContent.length > 0) {
-      const oldText = spansToText(existingContent as any)
-      if (oldText !== body.value) {
-        // Merge LCS: preserva estilos, atualiza texto
-        finalContent = mergeTextIntoSpans(existingContent as any, body.value)
-      } else {
-        finalContent = existingContent
-      }
-    } else {
-      // Sem content anterior: criar span simples
-      finalContent = [{ text: body.value, style: {} }]
-    }
-  }
-
-  // CASO 2: vem só content (editor atualizou estilos/texto)
-  if (body.content && !body.value) {
-    finalContent = body.content
-    finalValue = spansToText(body.content)
-  }
-
-  // CASO 3: vem content + value juntos (editor salvando ambos)
-  if (body.content && body.value) {
-    finalContent = body.content
-    finalValue = body.value
-  }
-
   const data: any = {}
-  if (finalValue !== undefined) data.value = finalValue
-  if (finalContent !== undefined) data.content = finalContent
-  // Outros campos (imageUrl, label, etc)
+
+  // Campos diretos (imagem, label, etc)
   for (const k of ["imageUrl", "label", "order", "visible"]) {
     if (k in body) data[k] = body[k]
+  }
+
+  // Atualização de texto
+  const hasContent = Array.isArray(body.content) && body.content.length > 0
+  const hasValue = typeof body.value === "string"
+
+  if (hasContent && hasValue) {
+    // Editor salvando content + value juntos — usar direto
+    data.content = body.content
+    data.value = body.value.replace(/\n/g, "") // garantir value sem \n
+  } else if (hasContent) {
+    // Editor salvando só content (estilos)
+    data.content = body.content
+    data.value = spansToText(body.content) // já remove \n
+  } else if (hasValue) {
+    // Página de Assets salvando value (texto puro)
+    const newValue = body.value.replace(/\n/g, "") // garantir sem \n
+    data.value = newValue
+
+    // Merge: preserva estilos e quebras de linha do content existente
+    const existing = await prisma.campaignAsset.findUnique({ where: { id: assetId } })
+    const existingContent = existing?.content as any[] | null
+
+    if (existingContent && existingContent.length > 0) {
+      const oldValue = spansToText(existingContent as any) // sem \n
+      if (oldValue !== newValue) {
+        data.content = mergeTextIntoSpans(existingContent as any, newValue)
+      }
+      // Se texto igual, não alterar content (preserva quebras de linha)
+    } else {
+      data.content = [{ text: newValue, style: {} }]
+    }
   }
 
   const asset = await prisma.campaignAsset.update({ where: { id: assetId }, data })
