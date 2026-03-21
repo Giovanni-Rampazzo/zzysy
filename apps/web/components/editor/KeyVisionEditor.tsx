@@ -23,7 +23,7 @@ interface Campaign {
 }
 
 const DEFAULT_W = 1920, DEFAULT_H = 1080
-const IMAGE_TYPES = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"]
+const IMAGE_TYPES = ["IMAGE"]
 const LW = 220, PW = 260, TH = 48, BH = 44
 const FONTS = ["Arial","Arial Black","Georgia","Times New Roman","Courier New","Verdana","Impact","Trebuchet MS","DM Sans","Helvetica Neue"]
 const SWATCHES = ["#111111","#ffffff","#F5C400","#e63946","#457b9d","#2a9d8f","#264653","#f4a261","#8338ec","#ff006e","#06d6a0","#118ab2"]
