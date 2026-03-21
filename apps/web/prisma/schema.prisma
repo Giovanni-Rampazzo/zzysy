@@ -187,17 +187,8 @@ model CampaignAsset {
 }
 
 enum AssetType {
-  TITULO
-  SUBTITULO
-  TEXTO
-  TEXTO_APOIO
-  CTA
-  PERSONA
-  PRODUTO
-  FUNDO
-  LOGOMARCA
-  CUSTOM_TEXT
-  CUSTOM_IMAGE
+  TEXT
+  IMAGE
 }
 
 // ─── KEY VISION ──────────────────────────────────────────────────
