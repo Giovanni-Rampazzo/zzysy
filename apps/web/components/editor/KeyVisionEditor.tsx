@@ -22,7 +22,7 @@ interface Campaign {
   keyVision: { bgColor: string; layers: Layer[] | null } | null
 }
 
-const CW = 1920, CH = 1080
+const DEFAULT_W = 1920, DEFAULT_H = 1080
 const IMAGE_TYPES = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"]
 const LW = 220, PW = 260, TH = 48, BH = 44
 const FONTS = ["Arial","Arial Black","Georgia","Times New Roman","Courier New","Verdana","Impact","Trebuchet MS","DM Sans","Helvetica Neue"]
@@ -176,12 +176,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [saving, setSaving] = useState(false)
   const [assetId, setAssetId] = useState("")
   const [canvasPos, setCanvasPos] = useState({ left: LW + 40, top: TH + BH + 40 })
+  const [canvasW, setCanvasW] = useState(DEFAULT_W)
+  const [canvasH, setCanvasH] = useState(DEFAULT_H)
+  const canvasWRef = useRef(DEFAULT_W)
+  const canvasHRef = useRef(DEFAULT_H)
 
-  function calcPos(z: number) {
+  function calcPos(z: number, cw = canvasWRef.current, ch = canvasHRef.current) {
     if (typeof window === "undefined") return { left: LW + 40, top: TH + BH + 40 }
     const aw = window.innerWidth - LW - PW
     const ah = window.innerHeight - TH - BH
-    return { left: LW + Math.max(40, (aw - Math.round(CW * z)) / 2), top: TH + BH + Math.max(40, (ah - Math.round(CH * z)) / 2) }
+    return { left: LW + Math.max(40, (aw - Math.round(cw * z)) / 2), top: TH + BH + Math.max(40, (ah - Math.round(ch * z)) / 2) }
   }
 
   function setAid(id: string) { setAssetId(id); assetIdRef.current = id }
@@ -191,7 +195,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     if (typeof window !== "undefined") {
       const aw = window.innerWidth - LW - PW - 80
       const ah = window.innerHeight - TH - BH - 80
-      const z = Math.round(Math.min(0.7, aw / CW, ah / CH) * 10) / 10
+      const z = Math.round(Math.min(0.7, aw / (canvasWRef.current || DEFAULT_W), ah / (canvasHRef.current || DEFAULT_H)) * 10) / 10
       setZoom(z); setCanvasPos(calcPos(z))
     }
     fetch(`/api/campaigns/${campaignId}`).then(r => r.json()).then((d: Campaign) => {
@@ -200,6 +204,11 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       const bg = d.keyVision?.bgColor ?? "#ffffff"
       setBgColor(bg); bgColorRef.current = bg
       if (d.assets?.length) setAid(d.assets[0].id)
+      // Dimensões dinâmicas do PSD
+      const cw = d.keyVision?.width ?? DEFAULT_W
+      const ch = d.keyVision?.height ?? DEFAULT_H
+      setCanvasW(cw); setCanvasH(ch)
+      canvasWRef.current = cw; canvasHRef.current = ch
     })
   }, [campaignId])
 
@@ -266,11 +275,11 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       const { Canvas, Rect, Textbox } = await import("fabric")
       if (!alive || !canvasRef.current) return
 
-      const fc = new Canvas(canvasRef.current, { width: Math.round(CW * zoom), height: Math.round(CH * zoom) })
+      const fc = new Canvas(canvasRef.current, { width: Math.round(canvasWRef.current * zoom), height: Math.round(CH * zoom) })
       fc.setZoom(zoom)
       fabricRef.current = fc
 
-      const bg = new Rect({ left: 0, top: 0, width: CW, height: CH, fill: bgColorRef.current, selectable: false, evented: false })
+      const bg = new Rect({ left: 0, top: 0, width: canvasWRef.current, height: canvasHRef.current, fill: bgColorRef.current, selectable: false, evented: false })
       ;(bg as any).__isBg = true
       bgRef.current = bg
       fc.add(bg); fc.sendObjectToBack(bg)
@@ -406,7 +415,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     const fc = fabricRef.current; if (!fc) return
     const z = Math.min(2, Math.max(0.1, zoom + d))
     setZoom(z); fc.setZoom(z)
-    fc.setDimensions({ width: Math.round(CW * z), height: Math.round(CH * z) })
+    fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(CH * z) })
     fc.renderAll(); setCanvasPos(calcPos(z))
   }
 
@@ -466,7 +475,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{ ...bS, fontSize: 13 }}>← {campaign.name}</button>
         <div style={{ flex: 1 }} />
         {saving && <span style={{ fontSize: 11, color: "#555" }}>Salvando...</span>}
-        <span style={{ fontSize: 11, color: "#555" }}>1920 × 1080</span>
+        <span style={{ fontSize: 11, color: "#555" }}>{canvasW} × {canvasH}</span>
         <button onClick={() => setModal(true)} style={{ background: "#F5C400", border: "none", borderRadius: 6, padding: "6px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#111" }}>▶ Gerar Peças</button>
       </div>
 
