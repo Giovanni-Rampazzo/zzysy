@@ -387,7 +387,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   async function saveAsset(aid: string, content: TextSpan[]) {
-    const value = content.map(s => s.text).join("")
+    // value = texto puro SEM quebras de linha (para comparações no polling)
+    const value = content.map(s => s.text).join("").replace(/\n/g, "")
     await fetch(`/api/campaigns/${campaignId}/assets/${aid}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content, value })
