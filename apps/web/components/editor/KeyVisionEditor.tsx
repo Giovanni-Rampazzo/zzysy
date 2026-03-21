@@ -176,11 +176,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       bgColorRef.current = bg
       if (d.assets?.length) { setAssetId(d.assets[0].id); assetIdRef.current = d.assets[0].id }
     })
-  }, [campaign])
+  }, [campaignId])
 
   // ─── Inicializar Fabric ────────────────────────────────────────
   useEffect(() => {
     if (!campaign || !canvasRef.current || fabricRef.current) return
+    // Fabric só inicializa uma vez — fabricRef.current garante isso
     campaignRef.current = campaign
     let alive = true
 
