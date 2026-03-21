@@ -178,16 +178,19 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     })
   }, [campaignId])
 
-  // ─── Inicializar Fabric ────────────────────────────────────────
+  // ─── Inicializar Fabric (uma única vez) ──────────────────────
   useEffect(() => {
-    if (!campaign || !canvasRef.current || fabricRef.current) return
-    // Fabric só inicializa uma vez — fabricRef.current garante isso
-    campaignRef.current = campaign
+    if (!canvasRef.current) return
     let alive = true
+    // Aguardar campaign via ref sem criar dependência de state
+    const init = setInterval(async () => {
+      if (!alive || !campaignRef.current || fabricRef.current) return
+      clearInterval(init)
 
     ;(async () => {
       const { Canvas, Rect, Textbox } = await import("fabric")
-      if (!alive || !canvasRef.current) return
+      if (!alive || !canvasRef.current || !campaignRef.current) return
+      const campaign = campaignRef.current
 
       const fc = new Canvas(canvasRef.current, {
         width: Math.round(CW * zoom),
@@ -265,13 +268,14 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
       fc.renderAll()
       if (alive) refreshLayers(fc)
-    })()
+    }, 50)
 
     return () => {
       alive = false
+      clearInterval(init)
       if (fabricRef.current) { fabricRef.current.dispose(); fabricRef.current = null }
     }
-  }, [campaign])
+  }, [campaignId])
 
   function refreshLayers(fc: any) {
     setLayers(fc.getObjects()
