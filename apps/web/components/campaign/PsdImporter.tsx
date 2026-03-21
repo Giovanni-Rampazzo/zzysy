@@ -14,25 +14,16 @@ function colorToHex(color: any): string {
   return "#" + [r, g, b].map(v => v.toString(16).padStart(2, "0")).join("")
 }
 
-// Percorre recursivamente TODOS os layers, incluindo dentro de grupos
-function collectLayers(layer: any, result: any[] = [], depth = 0): any[] {
-  if (!layer) return result
-  const name = layer.name ?? ""
-
-  // Sempre descer nos filhos primeiro
-  if (layer.children?.length) {
-    for (const child of layer.children) {
-      collectLayers(child, result, depth + 1)
-    }
-  }
-
-  // Incluir este layer se tiver conteúdo relevante (qualquer profundidade)
-  if (name && name !== "Background" && !name.startsWith("<")) {
-    if (layer.text || layer.canvas || layer.imageData) {
+// Percorre recursivamente todos os layers do PSD
+function collectAllLayers(layers: any[]): any[] {
+  const result: any[] = []
+  for (const layer of layers) {
+    if (layer.children?.length) {
+      result.push(...collectAllLayers(layer.children))
+    } else {
       result.push(layer)
     }
   }
-
   return result
 }
 
@@ -42,16 +33,13 @@ export function PsdImporter({ campaignId, onImported }: Props) {
   const [error, setError] = useState("")
   const [confirm, setConfirm] = useState(false)
   const [pending, setPending] = useState<any>(null)
-  const [debug, setDebug] = useState("")
 
   async function handleFile(file: File) {
     setLoading(true)
     setError("")
-    setDebug("")
     try {
       const { readPsd } = await import("ag-psd")
       const buffer = await file.arrayBuffer()
-
       const psd = readPsd(buffer, {
         skipLayerImageData: false,
         skipCompositeImageData: true,
@@ -60,29 +48,22 @@ export function PsdImporter({ campaignId, onImported }: Props) {
 
       const canvasWidth = psd.width
       const canvasHeight = psd.height
+      const topChildren = psd.children ?? []
 
-      // Debug: ver estrutura do PSD
-      const topLevel = psd.children ?? []
-      const debugInfo = `PSD: ${canvasWidth}x${canvasHeight} | Top layers: ${topLevel.length} | Names: ${topLevel.map((l: any) => l.name).join(", ")}`
-      setDebug(debugInfo)
-      console.log("PSD structure:", JSON.stringify(psd.children?.map((l: any) => ({
-        name: l.name,
-        hasText: !!l.text,
-        hasCanvas: !!l.canvas,
-        hasChildren: l.children?.length,
-        childNames: l.children?.map((c: any) => c.name)
-      })), null, 2))
+      // Coletar todos os layers folha (sem filhos)
+      const allLayers = collectAllLayers(topChildren)
 
-      const allLayers = collectLayers(psd)
       const assets: any[] = []
       let zIndex = allLayers.length
 
       for (const layer of allLayers) {
-        const name = layer.name ?? ""
+        const name = (layer.name ?? "").trim()
+        if (!name || name === "Background") { zIndex--; continue }
+
         const left = layer.left ?? 0
         const top = layer.top ?? 0
-        const width = Math.max((layer.right ?? left) - left, 10)
-        const height = Math.max((layer.bottom ?? top) - top, 10)
+        const width = Math.max((layer.right ?? left + 200) - left, 10)
+        const height = Math.max((layer.bottom ?? top + 50) - top, 10)
 
         if (layer.text) {
           const td = layer.text
@@ -101,21 +82,18 @@ export function PsdImporter({ campaignId, onImported }: Props) {
             posX: left, posY: top, width: Math.max(width, 200), height, zIndex,
           })
         } else if (layer.canvas) {
-          try {
-            const imageUrl = (layer.canvas as HTMLCanvasElement).toDataURL("image/png")
-            assets.push({
-              label: name,
-              type: "IMAGE",
-              imageUrl: null, // não salvar base64 no banco
-              posX: left, posY: top, width, height, zIndex,
-            })
-          } catch { /* ignorar */ }
+          assets.push({
+            label: name,
+            type: "IMAGE",
+            imageUrl: null,
+            posX: left, posY: top, width, height, zIndex,
+          })
         }
         zIndex--
       }
 
       if (assets.length === 0) {
-        setError(`Nenhum layer extraído. ${debugInfo}`)
+        setError(`Nenhum layer extraído. O PSD tem ${topChildren.length} layers no topo mas nenhum com texto ou imagem reconhecível.`)
         return
       }
 
@@ -165,7 +143,6 @@ export function PsdImporter({ campaignId, onImported }: Props) {
         {loading ? "⏳ Processando..." : "📂 Importar PSD"}
       </button>
 
-      {debug && <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{debug}</div>}
       {error && <span style={{ fontSize: 12, color: "#f87171", display: "block", marginTop: 4 }}>{error}</span>}
 
       {confirm && pending && (
@@ -173,13 +150,13 @@ export function PsdImporter({ campaignId, onImported }: Props) {
           <div style={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 12, padding: 32, maxWidth: 480, width: "90%" }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 12 }}>Importar PSD</div>
             <div style={{ fontSize: 13, color: "#888", marginBottom: 8 }}>
-              <strong style={{ color: "#fff" }}>{pending.assets.length} layers</strong> encontrados — {pending.canvasWidth}×{pending.canvasHeight}px
+              <strong style={{ color: "#fff" }}>{pending.assets.length} layers</strong> — {pending.canvasWidth}×{pending.canvasHeight}px
             </div>
             <div style={{ fontSize: 11, color: "#888", marginBottom: 16, maxHeight: 160, overflowY: "auto" as const, background: "#111", borderRadius: 6, padding: 8 }}>
               {pending.assets.map((a: any, i: number) => (
                 <div key={i} style={{ padding: "3px 0", borderBottom: "1px solid #222" }}>
                   {a.type === "TEXT" ? "T" : "🖼"} <strong style={{ color: "#fff" }}>{a.label}</strong>
-                  {a.type === "TEXT" && <span style={{ color: "#555" }}> — {a.content?.[0]?.text?.substring(0, 30)}</span>}
+                  {a.type === "TEXT" && <span style={{ color: "#555" }}> — {a.content?.[0]?.text?.substring(0, 40)}</span>}
                 </div>
               ))}
             </div>
