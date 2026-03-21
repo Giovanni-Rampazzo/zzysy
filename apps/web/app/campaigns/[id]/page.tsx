@@ -137,12 +137,15 @@ export default function CampaignPage() {
             <h1 style={{fontSize:22,fontWeight:700,margin:0}}>{campaign.name}</h1>
             <p style={{fontSize:12,color:"#888",margin:"4px 0 0"}}>Assets — <span style={{color:"#16a34a"}}>salvo automaticamente</span></p>
           </div>
-          <button
-            onClick={() => router.push(`/editor?campaignId=${id}`)}
-            style={{background:"#F5C400",border:"none",borderRadius:6,padding:"10px 24px",fontWeight:700,fontSize:14,cursor:"pointer"}}
-          >
-            ▶ Gerar Key Vision
-          </button>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <PsdImporter campaignId={id} onImported={load} />
+            <button
+              onClick={() => router.push(`/editor?campaignId=${id}`)}
+              style={{background:"#F5C400",border:"none",borderRadius:6,padding:"10px 24px",fontWeight:700,fontSize:14,cursor:"pointer"}}
+            >
+              ▶ Abrir Editor
+            </button>
+          </div>
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24}}>
