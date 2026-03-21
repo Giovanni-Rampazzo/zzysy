@@ -275,7 +275,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       const { Canvas, Rect, Textbox } = await import("fabric")
       if (!alive || !canvasRef.current) return
 
-      const fc = new Canvas(canvasRef.current, { width: Math.round(canvasWRef.current * zoom), height: Math.round(CH * zoom) })
+      const fc = new Canvas(canvasRef.current, { width: Math.round(canvasWRef.current * zoom), height: Math.round(canvasHRef.current * zoom) })
       fc.setZoom(zoom)
       fabricRef.current = fc
 
@@ -415,7 +415,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     const fc = fabricRef.current; if (!fc) return
     const z = Math.min(2, Math.max(0.1, zoom + d))
     setZoom(z); fc.setZoom(z)
-    fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(CH * z) })
+    fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(canvasHRef.current * z) })
     fc.renderAll(); setCanvasPos(calcPos(z))
   }
 
