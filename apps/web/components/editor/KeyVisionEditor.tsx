@@ -237,6 +237,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const bgColorRef = useRef("#ffffff")
   const saveTimer = useRef<any>()
   const pollTimer = useRef<any>()
+  const lastAssetValues = useRef<Record<string,string>>({})
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [selected, setSelected] = useState<any>(null)
   const [layers, setLayers] = useState<any[]>([])
