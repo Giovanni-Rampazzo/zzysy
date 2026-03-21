@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState, useRef } from "react"
-import { PsdImporter } from "@/components/campaign/PsdImporter"
+import dynamic from "next/dynamic"
+const PsdImporter = dynamic(() => import("@/components/campaign/PsdImporter").then(m => ({ default: m.PsdImporter })), { ssr: false })
 import { useParams, useRouter } from "next/navigation"
 import TopNav from "@/components/TopNav"
 
