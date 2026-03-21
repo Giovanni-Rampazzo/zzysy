@@ -182,15 +182,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   useEffect(() => {
     if (!canvasRef.current) return
     let alive = true
-    // Aguardar campaign via ref sem criar dependência de state
-    const init = setInterval(async () => {
+    const init = setInterval(() => {
       if (!alive || !campaignRef.current || fabricRef.current) return
       clearInterval(init)
-
-    ;(async () => {
+      const campaign = campaignRef.current!
+      ;(async () => {
       const { Canvas, Rect, Textbox } = await import("fabric")
-      if (!alive || !canvasRef.current || !campaignRef.current) return
-      const campaign = campaignRef.current
+      if (!alive || !canvasRef.current) return
 
       const fc = new Canvas(canvasRef.current, {
         width: Math.round(CW * zoom),
@@ -268,6 +266,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
       fc.renderAll()
       if (alive) refreshLayers(fc)
+      })()
     }, 50)
 
     return () => {
