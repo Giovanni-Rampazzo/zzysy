@@ -122,7 +122,7 @@ function fabricToSpans(fabricObj: any): TextSpan[] {
 // ─── Helpers ──────────────────────────────────────────────────────
 function getSpans(asset: Asset): TextSpan[] {
   if (asset.content?.length) return asset.content
-  const text = asset.value?.trim() || asset.label
+  const text = asset.value?.trim() || `[${asset.label}]`
   return [{ text, style: { color: "#111111", fontSize: 80, fontWeight: "normal", fontFamily: "Arial" } }]
 }
 
@@ -345,9 +345,10 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     } else {
       const spans = getSpans(asset)
       const { text, styles, baseStyle } = spansToFabricStyles(spans)
-      const t = new Textbox(text, {
+      const safeText = text || `[${asset.label}]`
+      const t = new Textbox(safeText, {
         left: 100, top: 100,
-        width: 1200,
+        width: CW,  // largura total do canvas — usuário redimensiona
         fontSize: baseStyle.fontSize ?? 80,
         fontFamily: baseStyle.fontFamily ?? "Arial",
         fontWeight: baseStyle.fontWeight ?? "normal",
