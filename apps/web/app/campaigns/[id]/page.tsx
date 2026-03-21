@@ -155,7 +155,7 @@ export default function CampaignPage() {
                     <label style={{fontSize:11,fontWeight:600,textTransform:"uppercase" as const,letterSpacing:"0.5px",color:"#888"}}>{asset.label}</label>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       {savingFields[asset.id] && <span style={{fontSize:10,color:"#888"}}>Salvando...</span>}
-                      {!TEXT_TYPES.slice(0,5).includes(asset.type) && (
+                      {asset.type === "TEXT" && (
                         <button onClick={() => deleteAsset(asset.id)} style={{fontSize:10,border:"none",background:"#f0f0f0",color:"#666",padding:"2px 6px",borderRadius:4,cursor:"pointer"}}>✕</button>
                       )}
                     </div>
