@@ -1,12 +1,12 @@
 "use client"
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { GeneratePiecesModal } from "./GeneratePiecesModal"
 
 // ─── Tipos ────────────────────────────────────────────────────────
 interface TextSpan {
   text: string
-  style: { color?: string; fontSize?: number; fontWeight?: string; fontFamily?: string; linethrough?: boolean; underline?: boolean }
+  style: { color?: string; fontSize?: number; fontWeight?: string; fontFamily?: string }
 }
 interface Asset {
   id: string; type: string; label: string; value: string | null
@@ -28,196 +28,106 @@ const LW = 220, PW = 260, TH = 48, BH = 44
 const FONTS = ["Arial","Arial Black","Georgia","Times New Roman","Courier New","Verdana","Impact","Trebuchet MS","DM Sans","Helvetica Neue"]
 const SWATCHES = ["#111111","#ffffff","#F5C400","#e63946","#457b9d","#2a9d8f","#264653","#f4a261","#8338ec","#ff006e","#06d6a0","#118ab2"]
 
-// ─── Helpers de conversão ─────────────────────────────────────────
+// ─── LCS merge: preserva estilos ao trocar texto ─────────────────
+// Mesmo algoritmo do backend (lib/textMerge.ts) para consistência
 
-// TextSpan[] → array plano de estilos por caractere
-function spansToCharStyles(spans: TextSpan[]): Array<TextSpan["style"]> {
-  const chars: Array<TextSpan["style"]> = []
-  for (const span of spans) {
-    for (const _ of span.text) {
-      chars.push({ ...span.style })
-    }
+type CharStyle = { char: string; style: TextSpan["style"] }
+
+function lcsAlign(oldText: string, newText: string, oldStyles: CharStyle[]): CharStyle[] {
+  const m = oldText.length, n = newText.length
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = oldText[i-1] === newText[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1])
+
+  const result: CharStyle[] = []
+  let i = m, j = n
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldText[i-1] === newText[j-1]) {
+      result.unshift({ char: newText[j-1], style: oldStyles[i-1].style }); i--; j--
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      const neighbor = i > 0 ? oldStyles[i-1].style : (oldStyles[0]?.style ?? {})
+      result.unshift({ char: newText[j-1], style: neighbor }); j--
+    } else { i-- }
   }
+  return result
+}
+
+function spansToCharStyles(spans: TextSpan[]): CharStyle[] {
+  const chars: CharStyle[] = []
+  for (const span of spans)
+    for (const char of span.text)
+      chars.push({ char, style: span.style })
   return chars
 }
 
-// array plano de estilos por caractere → TextSpan[]
-function charStylesToSpans(text: string, charStyles: Array<TextSpan["style"]>): TextSpan[] {
-  if (!text.length) return []
+function charStylesToSpans(chars: CharStyle[]): TextSpan[] {
+  if (!chars.length) return [{ text: "", style: {} }]
   const spans: TextSpan[] = []
-  let cur = text[0]
-  let curStyle = charStyles[0] ?? {}
-  for (let i = 1; i < text.length; i++) {
-    const s = charStyles[i] ?? {}
-    if (JSON.stringify(s) === JSON.stringify(curStyle)) {
-      cur += text[i]
-    } else {
-      spans.push({ text: cur, style: curStyle })
-      cur = text[i]
-      curStyle = s
-    }
+  let cur = chars[0].char, curStyle = chars[0].style
+  for (let i = 1; i < chars.length; i++) {
+    if (JSON.stringify(chars[i].style) === JSON.stringify(curStyle)) { cur += chars[i].char }
+    else { spans.push({ text: cur, style: curStyle }); cur = chars[i].char; curStyle = chars[i].style }
   }
   spans.push({ text: cur, style: curStyle })
   return spans
 }
 
-// Merge inteligente: dado texto antigo com estilos por char e texto novo,
-// preserva os estilos dos caracteres que se mantiveram (LCS)
-// e usa o estilo do caractere mais próximo para os novos
-function mergeTextWithStyles(oldText: string, oldCharStyles: Array<TextSpan["style"]>, newText: string): Array<TextSpan["style"]> {
-  // Caso simples: mesmo comprimento — mapear 1:1
-  if (oldText.length === newText.length) {
-    return oldCharStyles.slice(0, newText.length)
-  }
-  
-  // Caso: texto novo é extensão do antigo (só acrescentou no final)
-  if (newText.startsWith(oldText)) {
-    const defaultStyle = oldCharStyles[oldCharStyles.length - 1] ?? {}
-    const extra = new Array(newText.length - oldText.length).fill({ ...defaultStyle })
-    return [...oldCharStyles, ...extra]
-  }
-  
-  // Caso: texto novo é subconjunto (removeu do final)
-  if (oldText.startsWith(newText)) {
-    return oldCharStyles.slice(0, newText.length)
-  }
-  
-  // Caso geral: LCS para preservar estilos
-  // Encontrar o maior prefixo comum
-  let commonPrefix = 0
-  while (commonPrefix < oldText.length && commonPrefix < newText.length && oldText[commonPrefix] === newText[commonPrefix]) {
-    commonPrefix++
-  }
-  
-  // Encontrar o maior sufixo comum
-  let commonSuffix = 0
-  const oldEnd = oldText.length - 1
-  const newEnd = newText.length - 1
-  while (commonSuffix < oldText.length - commonPrefix && commonSuffix < newText.length - commonPrefix && oldText[oldEnd - commonSuffix] === newText[newEnd - commonSuffix]) {
-    commonSuffix++
-  }
-  
-  // Preservar estilos do prefixo e sufixo comuns
-  const prefixStyles = oldCharStyles.slice(0, commonPrefix)
-  const suffixStyles = oldCharStyles.slice(oldText.length - commonSuffix)
-  
-  // Para a parte do meio (que mudou), usar o estilo do caractere anterior ou posterior
-  const middleLen = newText.length - commonPrefix - commonSuffix
-  const bridgeStyle = oldCharStyles[commonPrefix] ?? oldCharStyles[commonPrefix - 1] ?? oldCharStyles[0] ?? {}
-  const middleStyles = new Array(middleLen).fill({ ...bridgeStyle })
-  
-  return [...prefixStyles, ...middleStyles, ...suffixStyles]
-}
-
-// TextSpan[] → formato Fabric
-function spansToFabric(spans: TextSpan[]) {
-  let text = ""
+function mergeTextIntoSpans(spans: TextSpan[], newText: string): TextSpan[] {
+  if (!spans.length) return [{ text: newText, style: {} }]
   const charStyles = spansToCharStyles(spans)
-  const styles: Record<string, Record<string, any>> = { "0": {} }
-  let lineIdx = 0
-  let charInLine = 0
-
-  for (const char of text.split("").map((_, i) => spans.flatMap(s => [...s.text])[i])) {
-    styles[String(lineIdx)][charInLine] = {
-      fill: charStyles[charInLine]?.color ?? "#111111",
-      fontSize: charStyles[charInLine]?.fontSize ?? 80,
-      fontWeight: charStyles[charInLine]?.fontWeight ?? "normal",
-      fontFamily: charStyles[charInLine]?.fontFamily ?? "Arial",
-    }
-    charInLine++
-  }
-
-  // Reconstruir corretamente
-  const stylesOut: Record<string, Record<string, any>> = {}
-  let globalIdx = 0
-  let lineNum = 0
-  for (const span of spans) {
-    for (const char of span.text) {
-      if (char === "\n") {
-        lineNum++
-        if (!stylesOut[String(lineNum)]) stylesOut[String(lineNum)] = {}
-      } else {
-        if (!stylesOut[String(lineNum)]) stylesOut[String(lineNum)] = {}
-        const lineCharIdx = [...span.text].slice(0, span.text.indexOf(char)).filter(c => c !== "\n").length + 
-          spans.slice(0, spans.indexOf(span)).reduce((acc, s) => acc + [...s.text].filter((c,i) => {
-            const prevNewlines = [...s.text].slice(0,i).filter(x=>x==="\n").length
-            return c !== "\n" && prevNewlines === lineNum - spans.slice(0,spans.indexOf(span)).reduce((a,ss)=>{return a},0)
-          }).length, 0)
-        stylesOut[String(lineNum)][globalIdx] = {
-          fill: span.style.color ?? "#111111",
-          fontSize: span.style.fontSize ?? 80,
-          fontWeight: span.style.fontWeight ?? "normal",
-          fontFamily: span.style.fontFamily ?? "Arial",
-        }
-      }
-      globalIdx++
-    }
-  }
-
-  const base = spans[0]?.style ?? {}
-  return { 
-    text: spans.map(s => s.text).join(""), 
-    styles: stylesOut,
-    base 
-  }
+  const oldText = charStyles.map(c => c.char).join("")
+  if (oldText === newText) return spans
+  return charStylesToSpans(lcsAlign(oldText, newText, charStyles))
 }
 
-// Versão simplificada e correta
-function spansToFabricSimple(spans: TextSpan[]) {
+// ─── Fabric ↔ TextSpan[] ─────────────────────────────────────────
+// Fabric indexa styles por [linha][posição_na_linha]
+// TextSpan usa \n no texto para quebras de linha
+
+function spansToFabric(spans: TextSpan[]) {
   const fullText = spans.map(s => s.text).join("")
   const charStyles = spansToCharStyles(spans)
-  
-  // Fabric indexa por linha e posição na linha
   const lines = fullText.split("\n")
   const fabricStyles: Record<string, Record<string, any>> = {}
   let globalIdx = 0
-  
+
   lines.forEach((line, lineNum) => {
     fabricStyles[String(lineNum)] = {}
     for (let i = 0; i < line.length; i++) {
       const cs = charStyles[globalIdx] ?? {}
       fabricStyles[String(lineNum)][i] = {
-        fill: cs.color ?? "#111111",
-        fontSize: cs.fontSize ?? 80,
-        fontWeight: cs.fontWeight ?? "normal",
-        fontFamily: cs.fontFamily ?? "Arial",
+        fill: cs.style?.color ?? "#111111",
+        fontSize: cs.style?.fontSize ?? 80,
+        fontWeight: cs.style?.fontWeight ?? "normal",
+        fontFamily: cs.style?.fontFamily ?? "Arial",
       }
       globalIdx++
     }
-    globalIdx++ // pular o \n
+    globalIdx++ // pular \n
   })
-  
+
   const base = spans[0]?.style ?? {}
   return { text: fullText, styles: fabricStyles, base }
 }
 
-// Fabric → TextSpan[]
 function fabricToSpans(obj: any): TextSpan[] {
   const text: string = obj.text ?? ""
   const fabricStyles: Record<string, Record<string, any>> = obj.styles ?? {}
-  const baseStyle = { color: obj.fill ?? "#111111", fontSize: obj.fontSize ?? 80, fontWeight: obj.fontWeight ?? "normal", fontFamily: obj.fontFamily ?? "Arial" }
-  
-  // Reconstruir array plano de estilos
+  const base = { color: obj.fill ?? "#111111", fontSize: obj.fontSize ?? 80, fontWeight: obj.fontWeight ?? "normal", fontFamily: obj.fontFamily ?? "Arial" }
   const lines = text.split("\n")
-  const charStyles: Array<TextSpan["style"]> = []
-  
+  const chars: CharStyle[] = []
+
   lines.forEach((line, lineNum) => {
     const lineStyle = fabricStyles[String(lineNum)] ?? {}
     for (let i = 0; i < line.length; i++) {
       const cs = lineStyle[i] ?? {}
-      charStyles.push({
-        color: cs.fill ?? baseStyle.color,
-        fontSize: cs.fontSize ?? baseStyle.fontSize,
-        fontWeight: cs.fontWeight ?? baseStyle.fontWeight,
-        fontFamily: cs.fontFamily ?? baseStyle.fontFamily,
-      })
+      chars.push({ char: line[i], style: { color: cs.fill ?? base.color, fontSize: cs.fontSize ?? base.fontSize, fontWeight: cs.fontWeight ?? base.fontWeight, fontFamily: cs.fontFamily ?? base.fontFamily } })
     }
-    if (lineNum < lines.length - 1) {
-      charStyles.push({ ...baseStyle }) // estilo do \n
-    }
+    if (lineNum < lines.length - 1) chars.push({ char: "\n", style: base })
   })
-  
-  return charStylesToSpans(text, charStyles)
+
+  return charStylesToSpans(chars)
 }
 
 function getSpans(asset: Asset): TextSpan[] {
@@ -237,7 +147,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const bgColorRef = useRef("#ffffff")
   const saveTimer = useRef<any>()
   const pollTimer = useRef<any>()
-  const lastAssetValues = useRef<Record<string,string>>({})
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [selected, setSelected] = useState<any>(null)
   const [layers, setLayers] = useState<any[]>([])
@@ -270,18 +179,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       setCampaign(d)
       const bg = d.keyVision?.bgColor ?? "#ffffff"
       setBgColor(bg); bgColorRef.current = bg
-      if (d.assets?.length) {
-        setAid(d.assets[0].id)
-        // Inicializar valores base para polling
-        const vals: Record<string,string> = {}
-        for (const a of d.assets) vals[a.id] = a.value ?? ""
-        lastAssetValues.current = vals
-      }
+      if (d.assets?.length) setAid(d.assets[0].id)
     })
   }, [campaignId])
 
-  // ─── Polling de assets: detecta mudanças feitas na página de Assets ───
-  // A cada 3s, busca os assets atualizados e sincroniza os layers do canvas
+  // ─── Polling: sincroniza mudanças de Assets → canvas ──────────
+  // A cada 3s verifica se algum asset mudou na página de Assets
+  // e aplica merge LCS no canvas para preservar formatação individual
   useEffect(() => {
     pollTimer.current = setInterval(async () => {
       const fc = fabricRef.current
@@ -289,35 +193,34 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       if (!fc || !c) return
 
       const res = await fetch(`/api/campaigns/${campaignId}`)
+      if (!res.ok) return
       const fresh: Campaign = await res.json()
-      
-      // Para cada layer de texto no canvas, verificar se o asset mudou
-      const objects = fc.getObjects().filter((o: any) => !o.__isBg && o.__assetId)
-      for (const obj of objects) {
-        const oldAsset = c.assets.find((a: Asset) => a.id === obj.__assetId)
-        const newAsset = fresh.assets.find((a: Asset) => a.id === obj.__assetId)
-        if (!oldAsset || !newAsset) continue
+
+      const assetMap = Object.fromEntries(fresh.assets.map((a: Asset) => [a.id, a]))
+      let changed = false
+
+      for (const obj of fc.getObjects()) {
+        if (!obj.__assetId || obj.__isBg) continue
         if (obj.type !== "textbox" && obj.type !== "i-text") continue
 
-        const oldText = obj.text ?? ""
-        const newSpans = getSpans(newAsset)
-        const newText = newSpans.map((s: TextSpan) => s.text).join("")
+        const newAsset = assetMap[obj.__assetId] as Asset
+        if (!newAsset) continue
 
-        // Se o texto não mudou, não fazer nada
-        if (oldText === newText) continue
+        const newValue = newAsset.value ?? ""
+        const currentText = obj.text ?? ""
 
-        // Texto mudou → merge inteligente de estilos
+        // Sem mudança → pular
+        if (currentText === newValue) continue
+
+        // Texto mudou → merge LCS preservando formatação do canvas
         const currentSpans = fabricToSpans(obj)
-        const currentCharStyles = spansToCharStyles(currentSpans)
-        const mergedCharStyles = mergeTextWithStyles(oldText, currentCharStyles, newText)
-        const mergedSpans = charStylesToSpans(newText, mergedCharStyles)
+        const mergedSpans = mergeTextIntoSpans(currentSpans, newValue)
+        const { text, styles } = spansToFabric(mergedSpans)
 
-        // Aplicar no Fabric sem perder formatação
-        const { text, styles } = spansToFabricSimple(mergedSpans)
         obj.set({ text, styles })
-        fc.renderAll()
+        changed = true
 
-        // Salvar os spans merged no banco
+        // Salvar os spans merged no asset para manter sincronia
         await fetch(`/api/campaigns/${campaignId}/assets/${obj.__assetId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -325,7 +228,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         })
       }
 
-      // Atualizar ref sem re-renderizar o componente
+      if (changed) fc.renderAll()
       campaignRef.current = fresh
     }, 3000)
 
@@ -356,8 +259,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.on("object:modified", () => { if (alive) doSave() })
       fc.on("object:added", () => { if (alive) refreshLayers(fc) })
       fc.on("object:removed", () => { if (alive) refreshLayers(fc) })
-      
-      // Ao sair da edição: serializar spans e salvar no asset
+
+      // Ao sair da edição de texto: salvar spans no asset
+      // Isso garante que mudanças feitas no editor reflitam na página de Assets
       fc.on("text:editing:exited", async (e: any) => {
         const obj = e.target
         if (!obj?.__assetId) return
@@ -374,12 +278,22 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           const asset = am[layer.assetId] as Asset
           if (!asset) continue
           if (IMAGE_TYPES.includes(asset.type)) {
-            const r = new Rect({ left: layer.posX, top: layer.posY, width: layer.width || 400, height: 300, fill: "#e8e8e8", stroke: "#aaa", strokeWidth: 2, strokeDashArray: [10, 5], scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, angle: layer.rotation ?? 0 })
+            const r = new Rect({
+              left: layer.posX, top: layer.posY, width: layer.width || 400, height: 300,
+              fill: "#e8e8e8", stroke: "#aaa", strokeWidth: 2, strokeDashArray: [10, 5],
+              scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, angle: layer.rotation ?? 0
+            })
             ;(r as any).__assetId = asset.id; (r as any).__assetLabel = asset.label
             fc.add(r)
           } else {
-            const { text, styles, base } = spansToFabricSimple(getSpans(asset))
-            const t = new Textbox(text, { left: layer.posX, top: layer.posY, width: layer.width || 800, fontSize: (base as any).fontSize ?? 80, fontFamily: (base as any).fontFamily ?? "Arial", fontWeight: (base as any).fontWeight ?? "normal", fill: (base as any).color ?? "#111111", styles, editable: true, splitByGrapheme: false, scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, angle: layer.rotation ?? 0 })
+            const { text, styles, base } = spansToFabric(getSpans(asset))
+            const t = new Textbox(text, {
+              left: layer.posX, top: layer.posY, width: layer.width || 800,
+              fontSize: (base as any).fontSize ?? 80, fontFamily: (base as any).fontFamily ?? "Arial",
+              fontWeight: (base as any).fontWeight ?? "normal", fill: (base as any).color ?? "#111111",
+              styles, editable: true, splitByGrapheme: false,
+              scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, angle: layer.rotation ?? 0
+            })
             ;(t as any).__assetId = asset.id; (t as any).__assetLabel = asset.label
             fc.add(t)
           }
@@ -399,7 +313,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }, [campaign])
 
   function refreshLayers(fc: any) {
-    setLayers(fc.getObjects().filter((o: any) => !o.__isBg).map((o: any, i: number) => ({ id: i, label: o.__assetLabel ?? o.type, type: o.type, obj: o })).reverse())
+    setLayers(fc.getObjects().filter((o: any) => !o.__isBg).map((o: any, i: number) => ({
+      id: i, label: o.__assetLabel ?? o.type, type: o.type, obj: o
+    })).reverse())
   }
 
   function doSave() {
@@ -412,15 +328,25 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         assetId: o.__assetId ?? "", posX: o.left ?? 0, posY: o.top ?? 0,
         scaleX: o.scaleX ?? 1, scaleY: o.scaleY ?? 1, rotation: o.angle ?? 0, zIndex: i, width: o.width ?? 800
       }))
-      await fetch(`/api/campaigns/${campaignId}/key-vision`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bgColor: bgColorRef.current, layers: layersToSave }) })
+      await fetch(`/api/campaigns/${campaignId}/key-vision`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bgColor: bgColorRef.current, layers: layersToSave })
+      })
       setSaving(false)
     }, 800)
   }
 
-  async function saveAsset(assetId: string, content: TextSpan[]) {
-    await fetch(`/api/campaigns/${campaignId}/assets/${assetId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) })
+  async function saveAsset(aid: string, content: TextSpan[]) {
+    const value = content.map(s => s.text).join("")
+    await fetch(`/api/campaigns/${campaignId}/assets/${aid}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, value })
+    })
     if (campaignRef.current) {
-      campaignRef.current = { ...campaignRef.current, assets: campaignRef.current.assets.map((a: Asset) => a.id === assetId ? { ...a, content } : a) }
+      campaignRef.current = {
+        ...campaignRef.current,
+        assets: campaignRef.current.assets.map((a: Asset) => a.id === aid ? { ...a, content, value } : a)
+      }
     }
   }
 
@@ -432,16 +358,23 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     const asset = c.assets.find((a: Asset) => a.id === aid)
     if (!asset) return
     const { Rect, Textbox } = await import("fabric")
+
     if (IMAGE_TYPES.includes(asset.type)) {
       const r = new Rect({ left: 100, top: 100, width: 400, height: 300, fill: "#e8e8e8", stroke: "#aaa", strokeWidth: 2, strokeDashArray: [10, 5] })
       ;(r as any).__assetId = asset.id; (r as any).__assetLabel = asset.label
       fc.add(r); fc.setActiveObject(r)
     } else {
-      const { text, styles, base } = spansToFabricSimple(getSpans(asset))
-      const t = new Textbox(text, { left: 100, top: 100, width: 1200, fontSize: (base as any).fontSize ?? 80, fontFamily: (base as any).fontFamily ?? "Arial", fontWeight: (base as any).fontWeight ?? "normal", fill: (base as any).color ?? "#111111", styles, editable: true, splitByGrapheme: false })
+      const { text, styles, base } = spansToFabric(getSpans(asset))
+      const t = new Textbox(text, {
+        left: 100, top: 100, width: 1200,
+        fontSize: (base as any).fontSize ?? 80, fontFamily: (base as any).fontFamily ?? "Arial",
+        fontWeight: (base as any).fontWeight ?? "normal", fill: (base as any).color ?? "#111111",
+        styles, editable: true, splitByGrapheme: false
+      })
       ;(t as any).__assetId = asset.id; (t as any).__assetLabel = asset.label
       fc.add(t); fc.setActiveObject(t)
     }
+
     fc.renderAll()
     doSave()
   }
@@ -449,7 +382,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   function chZoom(d: number) {
     const fc = fabricRef.current; if (!fc) return
     const z = Math.min(2, Math.max(0.1, zoom + d))
-    setZoom(z); fc.setZoom(z); fc.setDimensions({ width: Math.round(CW * z), height: Math.round(CH * z) }); fc.renderAll(); setCanvasPos(calcPos(z))
+    setZoom(z); fc.setZoom(z)
+    fc.setDimensions({ width: Math.round(CW * z), height: Math.round(CH * z) })
+    fc.renderAll(); setCanvasPos(calcPos(z))
   }
 
   function undo() {
@@ -484,7 +419,11 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     setSelected((p: any) => p ? { ...p, _ts: Date.now() } : p)
   }
 
-  if (!campaign) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#1a1a1a", color: "#888", fontSize: 14 }}>Carregando...</div>
+  if (!campaign) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#1a1a1a", color: "#888", fontSize: 14 }}>
+      Carregando...
+    </div>
+  )
 
   const isText = selected && (selected.type === "textbox" || selected.type === "i-text")
   const isImg = selected && selected.type === "rect" && !selected.__isBg
@@ -558,7 +497,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         ) : isText ? (
           <div style={{ padding: 16, display: "flex", flexDirection: "column" as const, gap: 14 }}>
             <div style={{ padding: 8, background: "rgba(245,196,0,0.08)", borderRadius: 6, border: "1px solid rgba(245,196,0,0.2)", fontSize: 10, color: "#F5C400", lineHeight: 1.6 }}>
-              Duplo clique para editar.<br />Selecione letras para mudar individualmente.
+              Duplo clique para editar texto.<br />Selecione letras para mudar estilos individualmente.
             </div>
             <div>
               <div style={secS}>Fonte</div>
