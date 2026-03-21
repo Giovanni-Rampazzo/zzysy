@@ -3,11 +3,7 @@ import { useEffect, useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import TopNav from "@/components/TopNav"
 
-const TEXT_TYPES = ["TITULO","SUBTITULO","TEXTO","TEXTO_APOIO","CTA","CUSTOM_TEXT"]
-const IMAGE_TYPES = ["LOGOMARCA","PERSONA","PRODUTO","FUNDO","CUSTOM_IMAGE"]
-const ICONS: Record<string,string> = {
-  LOGOMARCA:"🏷",PERSONA:"👤",PRODUTO:"🥤",FUNDO:"🖼",CUSTOM_IMAGE:"📎"
-}
+const IMAGE_TYPES = ["IMAGE"]
 
 interface Asset {
   id: string; type: string; label: string; value: string | null; imageUrl: string | null; order: number
