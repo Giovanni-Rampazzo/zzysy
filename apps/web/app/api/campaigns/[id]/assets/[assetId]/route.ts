@@ -12,31 +12,51 @@ export async function PUT(req: Request, ctx: Ctx) {
   const { assetId } = await ctx.params
   const body = await req.json()
 
-  // Se o usuário está atualizando o value (texto puro vindo da página de Assets)
-  // fazemos merge preservando os estilos do content existente
-  if (typeof body.value === "string" && !("content" in body)) {
-    const existing = await prisma.campaignAsset.findUnique({ where: { id: assetId } })
-    if (existing) {
-      const existingContent = existing.content as any[] | null
-      if (existingContent && existingContent.length > 0) {
-        // Verificar se o texto atual dos spans é diferente do novo value
-        const oldText = spansToText(existingContent as any)
-        if (oldText !== body.value) {
-          // Fazer merge: preserva estilos, atualiza texto
-          const mergedContent = mergeTextIntoSpans(existingContent as any, body.value)
-          body.content = mergedContent
-        }
+  const existing = await prisma.campaignAsset.findUnique({ where: { id: assetId } })
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+  const existingContent = existing.content as any[] | null
+  let finalContent = body.content
+  let finalValue = body.value
+
+  // CASO 1: vem só value (página de Assets atualizou o texto puro)
+  if (typeof body.value === "string" && !body.content) {
+    finalValue = body.value
+    if (existingContent && existingContent.length > 0) {
+      const oldText = spansToText(existingContent as any)
+      if (oldText !== body.value) {
+        // Merge LCS: preserva estilos, atualiza texto
+        finalContent = mergeTextIntoSpans(existingContent as any, body.value)
+      } else {
+        finalContent = existingContent
       }
+    } else {
+      // Sem content anterior: criar span simples
+      finalContent = [{ text: body.value, style: {} }]
     }
   }
 
-  // Se o usuário está atualizando o content (vindo do editor)
-  // também atualiza o value com o texto puro (para manter sincronia)
-  if (body.content && Array.isArray(body.content) && !("value" in body)) {
-    body.value = spansToText(body.content)
+  // CASO 2: vem só content (editor atualizou estilos/texto)
+  if (body.content && !body.value) {
+    finalContent = body.content
+    finalValue = spansToText(body.content)
   }
 
-  const asset = await prisma.campaignAsset.update({ where: { id: assetId }, data: body })
+  // CASO 3: vem content + value juntos (editor salvando ambos)
+  if (body.content && body.value) {
+    finalContent = body.content
+    finalValue = body.value
+  }
+
+  const data: any = {}
+  if (finalValue !== undefined) data.value = finalValue
+  if (finalContent !== undefined) data.content = finalContent
+  // Outros campos (imageUrl, label, etc)
+  for (const k of ["imageUrl", "label", "order", "visible"]) {
+    if (k in body) data[k] = body[k]
+  }
+
+  const asset = await prisma.campaignAsset.update({ where: { id: assetId }, data })
   return NextResponse.json(asset)
 }
 
