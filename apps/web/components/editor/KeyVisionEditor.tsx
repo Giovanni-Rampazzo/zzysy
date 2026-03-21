@@ -270,7 +270,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       alive = false
       if (fabricRef.current) { fabricRef.current.dispose(); fabricRef.current = null }
     }
-  }, [campaignId])
+  }, [campaign])
 
   function refreshLayers(fc: any) {
     setLayers(fc.getObjects()
