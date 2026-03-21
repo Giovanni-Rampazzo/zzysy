@@ -144,6 +144,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const saveTimer = useRef<any>()
   const assetIdRef = useRef("")
   const bgColorRef = useRef("#ffffff")
+  const campaignRef = useRef<Campaign | null>(null)
 
   function calcPos(z: number) {
     if (typeof window === "undefined") return { left: LW + 40, top: TH + BH + 40 }
@@ -169,16 +170,18 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   useEffect(() => {
     fetch(`/api/campaigns/${campaignId}`).then(r => r.json()).then((d: Campaign) => {
       setCampaign(d)
+      campaignRef.current = d
       const bg = d.keyVision?.bgColor ?? "#ffffff"
       setBgColor(bg)
       bgColorRef.current = bg
       if (d.assets?.length) { setAssetId(d.assets[0].id); assetIdRef.current = d.assets[0].id }
     })
-  }, [campaignId])
+  }, [campaign])
 
   // ─── Inicializar Fabric ────────────────────────────────────────
   useEffect(() => {
     if (!campaign || !canvasRef.current || fabricRef.current) return
+    campaignRef.current = campaign
     let alive = true
 
     ;(async () => {
@@ -220,9 +223,10 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       })
 
       // Restaurar layers salvos
-      if (campaign.keyVision?.layers?.length) {
-        const assetMap = Object.fromEntries(campaign.assets.map(a => [a.id, a]))
-        for (const layer of campaign.keyVision.layers) {
+      const camp = campaignRef.current!
+      if (camp.keyVision?.layers?.length) {
+        const assetMap = Object.fromEntries(camp.assets.map(a => [a.id, a]))
+        for (const layer of camp.keyVision.layers) {
           const asset = assetMap[layer.assetId]
           if (!asset) continue
           if (IMAGE_TYPES.includes(asset.type)) {
@@ -266,7 +270,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       alive = false
       if (fabricRef.current) { fabricRef.current.dispose(); fabricRef.current = null }
     }
-  }, [campaign])
+  }, [campaignId])
 
   function refreshLayers(fc: any) {
     setLayers(fc.getObjects()
@@ -309,16 +313,19 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     })
-    setCampaign(prev => prev ? {
-      ...prev,
-      assets: prev.assets.map(a => a.id === assetId ? { ...a, content } : a)
-    } : prev)
+    // Atualiza só a ref — NÃO o state — para não re-criar o Fabric
+    if (campaignRef.current) {
+      campaignRef.current = {
+        ...campaignRef.current,
+        assets: campaignRef.current.assets.map(a => a.id === assetId ? { ...a, content } : a)
+      }
+    }
   }
 
   // ─── Adicionar asset ao canvas ────────────────────────────────
   async function addLayer() {
     const fc = fabricRef.current
-    const c = campaign
+    const c = campaignRef.current
     const aid = assetIdRef.current
     if (!fc || !c || !aid) return
     const asset = c.assets.find(a => a.id === aid)
