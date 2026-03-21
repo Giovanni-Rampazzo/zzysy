@@ -143,6 +143,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const [canvasPos, setCanvasPos] = useState({ left: LW + 40, top: TH + BH + 40 })
   const saveTimer = useRef<any>()
   const assetIdRef = useRef("")
+  const bgColorRef = useRef("#ffffff")
 
   function calcPos(z: number) {
     if (typeof window === "undefined") return { left: LW + 40, top: TH + BH + 40 }
@@ -168,7 +169,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   useEffect(() => {
     fetch(`/api/campaigns/${campaignId}`).then(r => r.json()).then((d: Campaign) => {
       setCampaign(d)
-      setBgColor(d.keyVision?.bgColor ?? "#ffffff")
+      const bg = d.keyVision?.bgColor ?? "#ffffff"
+      setBgColor(bg)
+      bgColorRef.current = bg
       if (d.assets?.length) { setAssetId(d.assets[0].id); assetIdRef.current = d.assets[0].id }
     })
   }, [campaignId])
@@ -204,7 +207,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.on("selection:created", (e: any) => setSelected(e.selected?.[0] ?? null))
       fc.on("selection:updated", (e: any) => setSelected(e.selected?.[0] ?? null))
       fc.on("selection:cleared", () => setSelected(null))
-      fc.on("object:modified", () => { if (alive) doSave(fc) })
+      fc.on("object:modified", () => { if (alive) doSave() })
       fc.on("object:added", () => { if (alive) refreshLayers(fc) })
       fc.on("object:removed", () => { if (alive) refreshLayers(fc) })
       // Ao sair da edição de texto → serializar para banco
@@ -275,12 +278,14 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   // ─── Salvar layout (layers) ────────────────────────────────────
-  function doSave(fc: any) {
+  function doSave(_fc?: any) {
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
+      const fc = fabricRef.current
+      if (!fc) return
       setSaving(true)
       const objects = fc.getObjects().filter((o: any) => !o.__isBg)
-      const layers: Layer[] = objects.map((o: any, i: number) => ({
+      const layersToSave: Layer[] = objects.map((o: any, i: number) => ({
         assetId: o.__assetId ?? "",
         posX: o.left ?? 0, posY: o.top ?? 0,
         scaleX: o.scaleX ?? 1, scaleY: o.scaleY ?? 1,
@@ -291,7 +296,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       await fetch(`/api/campaigns/${campaignId}/key-vision`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bgColor, layers }),
+        body: JSON.stringify({ bgColor: bgColorRef.current, layers: layersToSave }),
       })
       setSaving(false)
     }, 800)
@@ -348,7 +353,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     }
 
     fc.renderAll()
-    doSave(fc)
+    doSave()
   }
 
   function chZoom(d: number) {
@@ -365,7 +370,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     const fc = fabricRef.current; if (!fc) return
     const objs = fc.getObjects().filter((o: any) => !o.__isBg)
     if (objs.length > 0) {
-      fc.remove(objs[objs.length - 1]); fc.renderAll(); doSave(fc)
+      fc.remove(objs[objs.length - 1]); fc.renderAll(); doSave()
     }
   }
 
@@ -373,7 +378,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     const bg = bgRef.current; const fc = fabricRef.current
     if (!bg || !fc) return
     bg.set("fill", color); fc.renderAll()
-    setBgColor(color); doSave(fc)
+    setBgColor(color)
+    bgColorRef.current = color
+    doSave()
   }
 
   // ─── Painel: aplicar estilos via Fabric API ────────────────────
