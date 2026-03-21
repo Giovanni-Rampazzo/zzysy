@@ -269,7 +269,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       setCampaign(d)
       const bg = d.keyVision?.bgColor ?? "#ffffff"
       setBgColor(bg); bgColorRef.current = bg
-      if (d.assets?.length) setAid(d.assets[0].id)
+      if (d.assets?.length) {
+        setAid(d.assets[0].id)
+        // Inicializar valores base para polling
+        const vals: Record<string,string> = {}
+        for (const a of d.assets) vals[a.id] = a.value ?? ""
+        lastAssetValues.current = vals
+      }
     })
   }, [campaignId])
 
