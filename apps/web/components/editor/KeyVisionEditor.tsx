@@ -1,11 +1,12 @@
 "use client"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { GeneratePiecesModal } from "./GeneratePiecesModal"
 
+// ─── Tipos ────────────────────────────────────────────────────────
 interface TextSpan {
   text: string
-  style: { color?: string; fontSize?: number; fontWeight?: string; fontFamily?: string }
+  style: { color?: string; fontSize?: number; fontWeight?: string; fontFamily?: string; linethrough?: boolean; underline?: boolean }
 }
 interface Asset {
   id: string; type: string; label: string; value: string | null
@@ -24,8 +25,200 @@ interface Campaign {
 const CW = 1920, CH = 1080
 const IMAGE_TYPES = ["PERSONA","PRODUTO","FUNDO","LOGOMARCA","CUSTOM_IMAGE"]
 const LW = 220, PW = 260, TH = 48, BH = 44
-const FONTS = ["Arial","Arial Black","Georgia","Times New Roman","Courier New","Verdana","Impact","Trebuchet MS"]
+const FONTS = ["Arial","Arial Black","Georgia","Times New Roman","Courier New","Verdana","Impact","Trebuchet MS","DM Sans","Helvetica Neue"]
 const SWATCHES = ["#111111","#ffffff","#F5C400","#e63946","#457b9d","#2a9d8f","#264653","#f4a261","#8338ec","#ff006e","#06d6a0","#118ab2"]
+
+// ─── Helpers de conversão ─────────────────────────────────────────
+
+// TextSpan[] → array plano de estilos por caractere
+function spansToCharStyles(spans: TextSpan[]): Array<TextSpan["style"]> {
+  const chars: Array<TextSpan["style"]> = []
+  for (const span of spans) {
+    for (const _ of span.text) {
+      chars.push({ ...span.style })
+    }
+  }
+  return chars
+}
+
+// array plano de estilos por caractere → TextSpan[]
+function charStylesToSpans(text: string, charStyles: Array<TextSpan["style"]>): TextSpan[] {
+  if (!text.length) return []
+  const spans: TextSpan[] = []
+  let cur = text[0]
+  let curStyle = charStyles[0] ?? {}
+  for (let i = 1; i < text.length; i++) {
+    const s = charStyles[i] ?? {}
+    if (JSON.stringify(s) === JSON.stringify(curStyle)) {
+      cur += text[i]
+    } else {
+      spans.push({ text: cur, style: curStyle })
+      cur = text[i]
+      curStyle = s
+    }
+  }
+  spans.push({ text: cur, style: curStyle })
+  return spans
+}
+
+// Merge inteligente: dado texto antigo com estilos por char e texto novo,
+// preserva os estilos dos caracteres que se mantiveram (LCS)
+// e usa o estilo do caractere mais próximo para os novos
+function mergeTextWithStyles(oldText: string, oldCharStyles: Array<TextSpan["style"]>, newText: string): Array<TextSpan["style"]> {
+  // Caso simples: mesmo comprimento — mapear 1:1
+  if (oldText.length === newText.length) {
+    return oldCharStyles.slice(0, newText.length)
+  }
+  
+  // Caso: texto novo é extensão do antigo (só acrescentou no final)
+  if (newText.startsWith(oldText)) {
+    const defaultStyle = oldCharStyles[oldCharStyles.length - 1] ?? {}
+    const extra = new Array(newText.length - oldText.length).fill({ ...defaultStyle })
+    return [...oldCharStyles, ...extra]
+  }
+  
+  // Caso: texto novo é subconjunto (removeu do final)
+  if (oldText.startsWith(newText)) {
+    return oldCharStyles.slice(0, newText.length)
+  }
+  
+  // Caso geral: LCS para preservar estilos
+  // Encontrar o maior prefixo comum
+  let commonPrefix = 0
+  while (commonPrefix < oldText.length && commonPrefix < newText.length && oldText[commonPrefix] === newText[commonPrefix]) {
+    commonPrefix++
+  }
+  
+  // Encontrar o maior sufixo comum
+  let commonSuffix = 0
+  const oldEnd = oldText.length - 1
+  const newEnd = newText.length - 1
+  while (commonSuffix < oldText.length - commonPrefix && commonSuffix < newText.length - commonPrefix && oldText[oldEnd - commonSuffix] === newText[newEnd - commonSuffix]) {
+    commonSuffix++
+  }
+  
+  // Preservar estilos do prefixo e sufixo comuns
+  const prefixStyles = oldCharStyles.slice(0, commonPrefix)
+  const suffixStyles = oldCharStyles.slice(oldText.length - commonSuffix)
+  
+  // Para a parte do meio (que mudou), usar o estilo do caractere anterior ou posterior
+  const middleLen = newText.length - commonPrefix - commonSuffix
+  const bridgeStyle = oldCharStyles[commonPrefix] ?? oldCharStyles[commonPrefix - 1] ?? oldCharStyles[0] ?? {}
+  const middleStyles = new Array(middleLen).fill({ ...bridgeStyle })
+  
+  return [...prefixStyles, ...middleStyles, ...suffixStyles]
+}
+
+// TextSpan[] → formato Fabric
+function spansToFabric(spans: TextSpan[]) {
+  let text = ""
+  const charStyles = spansToCharStyles(spans)
+  const styles: Record<string, Record<string, any>> = { "0": {} }
+  let lineIdx = 0
+  let charInLine = 0
+
+  for (const char of text.split("").map((_, i) => spans.flatMap(s => [...s.text])[i])) {
+    styles[String(lineIdx)][charInLine] = {
+      fill: charStyles[charInLine]?.color ?? "#111111",
+      fontSize: charStyles[charInLine]?.fontSize ?? 80,
+      fontWeight: charStyles[charInLine]?.fontWeight ?? "normal",
+      fontFamily: charStyles[charInLine]?.fontFamily ?? "Arial",
+    }
+    charInLine++
+  }
+
+  // Reconstruir corretamente
+  const stylesOut: Record<string, Record<string, any>> = {}
+  let globalIdx = 0
+  let lineNum = 0
+  for (const span of spans) {
+    for (const char of span.text) {
+      if (char === "\n") {
+        lineNum++
+        if (!stylesOut[String(lineNum)]) stylesOut[String(lineNum)] = {}
+      } else {
+        if (!stylesOut[String(lineNum)]) stylesOut[String(lineNum)] = {}
+        const lineCharIdx = [...span.text].slice(0, span.text.indexOf(char)).filter(c => c !== "\n").length + 
+          spans.slice(0, spans.indexOf(span)).reduce((acc, s) => acc + [...s.text].filter((c,i) => {
+            const prevNewlines = [...s.text].slice(0,i).filter(x=>x==="\n").length
+            return c !== "\n" && prevNewlines === lineNum - spans.slice(0,spans.indexOf(span)).reduce((a,ss)=>{return a},0)
+          }).length, 0)
+        stylesOut[String(lineNum)][globalIdx] = {
+          fill: span.style.color ?? "#111111",
+          fontSize: span.style.fontSize ?? 80,
+          fontWeight: span.style.fontWeight ?? "normal",
+          fontFamily: span.style.fontFamily ?? "Arial",
+        }
+      }
+      globalIdx++
+    }
+  }
+
+  const base = spans[0]?.style ?? {}
+  return { 
+    text: spans.map(s => s.text).join(""), 
+    styles: stylesOut,
+    base 
+  }
+}
+
+// Versão simplificada e correta
+function spansToFabricSimple(spans: TextSpan[]) {
+  const fullText = spans.map(s => s.text).join("")
+  const charStyles = spansToCharStyles(spans)
+  
+  // Fabric indexa por linha e posição na linha
+  const lines = fullText.split("\n")
+  const fabricStyles: Record<string, Record<string, any>> = {}
+  let globalIdx = 0
+  
+  lines.forEach((line, lineNum) => {
+    fabricStyles[String(lineNum)] = {}
+    for (let i = 0; i < line.length; i++) {
+      const cs = charStyles[globalIdx] ?? {}
+      fabricStyles[String(lineNum)][i] = {
+        fill: cs.color ?? "#111111",
+        fontSize: cs.fontSize ?? 80,
+        fontWeight: cs.fontWeight ?? "normal",
+        fontFamily: cs.fontFamily ?? "Arial",
+      }
+      globalIdx++
+    }
+    globalIdx++ // pular o \n
+  })
+  
+  const base = spans[0]?.style ?? {}
+  return { text: fullText, styles: fabricStyles, base }
+}
+
+// Fabric → TextSpan[]
+function fabricToSpans(obj: any): TextSpan[] {
+  const text: string = obj.text ?? ""
+  const fabricStyles: Record<string, Record<string, any>> = obj.styles ?? {}
+  const baseStyle = { color: obj.fill ?? "#111111", fontSize: obj.fontSize ?? 80, fontWeight: obj.fontWeight ?? "normal", fontFamily: obj.fontFamily ?? "Arial" }
+  
+  // Reconstruir array plano de estilos
+  const lines = text.split("\n")
+  const charStyles: Array<TextSpan["style"]> = []
+  
+  lines.forEach((line, lineNum) => {
+    const lineStyle = fabricStyles[String(lineNum)] ?? {}
+    for (let i = 0; i < line.length; i++) {
+      const cs = lineStyle[i] ?? {}
+      charStyles.push({
+        color: cs.fill ?? baseStyle.color,
+        fontSize: cs.fontSize ?? baseStyle.fontSize,
+        fontWeight: cs.fontWeight ?? baseStyle.fontWeight,
+        fontFamily: cs.fontFamily ?? baseStyle.fontFamily,
+      })
+    }
+    if (lineNum < lines.length - 1) {
+      charStyles.push({ ...baseStyle }) // estilo do \n
+    }
+  })
+  
+  return charStylesToSpans(text, charStyles)
+}
 
 function getSpans(asset: Asset): TextSpan[] {
   if (asset.content?.length) return asset.content
@@ -33,44 +226,7 @@ function getSpans(asset: Asset): TextSpan[] {
   return [{ text, style: { color: "#111111", fontSize: 80, fontWeight: "normal", fontFamily: "Arial" } }]
 }
 
-function spansToFabric(spans: TextSpan[]) {
-  let text = ""
-  const styles: Record<string, Record<string, any>> = { "0": {} }
-  let idx = 0
-  const base = spans[0]?.style ?? {}
-  for (const span of spans) {
-    for (const char of span.text) {
-      styles["0"][idx] = {
-        fill: span.style.color ?? base.color ?? "#111111",
-        fontSize: span.style.fontSize ?? base.fontSize ?? 80,
-        fontWeight: span.style.fontWeight ?? base.fontWeight ?? "normal",
-        fontFamily: span.style.fontFamily ?? base.fontFamily ?? "Arial",
-      }
-      text += char
-      idx++
-    }
-  }
-  return { text, styles, base }
-}
-
-function fabricToSpans(obj: any): TextSpan[] {
-  const text: string = obj.text ?? ""
-  const lineStyles = obj.styles?.["0"] ?? {}
-  const base = { color: obj.fill ?? "#111111", fontSize: obj.fontSize ?? 80, fontWeight: obj.fontWeight ?? "normal", fontFamily: obj.fontFamily ?? "Arial" }
-  if (!Object.keys(lineStyles).length) return [{ text, style: base }]
-  const spans: TextSpan[] = []
-  let cur = "", curStyle: any = null
-  for (let i = 0; i < text.length; i++) {
-    const s = lineStyles[i] ?? {}
-    const style = { color: s.fill ?? base.color, fontSize: s.fontSize ?? base.fontSize, fontWeight: s.fontWeight ?? base.fontWeight, fontFamily: s.fontFamily ?? base.fontFamily }
-    const key = JSON.stringify(style)
-    if (!curStyle || key === JSON.stringify(curStyle)) { cur += text[i]; curStyle = style }
-    else { spans.push({ text: cur, style: curStyle }); cur = text[i]; curStyle = style }
-  }
-  if (cur) spans.push({ text: cur, style: curStyle })
-  return spans
-}
-
+// ─── Editor ───────────────────────────────────────────────────────
 export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -80,6 +236,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const assetIdRef = useRef("")
   const bgColorRef = useRef("#ffffff")
   const saveTimer = useRef<any>()
+  const pollTimer = useRef<any>()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [selected, setSelected] = useState<any>(null)
   const [layers, setLayers] = useState<any[]>([])
@@ -99,7 +256,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
   function setAid(id: string) { setAssetId(id); assetIdRef.current = id }
 
-  // Carregar campanha UMA vez
+  // ─── Carregar campanha ─────────────────────────────────────────
   useEffect(() => {
     if (typeof window !== "undefined") {
       const aw = window.innerWidth - LW - PW - 80
@@ -116,7 +273,59 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     })
   }, [campaignId])
 
-  // Inicializar Fabric UMA vez quando campaign chega
+  // ─── Polling de assets: detecta mudanças feitas na página de Assets ───
+  // A cada 3s, busca os assets atualizados e sincroniza os layers do canvas
+  useEffect(() => {
+    pollTimer.current = setInterval(async () => {
+      const fc = fabricRef.current
+      const c = campaignRef.current
+      if (!fc || !c) return
+
+      const res = await fetch(`/api/campaigns/${campaignId}`)
+      const fresh: Campaign = await res.json()
+      
+      // Para cada layer de texto no canvas, verificar se o asset mudou
+      const objects = fc.getObjects().filter((o: any) => !o.__isBg && o.__assetId)
+      for (const obj of objects) {
+        const oldAsset = c.assets.find((a: Asset) => a.id === obj.__assetId)
+        const newAsset = fresh.assets.find((a: Asset) => a.id === obj.__assetId)
+        if (!oldAsset || !newAsset) continue
+        if (obj.type !== "textbox" && obj.type !== "i-text") continue
+
+        const oldText = obj.text ?? ""
+        const newSpans = getSpans(newAsset)
+        const newText = newSpans.map((s: TextSpan) => s.text).join("")
+
+        // Se o texto não mudou, não fazer nada
+        if (oldText === newText) continue
+
+        // Texto mudou → merge inteligente de estilos
+        const currentSpans = fabricToSpans(obj)
+        const currentCharStyles = spansToCharStyles(currentSpans)
+        const mergedCharStyles = mergeTextWithStyles(oldText, currentCharStyles, newText)
+        const mergedSpans = charStylesToSpans(newText, mergedCharStyles)
+
+        // Aplicar no Fabric sem perder formatação
+        const { text, styles } = spansToFabricSimple(mergedSpans)
+        obj.set({ text, styles })
+        fc.renderAll()
+
+        // Salvar os spans merged no banco
+        await fetch(`/api/campaigns/${campaignId}/assets/${obj.__assetId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: mergedSpans })
+        })
+      }
+
+      // Atualizar ref sem re-renderizar o componente
+      campaignRef.current = fresh
+    }, 3000)
+
+    return () => clearInterval(pollTimer.current)
+  }, [campaignId])
+
+  // ─── Inicializar Fabric UMA vez ────────────────────────────────
   useEffect(() => {
     if (!campaign || !canvasRef.current || fabricRef.current) return
     let alive = true
@@ -140,27 +349,30 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.on("object:modified", () => { if (alive) doSave() })
       fc.on("object:added", () => { if (alive) refreshLayers(fc) })
       fc.on("object:removed", () => { if (alive) refreshLayers(fc) })
+      
+      // Ao sair da edição: serializar spans e salvar no asset
       fc.on("text:editing:exited", async (e: any) => {
         const obj = e.target
         if (!obj?.__assetId) return
-        await saveAsset(obj.__assetId, fabricToSpans(obj))
+        const spans = fabricToSpans(obj)
+        await saveAsset(obj.__assetId, spans)
         doSave()
       })
 
-      // Restaurar layers
+      // Restaurar layers salvos
       const c = campaignRef.current!
       if (c.keyVision?.layers?.length) {
-        const am = Object.fromEntries(c.assets.map(a => [a.id, a]))
+        const am = Object.fromEntries(c.assets.map((a: Asset) => [a.id, a]))
         for (const layer of c.keyVision.layers) {
-          const asset = am[layer.assetId]
+          const asset = am[layer.assetId] as Asset
           if (!asset) continue
           if (IMAGE_TYPES.includes(asset.type)) {
             const r = new Rect({ left: layer.posX, top: layer.posY, width: layer.width || 400, height: 300, fill: "#e8e8e8", stroke: "#aaa", strokeWidth: 2, strokeDashArray: [10, 5], scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, angle: layer.rotation ?? 0 })
             ;(r as any).__assetId = asset.id; (r as any).__assetLabel = asset.label
             fc.add(r)
           } else {
-            const { text, styles, base } = spansToFabric(getSpans(asset))
-            const t = new Textbox(text, { left: layer.posX, top: layer.posY, width: layer.width || 800, fontSize: base.fontSize ?? 80, fontFamily: base.fontFamily ?? "Arial", fontWeight: base.fontWeight ?? "normal", fill: base.color ?? "#111111", styles, editable: true, splitByGrapheme: false, scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, angle: layer.rotation ?? 0 })
+            const { text, styles, base } = spansToFabricSimple(getSpans(asset))
+            const t = new Textbox(text, { left: layer.posX, top: layer.posY, width: layer.width || 800, fontSize: (base as any).fontSize ?? 80, fontFamily: (base as any).fontFamily ?? "Arial", fontWeight: (base as any).fontWeight ?? "normal", fill: (base as any).color ?? "#111111", styles, editable: true, splitByGrapheme: false, scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, angle: layer.rotation ?? 0 })
             ;(t as any).__assetId = asset.id; (t as any).__assetLabel = asset.label
             fc.add(t)
           }
@@ -199,64 +411,18 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   async function saveAsset(assetId: string, content: TextSpan[]) {
-    // Salva content[] no banco — a API também atualiza value automaticamente
     await fetch(`/api/campaigns/${campaignId}/assets/${assetId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) })
     if (campaignRef.current) {
-      const textValue = content.map(s => s.text).join("")
-      campaignRef.current = { ...campaignRef.current, assets: campaignRef.current.assets.map(a => a.id === assetId ? { ...a, content, value: textValue } : a) }
-      lastAssetValues.current[assetId] = textValue
+      campaignRef.current = { ...campaignRef.current, assets: campaignRef.current.assets.map((a: Asset) => a.id === assetId ? { ...a, content } : a) }
     }
   }
-
-  // Atualiza objeto Fabric no canvas quando asset muda externamente (ex: página de campanha)
-  async function syncAssetToCanvas(assetId: string, newContent: TextSpan[]) {
-    const fc = fabricRef.current
-    if (!fc) return
-    const objects = fc.getObjects()
-    for (const obj of objects) {
-      if ((obj as any).__assetId === assetId && obj.type === "textbox") {
-        // Atualizar texto via Fabric API preservando estilos internos
-        const { text, styles, base } = spansToFabric(newContent)
-        ;(obj as any).set({ text, styles, fill: base.color ?? "#111111", fontSize: base.fontSize ?? 80, fontFamily: base.fontFamily ?? "Arial", fontWeight: base.fontWeight ?? "normal" })
-        fc.renderAll()
-      }
-    }
-  }
-
-  // Polling: detecta mudanças nos assets feitas fora do editor (ex: página de campanha)
-  useEffect(() => {
-    if (!campaignId) return
-    pollTimer.current = setInterval(async () => {
-      if (!campaignRef.current) return
-      try {
-        const res = await fetch(`/api/campaigns/${campaignId}`)
-        if (!res.ok) return
-        const data = await res.json()
-        if (!data.assets) return
-        for (const asset of data.assets) {
-          const prev = lastAssetValues.current[asset.id]
-          const curr = asset.value ?? ""
-          if (prev !== undefined && prev !== curr) {
-            // Asset mudou externamente — atualizar canvas com content[] do banco
-            const newContent = asset.content ?? [{ text: curr, style: { color: "#111111", fontSize: 80 } }]
-            await syncAssetToCanvas(asset.id, newContent)
-            if (campaignRef.current) {
-              campaignRef.current = { ...campaignRef.current, assets: campaignRef.current.assets.map(a => a.id === asset.id ? { ...a, content: newContent, value: curr } : a) }
-            }
-          }
-          lastAssetValues.current[asset.id] = curr
-        }
-      } catch {}
-    }, 3000)
-    return () => clearInterval(pollTimer.current)
-  }, [campaignId])
 
   async function addLayer() {
     const fc = fabricRef.current
     const c = campaignRef.current
     const aid = assetIdRef.current
     if (!fc || !c || !aid) return
-    const asset = c.assets.find(a => a.id === aid)
+    const asset = c.assets.find((a: Asset) => a.id === aid)
     if (!asset) return
     const { Rect, Textbox } = await import("fabric")
     if (IMAGE_TYPES.includes(asset.type)) {
@@ -264,8 +430,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       ;(r as any).__assetId = asset.id; (r as any).__assetLabel = asset.label
       fc.add(r); fc.setActiveObject(r)
     } else {
-      const { text, styles, base } = spansToFabric(getSpans(asset))
-      const t = new Textbox(text, { left: 100, top: 100, width: 1200, fontSize: base.fontSize ?? 80, fontFamily: base.fontFamily ?? "Arial", fontWeight: base.fontWeight ?? "normal", fill: base.color ?? "#111111", styles, editable: true, splitByGrapheme: false })
+      const { text, styles, base } = spansToFabricSimple(getSpans(asset))
+      const t = new Textbox(text, { left: 100, top: 100, width: 1200, fontSize: (base as any).fontSize ?? 80, fontFamily: (base as any).fontFamily ?? "Arial", fontWeight: (base as any).fontWeight ?? "normal", fill: (base as any).color ?? "#111111", styles, editable: true, splitByGrapheme: false })
       ;(t as any).__assetId = asset.id; (t as any).__assetLabel = asset.label
       fc.add(t); fc.setActiveObject(t)
     }
@@ -326,6 +492,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         <canvas ref={canvasRef} />
       </div>
 
+      {/* TOPBAR */}
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: TH, background: "rgba(17,17,17,0.98)", borderBottom: "1px solid #2a2a2a", display: "flex", alignItems: "center", padding: "0 16px", gap: 12, zIndex: 200 }}>
         <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{ ...bS, fontSize: 13 }}>← {campaign.name}</button>
         <div style={{ flex: 1 }} />
@@ -334,10 +501,11 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         <button onClick={() => setModal(true)} style={{ background: "#F5C400", border: "none", borderRadius: 6, padding: "6px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#111" }}>▶ Gerar Peças</button>
       </div>
 
+      {/* ASSET BAR */}
       <div style={{ position: "fixed", top: TH, left: LW, right: PW, height: BH, background: "rgba(26,26,26,0.98)", borderBottom: "1px solid #2a2a2a", display: "flex", alignItems: "center", padding: "0 16px", gap: 8, zIndex: 200, overflowX: "auto" as const }}>
         <span style={{ fontSize: 11, color: "#555", fontWeight: 600, flexShrink: 0 }}>Asset:</span>
         <select value={assetId} onChange={e => setAid(e.target.value)} style={{ background: "#222", color: "white", border: "1px solid #333", borderRadius: 4, padding: "4px 8px", fontSize: 12, fontFamily: "inherit", maxWidth: 260 }}>
-          {campaign.assets.map(a => <option key={a.id} value={a.id}>{a.label}{a.value ? ` — "${a.value.substring(0, 15)}"` : ""}</option>)}
+          {campaign.assets.map((a: Asset) => <option key={a.id} value={a.id}>{a.label}{a.value ? ` — "${a.value.substring(0, 15)}"` : ""}</option>)}
         </select>
         <button onClick={addLayer} style={{ background: "#F5C400", color: "#111", border: "none", padding: "5px 14px", borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Adicionar</button>
         <div style={{ flex: 1 }} />
@@ -347,6 +515,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         <button onClick={undo} style={{ ...bS, padding: "0 8px" }}>↩</button>
       </div>
 
+      {/* LAYER PANEL */}
       <div style={{ ...pS, left: 0, width: LW, borderRight: "1px solid #2a2a2a", paddingTop: TH }}>
         <div style={{ padding: "10px 14px", ...secS, borderBottom: "1px solid #2a2a2a", marginBottom: 0 }}>Layers</div>
         <div style={{ flex: 1, overflowY: "auto" as const, padding: "4px 0" }}>
@@ -368,11 +537,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         </div>
       </div>
 
+      {/* PROPERTIES PANEL */}
       <div style={{ ...pS, right: 0, width: PW, borderLeft: "1px solid #2a2a2a", paddingTop: TH }}>
         <div style={{ padding: "12px 16px", ...secS, borderBottom: "1px solid #2a2a2a", marginBottom: 0 }}>Propriedades</div>
         {!selected ? (
           <div style={{ padding: 16 }}>
-            <div style={{ ...secS, color: "#F5C400", marginBottom: 12 }}>🎨 Background</div>
+            <div style={{ ...secS, color: "#F5C400", marginBottom: 12 }}>Background</div>
             <input type="color" value={bgColor} onChange={e => changeBg(e.target.value)} style={{ width: "100%", height: 52, cursor: "pointer", border: "none", borderRadius: 8, padding: 0 }} />
             <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginTop: 12 }}>
               {SWATCHES.map(c => <div key={c} onMouseDown={e => e.preventDefault()} onClick={() => changeBg(c)} style={{ width: 26, height: 26, borderRadius: 5, background: c, cursor: "pointer", border: bgColor === c ? "2px solid #F5C400" : "2px solid #2a2a2a" }} />)}
