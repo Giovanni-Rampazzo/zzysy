@@ -26,8 +26,8 @@ function collectLayers(layer: any, result: any[] = [], depth = 0): any[] {
     }
   }
 
-  // Incluir este layer se tiver conteúdo relevante
-  if (depth > 0 && name && name !== "Background" && !name.startsWith("<")) {
+  // Incluir este layer se tiver conteúdo relevante (qualquer profundidade)
+  if (name && name !== "Background" && !name.startsWith("<")) {
     if (layer.text || layer.canvas || layer.imageData) {
       result.push(layer)
     }
