@@ -182,7 +182,7 @@ export default function CampaignPage() {
                     <div style={{width:48,height:48,background:"#ddd",borderRadius:6,overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>
                       {asset.imageUrl ? (
                         <img src={asset.imageUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                      ) : (ICONS[asset.type]??"🖼")}
+                      ) : "🖼"}
                     </div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontWeight:600,fontSize:13}}>{asset.label}</div>
