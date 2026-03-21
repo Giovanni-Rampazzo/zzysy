@@ -108,8 +108,8 @@ export default function CampaignPage() {
   if (loading) return <div style={{display:"flex",flexDirection:"column",height:"100vh"}}><TopNav /><div style={{padding:32,color:"#888"}}>Carregando...</div></div>
   if (!campaign) return <div style={{display:"flex",flexDirection:"column",height:"100vh"}}><TopNav /><div style={{padding:32,color:"#888"}}>Campanha não encontrada</div></div>
 
-  const textAssets = campaign.assets.filter(a => TEXT_TYPES.includes(a.type))
-  const imageAssets = campaign.assets.filter(a => IMAGE_TYPES.includes(a.type))
+  const textAssets = campaign.assets.filter(a => a.type === "TEXT")
+  const imageAssets = campaign.assets.filter(a => a.type === "IMAGE")
   const inp = {width:"100%",padding:"8px 12px",border:"1px solid #E0E0E0",borderRadius:6,fontSize:13,outline:"none",fontFamily:"inherit"} as React.CSSProperties
 
   return (
