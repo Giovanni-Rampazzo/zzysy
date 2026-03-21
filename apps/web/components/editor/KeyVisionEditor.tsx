@@ -219,7 +219,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         if (!obj || !(obj as any).__assetId) return
         const spans = fabricToSpans(obj)
         await saveAssetContent((obj as any).__assetId, spans)
-        doSave(fc)
+        doSave()
       })
 
       // Restaurar layers salvos
