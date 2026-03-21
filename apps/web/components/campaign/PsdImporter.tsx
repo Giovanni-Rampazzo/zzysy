@@ -8,23 +8,31 @@ interface Props {
 
 function colorToHex(color: any): string {
   if (!color) return "#000000"
-  // ag-psd retorna cores como { r, g, b } com valores 0-255
   const r = Math.round(color.r ?? 0)
   const g = Math.round(color.g ?? 0)
   const b = Math.round(color.b ?? 0)
   return "#" + [r, g, b].map(v => v.toString(16).padStart(2, "0")).join("")
 }
 
-function flattenLayers(layer: any, result: any[] = [], depth = 0): any[] {
+// Percorre recursivamente TODOS os layers, incluindo dentro de grupos
+function collectLayers(layer: any, result: any[] = [], depth = 0): any[] {
+  if (!layer) return result
+  const name = layer.name ?? ""
+
+  // Sempre descer nos filhos primeiro
   if (layer.children?.length) {
     for (const child of layer.children) {
-      flattenLayers(child, result, depth + 1)
+      collectLayers(child, result, depth + 1)
     }
   }
-  // Incluir o layer se tiver conteúdo (texto ou imagem)
-  if (depth > 0 && (layer.text || layer.imageData || layer.canvas)) {
-    result.push(layer)
+
+  // Incluir este layer se tiver conteúdo relevante
+  if (depth > 0 && name && name !== "Background" && !name.startsWith("<")) {
+    if (layer.text || layer.canvas || layer.imageData) {
+      result.push(layer)
+    }
   }
+
   return result
 }
 
@@ -34,19 +42,16 @@ export function PsdImporter({ campaignId, onImported }: Props) {
   const [error, setError] = useState("")
   const [confirm, setConfirm] = useState(false)
   const [pending, setPending] = useState<any>(null)
+  const [debug, setDebug] = useState("")
 
   async function handleFile(file: File) {
     setLoading(true)
     setError("")
+    setDebug("")
     try {
-      const { readPsd, initializeCanvas } = await import("ag-psd")
-
-      // Inicializar canvas para extração de imagens
-      const { createCanvas } = await import("ag-psd").then(m => ({ createCanvas: null })).catch(() => ({ createCanvas: null }))
-
+      const { readPsd } = await import("ag-psd")
       const buffer = await file.arrayBuffer()
 
-      // Ler com imageData para capturar layers de imagem
       const psd = readPsd(buffer, {
         skipLayerImageData: false,
         skipCompositeImageData: true,
@@ -56,30 +61,37 @@ export function PsdImporter({ campaignId, onImported }: Props) {
       const canvasWidth = psd.width
       const canvasHeight = psd.height
 
-      const allLayers = flattenLayers(psd)
+      // Debug: ver estrutura do PSD
+      const topLevel = psd.children ?? []
+      const debugInfo = `PSD: ${canvasWidth}x${canvasHeight} | Top layers: ${topLevel.length} | Names: ${topLevel.map((l: any) => l.name).join(", ")}`
+      setDebug(debugInfo)
+      console.log("PSD structure:", JSON.stringify(psd.children?.map((l: any) => ({
+        name: l.name,
+        hasText: !!l.text,
+        hasCanvas: !!l.canvas,
+        hasChildren: l.children?.length,
+        childNames: l.children?.map((c: any) => c.name)
+      })), null, 2))
+
+      const allLayers = collectLayers(psd)
       const assets: any[] = []
       let zIndex = allLayers.length
 
       for (const layer of allLayers) {
         const name = layer.name ?? ""
-        if (!name || name === "Background" || name.startsWith("<")) continue
-
         const left = layer.left ?? 0
         const top = layer.top ?? 0
-        const right = layer.right ?? left
-        const bottom = layer.bottom ?? top
-        const width = Math.max(right - left, 10)
-        const height = Math.max(bottom - top, 10)
+        const width = Math.max((layer.right ?? left) - left, 10)
+        const height = Math.max((layer.bottom ?? top) - top, 10)
 
         if (layer.text) {
           const td = layer.text
-          // Pegar estilo do primeiro characterStyle se disponível
-          const style = td.styleRuns?.[0]?.style ?? td.style ?? {}
-          const fontSize = style.fontSize ?? td.fontSize ?? 48
-          const fillColor = style.fillColor ?? td.fillColor
+          const styleRun = td.styleRuns?.[0]?.style ?? {}
+          const fontSize = styleRun.fontSize ?? td.style?.fontSize ?? 48
+          const fillColor = styleRun.fillColor ?? td.style?.fillColor
           const color = fillColor ? colorToHex(fillColor) : "#000000"
-          const fontName = style.font?.name ?? td.font?.name ?? "Arial"
-          const fontWeight = (style.faux_bold || fontName.toLowerCase().includes("bold")) ? "bold" : "normal"
+          const fontName = styleRun.font?.name ?? td.style?.font?.name ?? "Arial"
+          const fontWeight = (styleRun.fauxBold || fontName.toLowerCase().includes("bold")) ? "bold" : "normal"
           const rawText = td.text ?? name
 
           assets.push({
@@ -89,33 +101,29 @@ export function PsdImporter({ campaignId, onImported }: Props) {
             posX: left, posY: top, width: Math.max(width, 200), height, zIndex,
           })
         } else if (layer.canvas) {
-          // Layer com canvas — converter para base64
           try {
-            const canvas = layer.canvas as HTMLCanvasElement
-            const imageUrl = canvas.toDataURL("image/png")
+            const imageUrl = (layer.canvas as HTMLCanvasElement).toDataURL("image/png")
             assets.push({
               label: name,
               type: "IMAGE",
-              imageUrl,
+              imageUrl: null, // não salvar base64 no banco
               posX: left, posY: top, width, height, zIndex,
             })
-          } catch {
-            // Ignorar layers de imagem que não conseguimos converter
-          }
+          } catch { /* ignorar */ }
         }
         zIndex--
       }
 
       if (assets.length === 0) {
-        setError("Nenhum layer de texto ou imagem encontrado no PSD.")
+        setError(`Nenhum layer extraído. ${debugInfo}`)
         return
       }
 
       setPending({ canvasWidth, canvasHeight, bgColor: "#ffffff", assets })
       setConfirm(true)
     } catch (e: any) {
-      console.error("PSD import error:", e)
-      setError("Erro ao ler o PSD: " + (e?.message ?? "formato inválido"))
+      console.error("PSD error:", e)
+      setError("Erro: " + (e?.message ?? "desconhecido"))
     } finally {
       setLoading(false)
     }
@@ -157,31 +165,26 @@ export function PsdImporter({ campaignId, onImported }: Props) {
         {loading ? "⏳ Processando..." : "📂 Importar PSD"}
       </button>
 
-      {error && (
-        <span style={{ fontSize: 12, color: "#f87171", maxWidth: 300, display: "block" }}>
-          {error}
-        </span>
-      )}
+      {debug && <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{debug}</div>}
+      {error && <span style={{ fontSize: 12, color: "#f87171", display: "block", marginTop: 4 }}>{error}</span>}
 
       {confirm && pending && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 12, padding: 32, maxWidth: 420, width: "90%" }}>
+          <div style={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: 12, padding: 32, maxWidth: 480, width: "90%" }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 12 }}>Importar PSD</div>
             <div style={{ fontSize: 13, color: "#888", marginBottom: 8 }}>
-              <strong style={{ color: "#fff" }}>{pending.assets.length} layers</strong> encontrados
+              <strong style={{ color: "#fff" }}>{pending.assets.length} layers</strong> encontrados — {pending.canvasWidth}×{pending.canvasHeight}px
             </div>
-            <div style={{ fontSize: 13, color: "#888", marginBottom: 8 }}>
-              Dimensões: <strong style={{ color: "#fff" }}>{pending.canvasWidth} × {pending.canvasHeight}px</strong>
-            </div>
-            <div style={{ fontSize: 11, color: "#888", marginBottom: 8, maxHeight: 120, overflowY: "auto" as const }}>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 16, maxHeight: 160, overflowY: "auto" as const, background: "#111", borderRadius: 6, padding: 8 }}>
               {pending.assets.map((a: any, i: number) => (
-                <div key={i} style={{ padding: "2px 0", borderBottom: "1px solid #222" }}>
-                  {a.type === "TEXT" ? "T" : "🖼"} {a.label}
+                <div key={i} style={{ padding: "3px 0", borderBottom: "1px solid #222" }}>
+                  {a.type === "TEXT" ? "T" : "🖼"} <strong style={{ color: "#fff" }}>{a.label}</strong>
+                  {a.type === "TEXT" && <span style={{ color: "#555" }}> — {a.content?.[0]?.text?.substring(0, 30)}</span>}
                 </div>
               ))}
             </div>
             <div style={{ fontSize: 12, color: "#f87171", marginBottom: 24, padding: "8px 12px", background: "rgba(248,113,113,0.1)", borderRadius: 6 }}>
-              ⚠️ Assets existentes serão substituídos pelos layers do PSD.
+              ⚠️ Assets existentes serão substituídos.
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => { setConfirm(false); setPending(null) }}
