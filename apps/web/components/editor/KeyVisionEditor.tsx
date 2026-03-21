@@ -152,7 +152,7 @@ function spansToFabric(spans: TextSpan[]) {
       }
       globalIdx++
     }
-    globalIdx++ // pular \n
+    if (lineNum < lines.length - 1) globalIdx++ // pular \n (não na última linha)
   })
 
   const base = spans[0]?.style ?? {}
@@ -180,7 +180,8 @@ function fabricToSpans(obj: any): TextSpan[] {
 
 function getSpans(asset: Asset): TextSpan[] {
   if (asset.content?.length) return asset.content
-  const text = asset.value?.trim() || asset.label
+  // value pode ter \n de bugs anteriores — limpar
+  const text = (asset.value?.replace(/\n/g, "").trim()) || asset.label
   return [{ text, style: { color: "#111111", fontSize: 80, fontWeight: "normal", fontFamily: "Arial" } }]
 }
 
@@ -387,7 +388,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   async function saveAsset(aid: string, content: TextSpan[]) {
-    // value = texto puro SEM quebras de linha (para comparações no polling)
+    // value = texto puro SEM quebras de linha (quebras ficam só no content/canvas)
     const value = content.map(s => s.text).join("").replace(/\n/g, "")
     await fetch(`/api/campaigns/${campaignId}/assets/${aid}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
