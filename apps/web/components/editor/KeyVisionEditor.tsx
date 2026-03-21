@@ -339,7 +339,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       const { text, styles, baseStyle } = spansToFabricStyles(spans)
       const t = new Textbox(text, {
         left: 100, top: 100,
-        width: Math.min(CW - 200, text.length * (baseStyle.fontSize ?? 80) * 0.6 + 100),
+        width: 1200,
         fontSize: baseStyle.fontSize ?? 80,
         fontFamily: baseStyle.fontFamily ?? "Arial",
         fontWeight: baseStyle.fontWeight ?? "normal",
@@ -353,7 +353,8 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     }
 
     fc.renderAll()
-    doSave()
+    // Aguardar próximo frame para garantir que o objeto está registrado no Fabric
+    requestAnimationFrame(() => doSave())
   }
 
   function chZoom(d: number) {
