@@ -1,4 +1,4 @@
-// Utilitário de merge de texto — preserva estilos ao trocar conteúdo do asset
+// Utilitário de merge de texto — preserva estilos E quebras de linha ao trocar conteúdo do asset
 
 export interface TextSpan {
   text: string
@@ -14,57 +14,83 @@ export interface TextSpan {
   }
 }
 
+type CharStyle = { char: string; style: TextSpan["style"] }
+
 /**
- * Faz merge do novo texto com os spans existentes, preservando estilos.
- * 
+ * Faz merge do novo texto com os spans existentes.
+ * Preserva estilos por caractere E quebras de linha (\n).
+ *
+ * Regra das quebras de linha:
+ * - \n é específico do layout (cada formato pode ter sua quebra)
+ * - O merge opera no texto PURO (sem \n)
+ * - Após o merge, os \n são reinseridos nas posições proporcionais
+ *
  * Exemplo:
- *   spans = [{ text: "c", style: {color:"red"} }, { text: "asa", style: {color:"white"} }]
- *   newText = "dasa"
- *   resultado = [{ text: "d", style: {color:"red"} }, { text: "asa", style: {color:"white"} }]
- * 
- * Algoritmo:
- * 1. Expande spans em array de caracteres com seus estilos
- * 2. Aplica diff LCS (Longest Common Subsequence) entre texto antigo e novo
- * 3. Reconstrói spans agrupando caracteres com mesmo estilo
+ *   spans = [{text:"c",red},{text:"a",white},{text:"\n",base},{text:"sa",white}]
+ *   newText = "dasa"  (texto puro sem \n, vindo da página de Assets)
+ *   resultado = [{text:"d",red},{text:"a",white},{text:"\n",base},{text:"sa",white}]
  */
 export function mergeTextIntoSpans(spans: TextSpan[], newText: string): TextSpan[] {
   if (!spans.length) {
     return [{ text: newText, style: {} }]
   }
 
-  // Expandir spans em array de { char, style }
-  const charStyles: Array<{ char: string; style: TextSpan["style"] }> = []
+  // Expandir spans em array plano de { char, style }
+  const charStyles: CharStyle[] = []
   for (const span of spans) {
     for (const char of span.text) {
       charStyles.push({ char, style: span.style })
     }
   }
 
-  const oldText = charStyles.map(c => c.char).join("")
+  // Separar \n do texto — quebras de linha ficam no layout, não no asset
+  const lineBreaks: number[] = []
+  const pureChars: CharStyle[] = []
+  for (const c of charStyles) {
+    if (c.char === "\n") {
+      lineBreaks.push(pureChars.length) // posição no texto puro
+    } else {
+      pureChars.push(c)
+    }
+  }
 
-  // Se texto igual, retorna spans originais
-  if (oldText === newText) return spans
+  const oldText = pureChars.map(c => c.char).join("")
 
-  // Algoritmo LCS para encontrar o mapeamento entre texto antigo e novo
-  const merged = lcsAlign(oldText, newText, charStyles)
+  // newText já vem sem \n (texto puro da página de Assets)
+  // Se texto igual e sem quebras, retorna original
+  if (oldText === newText && lineBreaks.length === 0) return spans
 
-  // Reagrupar em spans por estilo consecutivo igual
-  return groupIntoSpans(merged)
+  // LCS no texto puro (sem \n)
+  const mergedPure = oldText === newText
+    ? pureChars
+    : lcsAlign(oldText, newText, pureChars)
+
+  // Reinserir \n nas posições proporcionais
+  const newLen = mergedPure.length
+  const oldLen = pureChars.length
+  const defaultStyle = pureChars[0]?.style ?? {}
+
+  const newLineBreakPositions = lineBreaks
+    .map(pos => oldLen === 0 ? 0 : Math.round((pos / oldLen) * newLen))
+    .filter((pos, i, arr) => i === 0 || pos !== arr[i - 1]) // deduplicar
+
+  const finalChars: CharStyle[] = []
+  let insertedBreaks = 0
+  for (let i = 0; i <= mergedPure.length; i++) {
+    while (insertedBreaks < newLineBreakPositions.length && newLineBreakPositions[insertedBreaks] === i) {
+      finalChars.push({ char: "\n", style: defaultStyle })
+      insertedBreaks++
+    }
+    if (i < mergedPure.length) finalChars.push(mergedPure[i])
+  }
+
+  return groupIntoSpans(finalChars)
 }
 
-/**
- * Alinha os caracteres do novo texto com os estilos do texto antigo via LCS.
- * Caracteres novos (inseridos) herdam o estilo do caractere vizinho mais próximo.
- */
-function lcsAlign(
-  oldText: string,
-  newText: string,
-  charStyles: Array<{ char: string; style: TextSpan["style"] }>
-): Array<{ char: string; style: TextSpan["style"] }> {
+function lcsAlign(oldText: string, newText: string, charStyles: CharStyle[]): CharStyle[] {
   const m = oldText.length
   const n = newText.length
 
-  // Tabela LCS
   const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
@@ -76,23 +102,18 @@ function lcsAlign(
     }
   }
 
-  // Backtrack para encontrar alinhamento
-  const result: Array<{ char: string; style: TextSpan["style"] }> = []
+  const result: CharStyle[] = []
   let i = m, j = n
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && oldText[i - 1] === newText[j - 1]) {
-      // Caractere em comum — preserva estilo
       result.unshift({ char: newText[j - 1], style: charStyles[i - 1].style })
-      i--
-      j--
+      i--; j--
     } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      // Inserção — herda estilo do vizinho
       const neighborStyle = i > 0 ? charStyles[i - 1].style : (charStyles[0]?.style ?? {})
       result.unshift({ char: newText[j - 1], style: neighborStyle })
       j--
     } else {
-      // Deleção — ignora
       i--
     }
   }
@@ -100,21 +121,14 @@ function lcsAlign(
   return result
 }
 
-/**
- * Agrupa array de { char, style } em TextSpan[] consolidado.
- * Caracteres consecutivos com mesmo estilo viram um span.
- */
-function groupIntoSpans(chars: Array<{ char: string; style: TextSpan["style"] }>): TextSpan[] {
+function groupIntoSpans(chars: CharStyle[]): TextSpan[] {
   if (!chars.length) return [{ text: "", style: {} }]
-
   const spans: TextSpan[] = []
   let current = chars[0].char
   let currentStyle = chars[0].style
 
   for (let i = 1; i < chars.length; i++) {
-    const styleKey = JSON.stringify(chars[i].style)
-    const prevKey = JSON.stringify(currentStyle)
-    if (styleKey === prevKey) {
+    if (JSON.stringify(chars[i].style) === JSON.stringify(currentStyle)) {
       current += chars[i].char
     } else {
       spans.push({ text: current, style: currentStyle })
@@ -123,13 +137,13 @@ function groupIntoSpans(chars: Array<{ char: string; style: TextSpan["style"] }>
     }
   }
   spans.push({ text: current, style: currentStyle })
-
   return spans
 }
 
 /**
- * Extrai o texto puro de um array de spans.
+ * Extrai o texto puro de um array de spans (sem \n).
+ * Usado para comparar com o value do asset.
  */
 export function spansToText(spans: TextSpan[]): string {
-  return spans.map(s => s.text).join("")
+  return spans.map(s => s.text).join("").replace(/\n/g, "")
 }
