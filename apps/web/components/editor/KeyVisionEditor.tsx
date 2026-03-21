@@ -255,12 +255,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         if (!newAsset) continue
 
         const newValue = newAsset.value ?? ""
-        const currentText = obj.text ?? ""
+        // Texto puro do canvas sem \n (que é específico do layout, não do asset)
+        const currentTextPure = (obj.text ?? "").replace(/\n/g, "")
 
-        // Sem mudança → pular
-        if (currentText === newValue) continue
+        // Sem mudança no conteúdo → pular
+        if (currentTextPure === newValue) continue
 
-        // Texto mudou → merge LCS preservando formatação do canvas
+        // Texto mudou → merge LCS preservando estilos E quebras de linha do canvas
         const currentSpans = fabricToSpans(obj)
         const mergedSpans = mergeTextIntoSpans(currentSpans, newValue)
         const { text, styles } = spansToFabric(mergedSpans)
@@ -268,11 +269,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         obj.set({ text, styles })
         changed = true
 
-        // Salvar os spans merged no asset para manter sincronia
+        // Salvar no banco: content COM \n (para preservar ao recarregar),
+        // value SEM \n (texto puro para comparações futuras)
         await fetch(`/api/campaigns/${campaignId}/assets/${obj.__assetId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: mergedSpans })
+          body: JSON.stringify({ content: mergedSpans, value: newValue })
         })
       }
 
