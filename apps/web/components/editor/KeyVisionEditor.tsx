@@ -19,7 +19,7 @@ interface Layer {
 interface Campaign {
   id: string; name: string; client: { id: string; name: string }
   assets: Asset[]
-  keyVision: { bgColor: string; layers: Layer[] | null } | null
+  keyVision: { bgColor: string; layers: Layer[] | null; width?: number; height?: number } | null
 }
 
 const DEFAULT_W = 1920, DEFAULT_H = 1080
