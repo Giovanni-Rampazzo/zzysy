@@ -199,11 +199,57 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   async function saveAsset(assetId: string, content: TextSpan[]) {
+    // Salva content[] no banco — a API também atualiza value automaticamente
     await fetch(`/api/campaigns/${campaignId}/assets/${assetId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) })
     if (campaignRef.current) {
-      campaignRef.current = { ...campaignRef.current, assets: campaignRef.current.assets.map(a => a.id === assetId ? { ...a, content } : a) }
+      const textValue = content.map(s => s.text).join("")
+      campaignRef.current = { ...campaignRef.current, assets: campaignRef.current.assets.map(a => a.id === assetId ? { ...a, content, value: textValue } : a) }
+      lastAssetValues.current[assetId] = textValue
     }
   }
+
+  // Atualiza objeto Fabric no canvas quando asset muda externamente (ex: página de campanha)
+  async function syncAssetToCanvas(assetId: string, newContent: TextSpan[]) {
+    const fc = fabricRef.current
+    if (!fc) return
+    const objects = fc.getObjects()
+    for (const obj of objects) {
+      if ((obj as any).__assetId === assetId && obj.type === "textbox") {
+        // Atualizar texto via Fabric API preservando estilos internos
+        const { text, styles, base } = spansToFabric(newContent)
+        ;(obj as any).set({ text, styles, fill: base.color ?? "#111111", fontSize: base.fontSize ?? 80, fontFamily: base.fontFamily ?? "Arial", fontWeight: base.fontWeight ?? "normal" })
+        fc.renderAll()
+      }
+    }
+  }
+
+  // Polling: detecta mudanças nos assets feitas fora do editor (ex: página de campanha)
+  useEffect(() => {
+    if (!campaignId) return
+    pollTimer.current = setInterval(async () => {
+      if (!campaignRef.current) return
+      try {
+        const res = await fetch(`/api/campaigns/${campaignId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (!data.assets) return
+        for (const asset of data.assets) {
+          const prev = lastAssetValues.current[asset.id]
+          const curr = asset.value ?? ""
+          if (prev !== undefined && prev !== curr) {
+            // Asset mudou externamente — atualizar canvas com content[] do banco
+            const newContent = asset.content ?? [{ text: curr, style: { color: "#111111", fontSize: 80 } }]
+            await syncAssetToCanvas(asset.id, newContent)
+            if (campaignRef.current) {
+              campaignRef.current = { ...campaignRef.current, assets: campaignRef.current.assets.map(a => a.id === asset.id ? { ...a, content: newContent, value: curr } : a) }
+            }
+          }
+          lastAssetValues.current[asset.id] = curr
+        }
+      } catch {}
+    }, 3000)
+    return () => clearInterval(pollTimer.current)
+  }, [campaignId])
 
   async function addLayer() {
     const fc = fabricRef.current
