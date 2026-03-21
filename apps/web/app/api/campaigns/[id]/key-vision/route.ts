@@ -18,11 +18,17 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await ctx.params
-  const { data } = await req.json()
+  const body = await req.json()
+
+  // Suporta tanto { bgColor, layers } (novo editor) quanto { data } (legado)
+  const bgColor = body.bgColor ?? "#ffffff"
+  const layers = body.layers ?? null
+  const data = body.data ?? {}
+
   const kv = await prisma.keyVision.upsert({
     where: { campaignId: id },
-    create: { campaignId: id, data },
-    update: { data },
+    create: { campaignId: id, data, bgColor, layers },
+    update: { data, bgColor, layers },
   })
   return NextResponse.json(kv)
 }
