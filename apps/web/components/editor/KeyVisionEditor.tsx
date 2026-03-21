@@ -76,9 +76,57 @@ function charStylesToSpans(chars: CharStyle[]): TextSpan[] {
 function mergeTextIntoSpans(spans: TextSpan[], newText: string): TextSpan[] {
   if (!spans.length) return [{ text: newText, style: {} }]
   const charStyles = spansToCharStyles(spans)
-  const oldText = charStyles.map(c => c.char).join("")
-  if (oldText === newText) return spans
-  return charStylesToSpans(lcsAlign(oldText, newText, charStyles))
+  const oldTextFull = charStyles.map(c => c.char).join("")
+
+  // Separar \n do texto — quebras de linha ficam no canvas, não no asset
+  // oldTextFull pode ser "ca\nsa" mas newText é "dasa" (sem \n)
+  // Precisamos:
+  // 1. Remover \n do oldText para fazer o LCS com newText
+  // 2. Guardar as posições dos \n relativas ao texto puro
+  // 3. Após o merge, reinserir os \n nas posições proporcionais
+
+  const lineBreaks: number[] = []
+  const oldTextPure: CharStyle[] = []
+  for (let i = 0; i < charStyles.length; i++) {
+    if (charStyles[i].char === "\n") {
+      lineBreaks.push(oldTextPure.length) // posição no texto puro
+    } else {
+      oldTextPure.push(charStyles[i])
+    }
+  }
+
+  const oldTextStr = oldTextPure.map(c => c.char).join("")
+  if (oldTextStr === newText && lineBreaks.length === 0) return spans
+
+  // LCS no texto puro (sem \n)
+  const mergedPure = oldTextStr === newText
+    ? oldTextPure
+    : lcsAlign(oldTextStr, newText, oldTextPure)
+
+  // Reinserir \n nas posições proporcionais
+  // Proporcional: se \n estava na posição p/oldLen, reinserir em p/oldLen * newLen
+  const newLen = mergedPure.length
+  const oldLen = oldTextPure.length
+  const defaultStyle = oldTextPure[0]?.style ?? {}
+
+  // Calcular novas posições proporcionais para os \n
+  const newLineBreakPositions = lineBreaks.map(pos => {
+    if (oldLen === 0) return 0
+    return Math.round((pos / oldLen) * newLen)
+  }).filter((pos, i, arr) => i === 0 || pos !== arr[i-1]) // deduplicar
+
+  // Reinserir \n
+  const finalChars: CharStyle[] = []
+  let insertedBreaks = 0
+  for (let i = 0; i <= mergedPure.length; i++) {
+    while (insertedBreaks < newLineBreakPositions.length && newLineBreakPositions[insertedBreaks] === i) {
+      finalChars.push({ char: "\n", style: defaultStyle })
+      insertedBreaks++
+    }
+    if (i < mergedPure.length) finalChars.push(mergedPure[i])
+  }
+
+  return charStylesToSpans(finalChars)
 }
 
 // ─── Fabric ↔ TextSpan[] ─────────────────────────────────────────
