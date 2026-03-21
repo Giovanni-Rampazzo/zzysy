@@ -26,56 +26,84 @@ interface ImportPayload {
 }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { id } = await ctx.params
-  const body: ImportPayload = await req.json()
+    const { id } = await ctx.params
+    const body: ImportPayload = await req.json()
 
-  // 1. Apagar todos os assets existentes da campanha
-  await prisma.campaignAsset.deleteMany({ where: { campaignId: id } })
+    if (!body.assets?.length) {
+      return NextResponse.json({ error: "Nenhum asset no payload" }, { status: 400 })
+    }
 
-  // 2. Criar novos assets a partir do PSD
-  const created = await Promise.all(
-    body.assets.map((asset, i) =>
-      prisma.campaignAsset.create({
-        data: {
-          campaignId: id,
-          label: asset.label,
-          type: asset.type,
-          content: asset.content ?? [],
-          imageUrl: asset.imageUrl ?? null,
-          order: i,
-          posX: asset.posX,
-          posY: asset.posY,
-          width: asset.width,
-          visible: true,
-          scaleX: 1,
-          scaleY: 1,
-          rotation: 0,
-        }
-      })
-    )
-  )
+    // 1. Apagar assets existentes
+    await prisma.campaignAsset.deleteMany({ where: { campaignId: id } })
 
-  // 3. Montar layers para o KeyVision com posições do PSD
-  const layers = created.map((asset, i) => ({
-    assetId: asset.id,
-    posX: body.assets[i].posX,
-    posY: body.assets[i].posY,
-    width: body.assets[i].width,
-    scaleX: 1,
-    scaleY: 1,
-    rotation: 0,
-    zIndex: body.assets[i].zIndex,
-  }))
+    // 2. Criar assets — imagens sem base64 (muito pesado para o banco)
+    const created = []
+    for (let i = 0; i < body.assets.length; i++) {
+      const asset = body.assets[i]
+      try {
+        const record = await prisma.campaignAsset.create({
+          data: {
+            campaignId: id,
+            label: asset.label,
+            type: asset.type,
+            content: asset.content ?? [],
+            // Não salvar base64 de imagem no banco — usar placeholder
+            imageUrl: asset.type === "IMAGE" ? null : null,
+            order: i,
+            posX: asset.posX,
+            posY: asset.posY,
+            width: asset.width || 400,
+            visible: true,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0,
+          }
+        })
+        created.push(record)
+      } catch (err) {
+        console.error(`Failed to create asset ${asset.label}:`, err)
+      }
+    }
 
-  // 4. Salvar KeyVision com dimensões do PSD
-  await prisma.keyVision.upsert({
-    where: { campaignId: id },
-    create: { campaignId: id, data: {}, bgColor: body.bgColor, layers, width: body.canvasWidth, height: body.canvasHeight },
-    update: { data: {}, bgColor: body.bgColor, layers, width: body.canvasWidth, height: body.canvasHeight },
-  })
+    // 3. Layers com posições do PSD
+    const layers = created.map((asset, i) => ({
+      assetId: asset.id,
+      posX: body.assets[i].posX,
+      posY: body.assets[i].posY,
+      width: body.assets[i].width || 400,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      zIndex: body.assets[i].zIndex,
+    }))
 
-  return NextResponse.json({ ok: true, assetsCreated: created.length })
+    // 4. Salvar KeyVision com dimensões do PSD
+    await prisma.keyVision.upsert({
+      where: { campaignId: id },
+      create: {
+        campaignId: id,
+        data: {},
+        bgColor: body.bgColor ?? "#ffffff",
+        layers,
+        width: body.canvasWidth,
+        height: body.canvasHeight,
+      },
+      update: {
+        data: {},
+        bgColor: body.bgColor ?? "#ffffff",
+        layers,
+        width: body.canvasWidth,
+        height: body.canvasHeight,
+      },
+    })
+
+    return NextResponse.json({ ok: true, assetsCreated: created.length })
+  } catch (err: any) {
+    console.error("import-psd error:", err)
+    return NextResponse.json({ error: err?.message ?? "Erro interno" }, { status: 500 })
+  }
 }
