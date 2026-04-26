@@ -1,4 +1,3 @@
-// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,48 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── MULTITENANCY ───────────────────────────────────────────────
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id            String        @id @default(cuid())
+  name          String
+  slug          String        @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   users         User[]
   clients       Client[]
-  subscriptions Subscription[]
   mediaFormats  MediaFormat[]
 }
 
-// ─── USUÁRIOS ────────────────────────────────────────────────────
 model User {
-  id                   String   @id @default(cuid())
-  name                 String?
-  email                String   @unique
-  password             String
-  role                 Role     @default(USER)
-  plan                 String   @default("FREE")
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
-  blocked              Boolean  @default(false)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  accounts Account[]
-  sessions Session[]
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String?
+  email     String    @unique
+  password  String
+  role      String    @default("ADMIN")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  accounts  Account[]
+  sessions  Session[]
 }
 
-enum Role {
-  SUPER_ADMIN
-  ADMIN
-  USER
-}
-
-// ─── NEXTAUTH ────────────────────────────────────────────────────
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -63,9 +45,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([provider, providerAccountId])
 }
 
@@ -74,216 +54,100 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
-
   @@unique([identifier, token])
 }
 
-// ─── PLANOS E ASSINATURAS ────────────────────────────────────────
-model Plan {
-  id            String   @id @default(cuid())
-  name          String
-  priceMonthly  Float
-  priceYearly   Float
-  stripePriceId String?
-  maxUsers      Int
-  maxCampaigns  Int
-  features      Json
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-
-  subscriptions Subscription[]
-}
-
-model Subscription {
-  id                   String             @id @default(cuid())
-  tenantId             String
-  planId               String
-  status               SubscriptionStatus @default(ACTIVE)
-  stripeSubscriptionId String?
-  stripeCustomerId     String?
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  plan   Plan   @relation(fields: [planId], references: [id])
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELED
-  PAST_DUE
-  TRIALING
-}
-
-// ─── CLIENTES DA AGÊNCIA ─────────────────────────────────────────
 model Client {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   tenantId  String
   name      String
+  slug      String?
   contact   String?
   email     String?
   phone     String?
   address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   tenant    Tenant     @relation(fields: [tenantId], references: [id])
   campaigns Campaign[]
 }
 
-// ─── CAMPANHAS ───────────────────────────────────────────────────
 model Campaign {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   name      String
   clientId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  client     Client          @relation(fields: [clientId], references: [id])
-  keyVision  KeyVision?
-  pieces     Piece[]
-  deliveries Delivery[]
-  assets     CampaignAsset[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  client    Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assets    CampaignAsset[]
+  keyVision KeyVision?
+  pieces    Piece[]
 }
 
-// ─── ASSETS DA CAMPANHA ──────────────────────────────────────────
-// content: JSON array de spans [ { text, styles: { fontSize, color, fontWeight, fontFamily } } ]
-// imageUrl: URL da imagem (upload ou externa)
-// position/scale/rotation: posicionamento no layout (layer)
 model CampaignAsset {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   campaignId String
-  type       String
+  type       String   @default("TEXT")
   label      String
-  // Conteúdo de texto (novo modelo semântico)
-  content    String?     // [ { text: string, styles: { fontSize, color, fontWeight, fontFamily } } ]
-  // Compatibilidade com campo antigo
-  value      String? 
-  imageUrl   String? 
-  order      Int       @default(0)
-  // Posicionamento no layout (layer)
-  posX       Float     @default(100)
-  posY       Float     @default(100)
-  scaleX     Float     @default(1)
-  scaleY     Float     @default(1)
-  rotation   Float     @default(0)
-  width      Int       @default(600)
-  visible    Boolean   @default(true)
-  layerId    String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  content    String?
+  value      String?
+  imageUrl   String?
+  order      Int      @default(0)
+  posX       Float    @default(100)
+  posY       Float    @default(100)
+  scaleX     Float    @default(1)
+  scaleY     Float    @default(1)
+  rotation   Float    @default(0)
+  width      Int      @default(600)
+  visible    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
-
-
-// ─── KEY VISION ──────────────────────────────────────────────────
-// layers: JSON array [ { assetId, posX, posY, scaleX, scaleY, rotation, zIndex } ]
 model KeyVision {
   id         String   @id @default(cuid())
   campaignId String   @unique
-  data       String     // legado Fabric — manter por ora
-  layers     String?    // novo modelo: [ { assetId, posX, posY, scaleX, scaleY, rotation, zIndex, width } ]
+  data       String   @default("{}")
   bgColor    String   @default("#ffffff")
+  layers     String?
   width      Int      @default(1920)
   height     Int      @default(1080)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
-// ─── PEÇAS ───────────────────────────────────────────────────────
 model Piece {
-  id         String      @id @default(cuid())
-  campaignId String
-  deliveryId String?
-  name       String
-  format     String
-  width      Int
-  height     Int
-  dpi        Int         @default(72)
-  data       Json
-  status     PieceStatus @default(DRAFT)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-
-  campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  delivery Delivery? @relation(fields: [deliveryId], references: [id])
+  id           String   @id @default(cuid())
+  campaignId   String
+  mediaFormatId String?
+  name         String?
+  status       String   @default("DRAFT")
+  data         String?
+  imageUrl     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
-enum PieceStatus {
-  DRAFT
-  REVIEW
-  APPROVED
-  EXPORTED
-}
-
-// ─── ENTREGAS ────────────────────────────────────────────────────
-model Delivery {
-  id         String         @id @default(cuid())
-  campaignId String
-  number     Int
-  totalSize  Int?
-  status     DeliveryStatus @default(DRAFT)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-
-  campaign Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  pieces   Piece[]
-  files    DeliveryFile[]
-}
-
-enum DeliveryStatus {
-  DRAFT
-  REVIEW
-  APPROVED
-  SENT
-}
-
-// ─── ARQUIVOS DA ENTREGA ─────────────────────────────────────────
-model DeliveryFile {
-  id         String   @id @default(cuid())
-  deliveryId String
-  name       String
-  extension  String
-  url        String 
-  size       Int
-  createdAt  DateTime @default(now())
-
-  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-}
-
-// ─── FORMATOS DE MÍDIA ───────────────────────────────────────────
 model MediaFormat {
-  id        String        @id @default(cuid())
+  id        String   @id @default(cuid())
   tenantId  String?
-  vehicle   String
-  media     String
-  format    String
+  name      String
   width     Int
   height    Int
-  dpi       Int
-  category  MediaCategory
-  isDefault Boolean       @default(false)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-
-  tenant Tenant? @relation(fields: [tenantId], references: [id])
-}
-
-enum MediaCategory {
-  DIGITAL
-  OFFLINE
+  category  String?
+  vehicle   String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
 }
