@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     // 1. Apagar assets existentes
     await prisma.campaignAsset.deleteMany({ where: { campaignId: id } })
 
-    // 2. Criar assets — imagens sem base64 (muito pesado para o banco)
+    // 2. Criar assets
     const created = []
     for (let i = 0; i < body.assets.length; i++) {
       const asset = body.assets[i]
@@ -50,9 +50,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
             campaignId: id,
             label: asset.label,
             type: asset.type,
-            content: asset.content ?? [],
-            // Não salvar base64 de imagem no banco — usar placeholder
-            imageUrl: asset.type === "IMAGE" ? null : null,
+            content: asset.content ? JSON.stringify(asset.content) : null,
+            imageUrl: null,
             order: i,
             posX: asset.posX,
             posY: asset.posY,
