@@ -80,15 +80,17 @@ model Client {
 }
 
 model Campaign {
-  id        String          @id @default(cuid())
-  name      String
-  clientId  String
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  client    Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  assets    CampaignAsset[]
-  keyVision KeyVision?
-  pieces    Piece[]
+  id         String          @id @default(cuid())
+  name       String
+  clientId   String
+  status     String          @default("DRAFT")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  client     Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assets     CampaignAsset[]
+  keyVision  KeyVision?
+  pieces     Piece[]
+  deliveries Delivery[]
 }
 
 model CampaignAsset {
@@ -126,16 +128,49 @@ model KeyVision {
 }
 
 model Piece {
-  id           String   @id @default(cuid())
-  campaignId   String
+  id            String    @id @default(cuid())
+  campaignId    String
   mediaFormatId String?
-  name         String?
-  status       String   @default("DRAFT")
-  data         String?
-  imageUrl     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name          String?
+  status        String    @default("DRAFT")
+  data          String?
+  imageUrl      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  campaign      Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  deliveries    DeliveryPiece[]
+}
+
+model Delivery {
+  id         String          @id @default(cuid())
+  campaignId String
+  name       String?
+  status     String          @default("PENDING")
+  notes      String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  campaign   Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  files      DeliveryFile[]
+  pieces     DeliveryPiece[]
+}
+
+model DeliveryFile {
+  id         String   @id @default(cuid())
+  deliveryId String
+  name       String
+  url        String
+  size       Int?
+  createdAt  DateTime @default(now())
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+}
+
+model DeliveryPiece {
+  id         String   @id @default(cuid())
+  deliveryId String
+  pieceId    String
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  piece      Piece    @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  @@unique([deliveryId, pieceId])
 }
 
 model MediaFormat {
