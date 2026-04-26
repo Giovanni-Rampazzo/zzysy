@@ -112,7 +112,7 @@ export default function CampaignPage() {
                     <div key={asset.id}>
                       <label style={{ fontSize: 12, color: "#888", display: "block", marginBottom: 4 }}>{asset.label}</label>
                       <div style={{ padding: "10px 12px", background: "#F8F9FA", borderRadius: 6, border: "1px solid #E0E0E0", fontSize: 14, color: "#111", minHeight: 40 }}>
-                        {asset.content?.map((s: any) => s.text).join("") || asset.value || <span style={{ color: "#ccc" }}>—</span>}
+                        {(typeof asset.content === "string" ? JSON.parse(asset.content || "[]") : (asset.content ?? [])).map((s: any) => s.text).join("") || asset.value || <span style={{ color: "#ccc" }}>—</span>}
                       </div>
                     </div>
                   ))}
