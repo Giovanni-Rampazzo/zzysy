@@ -149,9 +149,18 @@ function fabricToSpans(obj: any): TextSpan[] {
   return charStylesToSpans(chars)
 }
 
+function parseContent(raw: any): TextSpan[] {
+  if (!raw) return []
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) } catch { return [] }
+  }
+  if (Array.isArray(raw)) return raw
+  return []
+}
+
 function getSpans(asset: Asset): TextSpan[] {
-  if (asset.content?.length) return asset.content
-  // value pode ter \n de bugs anteriores — limpar
+  const content = parseContent(asset.content)
+  if (content.length) return content
   const text = (asset.value?.replace(/\n/g, "").trim()) || asset.label
   return [{ text, style: { color: "#111111", fontSize: 80, fontWeight: "normal", fontFamily: "Arial" } }]
 }
