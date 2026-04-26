@@ -11,7 +11,12 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await ctx.params
   const kv = await prisma.keyVision.findUnique({ where: { campaignId: id } })
-  return NextResponse.json(kv ?? {})
+  if (!kv) return NextResponse.json(null)
+  return NextResponse.json({
+    ...kv,
+    data: kv.data ? JSON.parse(kv.data) : {},
+    layers: kv.layers ? JSON.parse(kv.layers) : null,
+  })
 }
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
@@ -20,23 +25,32 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   const body = await req.json()
 
-  // Suporta tanto { bgColor, layers } (novo editor) quanto { data } (legado)
   const bgColor = body.bgColor ?? "#ffffff"
   const layers = body.layers ?? null
   const data = body.data ?? {}
 
   const kv = await prisma.keyVision.upsert({
     where: { campaignId: id },
-    create: { campaignId: id, data, bgColor, layers },
-    update: { data, bgColor, layers },
+    create: {
+      campaignId: id,
+      data: JSON.stringify(data),
+      bgColor,
+      layers: layers ? JSON.stringify(layers) : null,
+      width: body.width ?? 1920,
+      height: body.height ?? 1080,
+    },
+    update: {
+      data: JSON.stringify(data),
+      bgColor,
+      layers: layers ? JSON.stringify(layers) : null,
+      width: body.width ?? 1920,
+      height: body.height ?? 1080,
+    },
   })
-  return NextResponse.json(kv)
-}
 
-export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id } = await ctx.params
-  await prisma.keyVision.deleteMany({ where: { campaignId: id } })
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({
+    ...kv,
+    data: kv.data ? JSON.parse(kv.data) : {},
+    layers: kv.layers ? JSON.parse(kv.layers) : null,
+  })
 }
