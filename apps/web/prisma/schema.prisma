@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -163,13 +163,13 @@ model Campaign {
 model CampaignAsset {
   id         String    @id @default(cuid())
   campaignId String
-  type       AssetType
+  type       String
   label      String
   // Conteúdo de texto (novo modelo semântico)
-  content    Json?     // [ { text: string, styles: { fontSize, color, fontWeight, fontFamily } } ]
+  content    String?     // [ { text: string, styles: { fontSize, color, fontWeight, fontFamily } } ]
   // Compatibilidade com campo antigo
-  value      String?   @db.Text
-  imageUrl   String?   @db.Text
+  value      String? 
+  imageUrl   String? 
   order      Int       @default(0)
   // Posicionamento no layout (layer)
   posX       Float     @default(100)
@@ -186,18 +186,15 @@ model CampaignAsset {
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
-enum AssetType {
-  TEXT
-  IMAGE
-}
+
 
 // ─── KEY VISION ──────────────────────────────────────────────────
 // layers: JSON array [ { assetId, posX, posY, scaleX, scaleY, rotation, zIndex } ]
 model KeyVision {
   id         String   @id @default(cuid())
   campaignId String   @unique
-  data       Json     // legado Fabric — manter por ora
-  layers     Json?    // novo modelo: [ { assetId, posX, posY, scaleX, scaleY, rotation, zIndex, width } ]
+  data       String     // legado Fabric — manter por ora
+  layers     String?    // novo modelo: [ { assetId, posX, posY, scaleX, scaleY, rotation, zIndex, width } ]
   bgColor    String   @default("#ffffff")
   width      Int      @default(1920)
   height     Int      @default(1080)
@@ -261,7 +258,7 @@ model DeliveryFile {
   deliveryId String
   name       String
   extension  String
-  url        String   @db.Text
+  url        String 
   size       Int
   createdAt  DateTime @default(now())
 
