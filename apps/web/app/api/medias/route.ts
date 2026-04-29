@@ -19,8 +19,9 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const tenantId = (session.user as any).tenantId
   const { vehicle, media, format, width, height, dpi, category } = await req.json()
+  const name = [vehicle, media, format].filter(Boolean).join(" - ") || "Formato"
   const mf = await prisma.mediaFormat.create({
-    data: { tenantId, vehicle, media, format, width, height, dpi, category, isDefault: false }
+    data: { tenantId, name, vehicle, media, format, width, height, dpi, category, isDefault: false }
   })
   return NextResponse.json(mf)
 }
