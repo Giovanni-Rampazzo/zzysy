@@ -38,12 +38,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String? @db.Text
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([provider, providerAccountId])
@@ -98,9 +98,9 @@ model CampaignAsset {
   campaignId String
   type       String   @default("TEXT")
   label      String
-  content    String?
-  value      String?
-  imageUrl   String?
+  content    String?  @db.LongText
+  value      String?  @db.Text
+  imageUrl   String?  @db.Text
   order      Int      @default(0)
   posX       Float    @default(100)
   posY       Float    @default(100)
@@ -117,9 +117,9 @@ model CampaignAsset {
 model KeyVision {
   id         String   @id @default(cuid())
   campaignId String   @unique
-  data       String   @default("{}")
+  data       String?  @db.LongText
   bgColor    String   @default("#ffffff")
-  layers     String?
+  layers     String?  @db.LongText
   width      Int      @default(1920)
   height     Int      @default(1080)
   createdAt  DateTime @default(now())
@@ -128,16 +128,16 @@ model KeyVision {
 }
 
 model Piece {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   campaignId    String
   mediaFormatId String?
   name          String?
-  status        String    @default("DRAFT")
-  data          String?
-  imageUrl      String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  campaign      Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  status        String         @default("DRAFT")
+  data          String?        @db.LongText
+  imageUrl      String?        @db.Text
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  campaign      Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   deliveries    DeliveryPiece[]
 }
 
@@ -146,7 +146,7 @@ model Delivery {
   campaignId String
   name       String?
   status     String          @default("PENDING")
-  notes      String?
+  notes      String?         @db.Text
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
   campaign   Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -158,7 +158,7 @@ model DeliveryFile {
   id         String   @id @default(cuid())
   deliveryId String
   name       String
-  url        String
+  url        String   @db.Text
   size       Int?
   createdAt  DateTime @default(now())
   delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
