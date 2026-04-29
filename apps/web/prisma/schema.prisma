@@ -177,10 +177,13 @@ model MediaFormat {
   id        String   @id @default(cuid())
   tenantId  String?
   name      String
+  vehicle   String?
+  media     String?
+  format    String?
   width     Int
   height    Int
+  dpi       Int?
   category  String?
-  vehicle   String?
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
