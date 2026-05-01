@@ -474,9 +474,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const secS = { fontSize: 10, fontWeight: 700 as const, textTransform: "uppercase" as const, letterSpacing: "0.8px", color: "#555", marginBottom: 8 }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#1e1e1e", overflow: "hidden" }}>
-      <div style={{ position: "absolute", left: canvasPos.left, top: canvasPos.top, boxShadow: "0 8px 64px rgba(0,0,0,0.8)", lineHeight: 0, zIndex: 1 }}>
-        <canvas ref={canvasRef} />
+    <div style={{ position: "fixed", inset: 0, background: "#1e1e1e", overflow: "hidden", cursor: "default" }}>
+      <div style={{ position: "absolute", left: canvasPos.left, top: canvasPos.top, boxShadow: "0 8px 64px rgba(0,0,0,0.8)", lineHeight: 0, zIndex: 10, pointerEvents: "auto" }}>
+        <canvas ref={canvasRef} style={{ display: "block" }} />
       </div>
 
       {/* TOPBAR */}
