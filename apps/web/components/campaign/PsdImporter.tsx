@@ -101,10 +101,7 @@ export function PsdImporter({ campaignId, onImported }: Props) {
           const color = fillColor ? colorToHex(fillColor) : "#000000"
           const fontName = styleRun.font?.name ?? td.style?.font?.name ?? "Arial"
           const fontWeight = (styleRun.fauxBold || td.style?.fauxBold || fontName.toLowerCase().includes("bold")) ? "bold" : "normal"
-          const rawText = (td.text ?? name).replace(//g, "
-").replace(/
-/g, "
-")
+          const rawText = ((td.text ?? name) + "").replace(/\r\n/g, "\n").replace(/\r/g, "\n")
 
           logs.push(`T "${name}" → "${rawText.substring(0, 30)}" ${Math.round(fontSize)}px ${color}`)
 
