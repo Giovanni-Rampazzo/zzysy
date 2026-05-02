@@ -213,13 +213,21 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       if (asset.imageUrl) {
         try {
           const { Image: FabricImage } = await import("fabric")
-          const img = await FabricImage.fromURL(asset.imageUrl)
-          img.set({ left: posX, top: posY, scaleX, scaleY, angle })
-          ;(img as any).__assetId = asset.id
-          ;(img as any).__assetLabel = asset.label
-          fc.add(img)
+          await new Promise<void>((resolve, reject) => {
+            const el = new window.Image()
+            el.onload = () => {
+              const img = new FabricImage(el, { left: posX, top: posY, scaleX, scaleY, angle })
+              ;(img as any).__assetId = asset.id
+              ;(img as any).__assetLabel = asset.label
+              fc.add(img)
+              fc.requestRenderAll()
+              resolve()
+            }
+            el.onerror = reject
+            el.src = asset.imageUrl!
+          })
           return
-        } catch {}
+        } catch (e) { console.error("Image load failed:", e) }
       }
       // Fallback: placeholder cinza
       const r = new Rect({
