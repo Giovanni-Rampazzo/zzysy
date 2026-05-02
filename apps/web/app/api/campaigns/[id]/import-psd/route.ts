@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
             label: asset.label,
             type: asset.type,
             content: asset.content ? JSON.stringify(asset.content) : null,
-            imageUrl: null,
+            imageUrl: asset.imageUrl ?? null,
             order: i,
             posX: asset.posX,
             posY: asset.posY,
