@@ -1,6 +1,6 @@
 "use client"
 // Exportacao de pecas: PSD editavel + PNG + JPG + PDF
-// Suporta agrupamento em ZIP quando ha mais de 1 arquivo
+// Suporta peca v2 (layers + assets) e v1 (canvasData legacy)
 
 export type ExportFormat = "PSD" | "PNG" | "JPG" | "PDF"
 
@@ -18,68 +18,160 @@ function safeName(s: string) {
   return s.replace(/[^a-zA-Z0-9_\-]/g, "_").substring(0, 80)
 }
 
-async function loadFabricFromJSON(canvasData: any, width: number, height: number): Promise<any> {
+interface Asset {
+  id: string; type: string; label: string; value: string | null; imageUrl: string | null; content: any
+}
+
+function parseContent(raw: any): any[] {
+  if (!raw) return []
+  if (typeof raw === "string") { try { return JSON.parse(raw) } catch { return [] } }
+  if (Array.isArray(raw)) return raw
+  return []
+}
+
+// Constroi o canvas Fabric da peca a partir de layers + assets
+async function buildPieceCanvas(piece: any, assets: Asset[]): Promise<any> {
   const fabric = await import("fabric")
   const StaticCanvas = (fabric as any).StaticCanvas
+  const Textbox = (fabric as any).Textbox
+  const FabricImage = (fabric as any).FabricImage ?? (fabric as any).Image
+  const Rect = (fabric as any).Rect
+
+  const data = typeof piece.data === "string" ? JSON.parse(piece.data) : piece.data
+  const W = data?.width ?? piece.width ?? 1080
+  const H = data?.height ?? piece.height ?? 1080
+  const bgColor = data?.bgColor ?? "#ffffff"
+
   const el = document.createElement("canvas")
-  el.width = width; el.height = height
-  const fc = new StaticCanvas(el, { width, height, enableRetinaScaling: false })
-  await new Promise<void>((resolve) => {
-    try {
-      const r = fc.loadFromJSON(canvasData, () => { fc.renderAll(); resolve() })
-      if (r && typeof r.then === "function") r.then(() => { fc.renderAll(); resolve() })
-    } catch (e) { console.error(e); resolve() }
-  })
-  // Garantia extra: aguarda imagens HTML do canvas terminarem de carregar
-  await new Promise(r => setTimeout(r, 350))
-  fc.renderAll()
+  el.width = W; el.height = H
+  const fc = new StaticCanvas(el, { width: W, height: H, enableRetinaScaling: false, backgroundColor: bgColor })
+
+  // V2: layers + assets
+  if (data?.version === 2 && Array.isArray(data?.layers)) {
+    const assetMap = Object.fromEntries(assets.map(a => [a.id, a]))
+    const sorted = [...data.layers].sort((a: any, b: any) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+
+    for (const layer of sorted) {
+      const asset = assetMap[layer.assetId]
+      if (!asset) continue
+      const overrides = layer.overrides ?? {}
+
+      if (asset.type === "TEXT") {
+        const spans = parseContent(asset.content)
+        const fullText = spans.length ? spans.map((s: any) => s.text).join("") : (asset.value ?? asset.label)
+        const def = spans[0]?.style ?? {}
+        const t = new Textbox(fullText, {
+          left: layer.posX, top: layer.posY,
+          width: Math.max(layer.width ?? 400, 100),
+          fontSize: overrides.fontSize ?? def.fontSize ?? 80,
+          fontFamily: overrides.fontFamily ?? def.fontFamily ?? "Arial",
+          fontWeight: overrides.fontWeight ?? def.fontWeight ?? "normal",
+          fill: overrides.fill ?? def.color ?? "#111",
+          scaleX: layer.scaleX ?? 1,
+          scaleY: layer.scaleY ?? 1,
+          angle: layer.rotation ?? 0,
+          charSpacing: overrides.charSpacing ?? 0,
+          lineHeight: overrides.lineHeight ?? 1.16,
+          textAlign: overrides.textAlign ?? "left",
+          styles: overrides.styles ?? undefined,
+        })
+        ;(t as any).__assetId = asset.id
+        ;(t as any).__assetLabel = asset.label
+        fc.add(t)
+      } else if (asset.type === "IMAGE") {
+        if (asset.imageUrl) {
+          try {
+            const img = await new Promise<any>((resolve, reject) => {
+              const ie = new window.Image()
+              ie.crossOrigin = "anonymous"
+              ie.onload = () => resolve(new FabricImage(ie, {
+                left: layer.posX, top: layer.posY,
+                scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1,
+                angle: layer.rotation ?? 0,
+              }))
+              ie.onerror = reject
+              ie.src = asset.imageUrl!
+            })
+            ;(img as any).__assetId = asset.id
+            ;(img as any).__assetLabel = asset.label
+            fc.add(img)
+          } catch (e) { console.warn("img load fail:", asset.label, e) }
+        } else {
+          const r = new Rect({
+            left: layer.posX, top: layer.posY,
+            width: layer.width ?? 400, height: layer.height ?? 300,
+            fill: "#d0d0d0", stroke: "#999",
+            scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, angle: layer.rotation ?? 0,
+          })
+          fc.add(r)
+        }
+      }
+    }
+    fc.renderAll()
+    await new Promise(r => setTimeout(r, 250))
+    return fc
+  }
+
+  // V1: canvasData legacy
+  if (data?.canvasData) {
+    await new Promise<void>((resolve) => {
+      const r = fc.loadFromJSON(data.canvasData, () => resolve())
+      if (r && typeof r.then === "function") r.then(() => resolve())
+    })
+    await new Promise(r => setTimeout(r, 250))
+    fc.renderAll()
+    return fc
+  }
   return fc
 }
 
-async function renderToCanvas(piece: { data: any; width: number; height: number }): Promise<HTMLCanvasElement> {
+async function fetchPieceWithAssets(pieceId: string): Promise<{ piece: any; assets: Asset[] }> {
+  const pres = await fetch(`/api/pieces/${pieceId}`)
+  const piece = await pres.json()
+  const cres = await fetch(`/api/campaigns/${piece.campaignId}`)
+  const camp = await cres.json()
+  return { piece, assets: camp.assets ?? [] }
+}
+
+async function renderToCanvas(pieceLite: { id?: string; name: string; data: any; width: number; height: number }): Promise<HTMLCanvasElement> {
+  // Sempre busca peça + assets do servidor (sync) caso tenha id
+  let piece: any = pieceLite
+  let assets: Asset[] = []
+  if (pieceLite.id) {
+    const fetched = await fetchPieceWithAssets(pieceLite.id)
+    piece = fetched.piece
+    assets = fetched.assets
+  }
+  const fc = await buildPieceCanvas(piece, assets)
   const data = typeof piece.data === "string" ? JSON.parse(piece.data) : piece.data
-  const canvasData = data?.canvasData ?? data
-  const sourceW = data?.sourceWidth ?? piece.width
-  const sourceH = data?.sourceHeight ?? piece.height
+  const W = data?.width ?? pieceLite.width
+  const H = data?.height ?? pieceLite.height
 
-  const fc = await loadFabricFromJSON(canvasData, sourceW, sourceH)
-
-  // Canvas opaco (sem alpha) para evitar pre-multiplicacao
   const out = document.createElement("canvas")
-  out.width = piece.width
-  out.height = piece.height
+  out.width = W; out.height = H
   const ctx = out.getContext("2d", { alpha: false } as any)!
-
-  // FILL: preenche todo o canvas
-  const scale = Math.max(piece.width / sourceW, piece.height / sourceH)
-  const drawW = sourceW * scale
-  const drawH = sourceH * scale
-  const dx = (piece.width - drawW) / 2
-  const dy = (piece.height - drawH) / 2
-
-  ctx.fillStyle = "#ffffff"
-  ctx.fillRect(0, 0, piece.width, piece.height)
-  const sourceCanvas = fc.getElement() as HTMLCanvasElement
-  ctx.drawImage(sourceCanvas, dx, dy, drawW, drawH)
+  ctx.fillStyle = data?.bgColor ?? "#ffffff"
+  ctx.fillRect(0, 0, W, H)
+  ctx.drawImage(fc.getElement() as HTMLCanvasElement, 0, 0)
   fc.dispose()
   return out
 }
 
-export async function exportPNGBlob(piece: { name: string; data: any; width: number; height: number }): Promise<Blob> {
+export async function exportPNGBlob(piece: { id?: string; name: string; data: any; width: number; height: number }): Promise<Blob> {
   const c = await renderToCanvas(piece)
   return await new Promise<Blob>((resolve, reject) => {
     c.toBlob(b => b ? resolve(b) : reject(new Error("toBlob PNG falhou")), "image/png")
   })
 }
 
-export async function exportJPGBlob(piece: { name: string; data: any; width: number; height: number }): Promise<Blob> {
+export async function exportJPGBlob(piece: { id?: string; name: string; data: any; width: number; height: number }): Promise<Blob> {
   const c = await renderToCanvas(piece)
   return await new Promise<Blob>((resolve, reject) => {
     c.toBlob(b => b ? resolve(b) : reject(new Error("toBlob JPG falhou")), "image/jpeg", 0.92)
   })
 }
 
-export async function exportPDFBlob(piece: { name: string; data: any; width: number; height: number }): Promise<Blob> {
+export async function exportPDFBlob(piece: { id?: string; name: string; data: any; width: number; height: number }): Promise<Blob> {
   const c = await renderToCanvas(piece)
   const jpegDataUrl = c.toDataURL("image/jpeg", 0.92)
   const jpegBase64 = jpegDataUrl.split(",")[1]
@@ -87,7 +179,7 @@ export async function exportPDFBlob(piece: { name: string; data: any; width: num
   const jpegBuf = new Uint8Array(jpegBytes.length)
   for (let i = 0; i < jpegBytes.length; i++) jpegBuf[i] = jpegBytes.charCodeAt(i)
 
-  const W = piece.width, H = piece.height
+  const W = c.width, H = c.height
   const enc = new TextEncoder()
   const parts: Array<Uint8Array> = []
   const offsets: number[] = []
@@ -134,12 +226,10 @@ function parseColor(c: string): { r: number; g: number; b: number } {
   return { r: 0, g: 0, b: 0 }
 }
 
-// Converte os styles per-character do Fabric Textbox em styleRuns do ag-psd
-function buildStyleRuns(textbox: any, fullText: string, scale: number): any[] {
+function buildStyleRuns(textbox: any, fullText: string): any[] {
   const runs: any[] = []
   const styles = textbox.styles ?? {}
   const lines = fullText.split("\n")
-
   let charIdx = 0
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
     const line = lines[lineNum]
@@ -147,7 +237,6 @@ function buildStyleRuns(textbox: any, fullText: string, scale: number): any[] {
     let prevStyleKey = ""
     let runStart = charIdx
     let runStyle: any = null
-
     for (let col = 0; col <= line.length; col++) {
       const cs = col < line.length ? lineStyles[col] : null
       const fill = cs?.fill ?? textbox.fill ?? "#000000"
@@ -155,32 +244,21 @@ function buildStyleRuns(textbox: any, fullText: string, scale: number): any[] {
       const fontFamily = cs?.fontFamily ?? textbox.fontFamily ?? "Arial"
       const fontWeight = cs?.fontWeight ?? textbox.fontWeight ?? "normal"
       const styleKey = `${fill}|${fontSize}|${fontFamily}|${fontWeight}`
-
       if (styleKey !== prevStyleKey && col > 0) {
-        runs.push({
-          length: charIdx + col - 1 - runStart + 1,
-          style: runStyle
-        })
+        runs.push({ length: charIdx + col - 1 - runStart + 1, style: runStyle })
         runStart = charIdx + col
       }
       if (styleKey !== prevStyleKey) {
         runStyle = {
-          fontName: fontFamily,
-          fontSize: Math.round(fontSize * scale),
-          fillColor: parseColor(fill),
-          fauxBold: (fontWeight === "bold" || fontWeight === 700),
+          fontName: fontFamily, fontSize: Math.round(fontSize),
+          fillColor: parseColor(fill), fauxBold: (fontWeight === "bold" || fontWeight === 700),
         }
         prevStyleKey = styleKey
       }
     }
-    // Fechar ultimo run da linha + quebra
-    runs.push({
-      length: charIdx + line.length - runStart,
-      style: runStyle
-    })
+    runs.push({ length: charIdx + line.length - runStart, style: runStyle })
     charIdx += line.length
     if (lineNum < lines.length - 1) {
-      // adiciona o \n ao ultimo run
       const last = runs[runs.length - 1]
       if (last) last.length += 1
       charIdx += 1
@@ -189,25 +267,21 @@ function buildStyleRuns(textbox: any, fullText: string, scale: number): any[] {
   return runs.filter(r => r.length > 0)
 }
 
-function canvasToImageData(c: HTMLCanvasElement): ImageData {
-  const ctx = c.getContext("2d", { alpha: false } as any)!
-  return ctx.getImageData(0, 0, c.width, c.height)
-}
-
-export async function exportPSDBlob(piece: { name: string; data: any; width: number; height: number; sourceWidth?: number; sourceHeight?: number }): Promise<Blob> {
+export async function exportPSDBlob(pieceLite: { id?: string; name: string; data: any; width: number; height: number }): Promise<Blob> {
+  let piece: any = pieceLite
+  let assets: Asset[] = []
+  if (pieceLite.id) {
+    const fetched = await fetchPieceWithAssets(pieceLite.id)
+    piece = fetched.piece
+    assets = fetched.assets
+  }
+  const fc = await buildPieceCanvas(piece, assets)
   const data = typeof piece.data === "string" ? JSON.parse(piece.data) : piece.data
-  const canvasData = data?.canvasData ?? data
-  const sourceW = data?.sourceWidth ?? piece.sourceWidth ?? piece.width
-  const sourceH = data?.sourceHeight ?? piece.sourceHeight ?? piece.height
+  const W = data?.width ?? pieceLite.width
+  const H = data?.height ?? pieceLite.height
 
-  const fc = await loadFabricFromJSON(canvasData, sourceW, sourceH)
   const objects = fc.getObjects()
-  const scale = Math.max(piece.width / sourceW, piece.height / sourceH)
-  const offsetX = (piece.width - sourceW * scale) / 2
-  const offsetY = (piece.height - sourceH * scale) / 2
-
   const agpsd = await import("ag-psd") as any
-  // ag-psd no browser ja vem inicializado; nao precisa initializeCanvas manual
 
   const psdLayers: any[] = []
   for (const obj of objects) {
@@ -216,19 +290,18 @@ export async function exportPSDBlob(piece: { name: string; data: any; width: num
     const oy = obj.top ?? 0
     const ow = (obj.width ?? 100) * (obj.scaleX ?? 1)
     const oh = (obj.height ?? 100) * (obj.scaleY ?? 1)
-    const left = Math.round(ox * scale + offsetX)
-    const top = Math.round(oy * scale + offsetY)
-    const right = Math.round((ox + ow) * scale + offsetX)
-    const bottom = Math.round((oy + oh) * scale + offsetY)
+    const left = Math.round(ox)
+    const top = Math.round(oy)
+    const right = Math.round(ox + ow)
+    const bottom = Math.round(oy + oh)
     const w = Math.max(1, right - left)
     const h = Math.max(1, bottom - top)
     const name = (obj as any).__assetLabel ?? obj.type ?? "Layer"
 
     if (obj.type === "textbox" || obj.type === "i-text" || obj.type === "text") {
-      const fontSize = Math.round((obj.fontSize ?? 48) * scale)
+      const fontSize = Math.round(obj.fontSize ?? 48)
       const fullText = obj.text ?? ""
-      const styleRuns = buildStyleRuns(obj, fullText, scale)
-
+      const styleRuns = buildStyleRuns(obj, fullText)
       psdLayers.push({
         name, top, left, bottom, right,
         text: {
@@ -252,39 +325,33 @@ export async function exportPSDBlob(piece: { name: string; data: any; width: num
       lctx.fillStyle = "#ffffff"
       lctx.fillRect(0, 0, w, h)
       try {
-        const img = obj.toCanvasElement({ multiplier: scale })
+        const img = obj.toCanvasElement({ multiplier: 1 })
         lctx.drawImage(img, 0, 0, w, h)
         psdLayers.push({ name, top, left, bottom, right, canvas: layerCanvas })
-      } catch (e) {
-        console.warn("falha rasterizar:", name, e)
-      }
+      } catch (e) { console.warn("rasterize fail:", name, e) }
     }
   }
 
-  // Composite final - usado pelo Photoshop como preview do documento
+  // Composite (preview)
   const compositeCanvas = document.createElement("canvas")
-  compositeCanvas.width = piece.width
-  compositeCanvas.height = piece.height
+  compositeCanvas.width = W
+  compositeCanvas.height = H
   const cctx = compositeCanvas.getContext("2d", { alpha: false } as any)!
-  cctx.fillStyle = "#ffffff"
-  cctx.fillRect(0, 0, piece.width, piece.height)
-  const drawW = sourceW * scale
-  const drawH = sourceH * scale
-  cctx.drawImage(fc.getElement(), offsetX, offsetY, drawW, drawH)
+  cctx.fillStyle = data?.bgColor ?? "#ffffff"
+  cctx.fillRect(0, 0, W, H)
+  cctx.drawImage(fc.getElement(), 0, 0)
 
-  // Thumbnail menor para o Finder/Bridge mostrar preview correto
   const thumbCanvas = document.createElement("canvas")
-  const thumbScale = Math.min(256 / piece.width, 256 / piece.height)
-  thumbCanvas.width = Math.round(piece.width * thumbScale)
-  thumbCanvas.height = Math.round(piece.height * thumbScale)
+  const thumbScale = Math.min(256 / W, 256 / H)
+  thumbCanvas.width = Math.round(W * thumbScale)
+  thumbCanvas.height = Math.round(H * thumbScale)
   const tctx = thumbCanvas.getContext("2d", { alpha: false } as any)!
-  tctx.fillStyle = "#ffffff"
+  tctx.fillStyle = "#fff"
   tctx.fillRect(0, 0, thumbCanvas.width, thumbCanvas.height)
   tctx.drawImage(compositeCanvas, 0, 0, thumbCanvas.width, thumbCanvas.height)
 
   const psd: any = {
-    width: piece.width,
-    height: piece.height,
+    width: W, height: H,
     canvas: compositeCanvas,
     children: psdLayers,
     imageResources: { thumbnail: thumbCanvas },
@@ -296,7 +363,7 @@ export async function exportPSDBlob(piece: { name: string; data: any; width: num
 
 const EXT_MAP: Record<ExportFormat, string> = { PSD: "psd", PNG: "png", JPG: "jpg", PDF: "pdf" }
 
-async function buildBlob(piece: { name: string; data: any; width: number; height: number }, format: ExportFormat): Promise<Blob> {
+async function buildBlob(piece: { id?: string; name: string; data: any; width: number; height: number }, format: ExportFormat): Promise<Blob> {
   switch (format) {
     case "PNG": return exportPNGBlob(piece)
     case "JPG": return exportJPGBlob(piece)
@@ -305,17 +372,14 @@ async function buildBlob(piece: { name: string; data: any; width: number; height
   }
 }
 
-// Exporta uma ou mais pecas em um ou mais formatos.
-// Se total > 1 arquivo, agrupa tudo num zip e baixa uma vez so.
 export async function exportPieces(
-  pieces: Array<{ name: string; data: any; width: number; height: number }>,
+  pieces: Array<{ id?: string; name: string; data: any; width: number; height: number }>,
   formats: ExportFormat[],
   onProgress?: (msg: string) => void
 ): Promise<void> {
   const total = pieces.length * formats.length
   if (total === 0) return
 
-  // Caso simples: 1 arquivo so, baixa direto
   if (total === 1) {
     const piece = pieces[0]
     const fmt = formats[0]
@@ -325,12 +389,10 @@ export async function exportPieces(
     return
   }
 
-  // Caso multiplo: empacota em zip
   const JSZip = (await import("jszip")).default
   const zip = new JSZip()
   let done = 0
   for (const piece of pieces) {
-    // Se ha varias pecas, organiza em pastas por peca
     const folder = pieces.length > 1 ? zip.folder(safeName(piece.name)) ?? zip : zip
     for (const fmt of formats) {
       done++
@@ -340,7 +402,7 @@ export async function exportPieces(
         const buf = await blob.arrayBuffer()
         folder.file(`${safeName(piece.name)}.${EXT_MAP[fmt]}`, buf)
       } catch (e) {
-        console.error("Falha ao exportar", piece.name, fmt, e)
+        console.error("Falha exportar", piece.name, fmt, e)
       }
     }
   }
@@ -353,9 +415,8 @@ export async function exportPieces(
   downloadBlob(zipBlob, zipName)
 }
 
-// Compat antiga
 export async function exportPiece(
-  piece: { name: string; data: any; width: number; height: number },
+  piece: { id?: string; name: string; data: any; width: number; height: number },
   format: ExportFormat
 ) {
   return exportPieces([piece], [format])
