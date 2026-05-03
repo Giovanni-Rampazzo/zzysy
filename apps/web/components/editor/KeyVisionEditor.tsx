@@ -287,7 +287,15 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
 
   // Inicializar Fabric
   useEffect(() => {
-    if (!campaign || !canvasRef.current || fabricRef.current) return
+    if (!campaign || !canvasRef.current) return
+    // Se ja existe um canvas Fabric, mas ele aponta para um DOM element diferente
+    // do canvasRef.current atual (Strict Mode re-mount, hot reload, etc), descarta o velho
+    if (fabricRef.current) {
+      const existingEl = (fabricRef.current as any).lowerCanvasEl ?? (fabricRef.current as any).getElement?.()
+      if (existingEl === canvasRef.current) return  // mesmo DOM, ja inicializado
+      try { fabricRef.current.dispose() } catch {}
+      fabricRef.current = null
+    }
     let alive = true
     const cleanupFns: Array<() => void> = []
 
@@ -513,10 +521,13 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
         if (fcc.__blockPasteHandler) document.removeEventListener("paste", fcc.__blockPasteHandler, true)
       }
       cleanupFns.forEach(fn => { try { fn() } catch {} })
-      // NÃO disposo o canvas aqui: guarda no topo (`fabricRef.current` truthy) impede re-init,
-      // então mesmo que esse cleanup rode em re-renders intermediários, o canvas continua vivo.
-      // O canvas só seria realmente destruído se o componente desmontar de fato — nesse caso
-      // o React desmonta o <canvas> do DOM e o Fabric perde a referência ao DOM, sem leak grave.
+      // Dispose o canvas e libera fabricRef para que a próxima execução do useEffect
+      // (em strict mode, hot reload, ou navegação de peça pra peça) possa re-inicializar
+      // num <canvas> DOM novo. Sem isso, fabricRef segura referencia stale.
+      if (fabricRef.current) {
+        try { fabricRef.current.dispose() } catch {}
+        fabricRef.current = null
+      }
     }
   }, [campaign])
 
