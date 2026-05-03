@@ -519,6 +519,64 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
     doSave()
   }
 
+  async function saveNow() {
+    clearTimeout(saveTimer.current)
+    setSaving(true)
+    const fc = fabricRef.current
+    if (!fc) { setSaving(false); return }
+
+    if (pieceId && pieceRef.current) {
+      const p = pieceRef.current
+      const oldData = typeof p.data === "string" ? JSON.parse(p.data) : (p.data ?? {})
+      const newLayers = fc.getObjects()
+        .filter((o: any) => !o.__isBg)
+        .map((o: any, i: number) => {
+          const layer: any = {
+            assetId: o.__assetId ?? null,
+            posX: Math.round(o.left ?? 0), posY: Math.round(o.top ?? 0),
+            scaleX: o.scaleX ?? 1, scaleY: o.scaleY ?? 1,
+            rotation: o.angle ?? 0, zIndex: i,
+            width: Math.round(o.width ?? 400), height: Math.round(o.height ?? 100),
+            overrides: {},
+          }
+          if (o.type === "textbox" || o.type === "i-text") {
+            layer.overrides.fill = o.fill
+            layer.overrides.fontSize = o.fontSize
+            layer.overrides.fontFamily = o.fontFamily
+            layer.overrides.fontWeight = o.fontWeight
+            if (o.charSpacing !== undefined) layer.overrides.charSpacing = o.charSpacing
+            if (o.lineHeight !== undefined) layer.overrides.lineHeight = o.lineHeight
+            if (o.textAlign !== undefined) layer.overrides.textAlign = o.textAlign
+            if (o.styles && Object.keys(o.styles).length > 0) layer.overrides.styles = o.styles
+          }
+          return layer
+        })
+      const newData = { ...oldData, version: 2, width: canvasWRef.current, height: canvasHRef.current, bgColor: bgColorRef.current, layers: newLayers }
+      await fetch(`/api/pieces/${pieceId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: JSON.stringify(newData) }) })
+    } else {
+      const layersToSave: Layer[] = fc.getObjects()
+        .filter((o: any) => !o.__isBg)
+        .map((o: any, i: number) => ({
+          assetId: o.__assetId ?? "",
+          posX: Math.round(o.left ?? 0), posY: Math.round(o.top ?? 0),
+          scaleX: o.scaleX ?? 1, scaleY: o.scaleY ?? 1,
+          rotation: o.angle ?? 0, zIndex: i,
+          width: Math.round(o.width ?? 400),
+          height: Math.round((o.height ?? 300) * (o.scaleY ?? 1)),
+        }))
+      await fetch(`/api/campaigns/${campaignId}/key-vision`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bgColor: bgColorRef.current, layers: layersToSave, width: canvasWRef.current, height: canvasHRef.current }) })
+      try {
+        const thumbScale = Math.min(480 / canvasWRef.current, 480 / canvasHRef.current, 1)
+        const dataUrl = fc.toDataURL({ format: "jpeg", quality: 0.85, multiplier: thumbScale / (zoomRef.current || 1) })
+        const blob = await (await fetch(dataUrl)).blob()
+        const fd = new FormData()
+        fd.append("thumbnail", blob, "kv-thumb.jpg")
+        await fetch(`/api/campaigns/${campaignId}/key-vision/thumbnail`, { method: "POST", body: fd })
+      } catch (e) { console.warn("KV thumb upload failed:", e) }
+    }
+    setSaving(false)
+  }
+
   function doSave() {
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
@@ -696,10 +754,24 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       </div>
 
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: TH, background: "rgba(17,17,17,0.98)", borderBottom: "1px solid #2a2a2a", display: "flex", alignItems: "center", padding: "0 16px", gap: 12, zIndex: 200 }}>
-        <button onClick={() => router.push(isPieceMode ? `/pieces?campaignId=${campaignId}` : `/campaigns/${campaignId}`)} style={{ ...bS, fontSize: 13 }}>← {isPieceMode && piece ? `${piece.name}` : campaign.name}</button>
+        <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{ ...bS, fontSize: 13 }}>← {isPieceMode && piece ? `${piece.name}` : campaign.name}</button>
         <div style={{ flex: 1 }} />
         {saving && <span style={{ fontSize: 11, color: "#555" }}>Salvando...</span>}
         <span style={{ fontSize: 11, color: "#555" }}>{canvasW} × {canvasH}</span>
+        <button
+          onClick={saveNow}
+          disabled={saving}
+          style={{
+            background: saving ? "#2a2a2a" : "white",
+            border: "1px solid #333",
+            borderRadius: 6, padding: "6px 14px",
+            fontWeight: 600, fontSize: 13,
+            cursor: saving ? "wait" : "pointer",
+            color: saving ? "#888" : "#111",
+          }}
+        >
+          {saving ? "Salvando..." : "💾 Salvar"}
+        </button>
         {!isPieceMode && (
           <button onClick={() => setModal(true)} style={{ background: "#F5C400", border: "none", borderRadius: 6, padding: "6px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#111" }}>▶ Gerar Peças</button>
         )}
