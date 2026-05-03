@@ -169,29 +169,39 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       const campRes = await fetch(`/api/campaigns/${campaignId}`)
       const camp: Campaign = await campRes.json()
       campaignRef.current = camp
-      setCampaign(camp)
-      if (camp.assets?.length) { setAssetId(camp.assets[0].id); assetIdRef.current = camp.assets[0].id }
+      if (camp.assets?.length) { assetIdRef.current = camp.assets[0].id }
 
+      // MODO PEÇA: carrega peça PRIMEIRO, atualiza refs, depois disso seta campaign (que dispara init)
       if (pieceId) {
-        // MODO PEÇA: dimensões vêm da peça, não da matriz
         const pieceRes = await fetch(`/api/pieces/${pieceId}`)
         const p = await pieceRes.json()
         const pdata = typeof p.data === "string" ? JSON.parse(p.data) : p.data
         const pw = pdata?.width ?? DEFAULT_W
         const ph = pdata?.height ?? DEFAULT_H
-        setPiece(p); pieceRef.current = p
-        setCanvasW(pw); setCanvasH(ph)
-        canvasWRef.current = pw; canvasHRef.current = ph
+        // CRITICAL: setar refs ANTES de setCampaign para o init do canvas ter os dados certos
+        pieceRef.current = p
+        canvasWRef.current = pw
+        canvasHRef.current = ph
         const bg = pdata?.bgColor ?? camp.keyVision?.bgColor ?? "#ffffff"
-        setBgColor(bg); bgColorRef.current = bg
+        bgColorRef.current = bg
+        // Agora seta states (dispara render + init do canvas)
+        setPiece(p)
+        setCanvasW(pw); setCanvasH(ph)
+        setBgColor(bg)
+        if (camp.assets?.length) setAssetId(camp.assets[0].id)
+        setCampaign(camp)
       } else {
         // MODO MATRIZ
         const bg = camp.keyVision?.bgColor ?? "#ffffff"
-        setBgColor(bg); bgColorRef.current = bg
         const cw = camp.keyVision?.width ?? DEFAULT_W
         const ch = camp.keyVision?.height ?? DEFAULT_H
+        bgColorRef.current = bg
+        canvasWRef.current = cw
+        canvasHRef.current = ch
+        setBgColor(bg)
         setCanvasW(cw); setCanvasH(ch)
-        canvasWRef.current = cw; canvasHRef.current = ch
+        if (camp.assets?.length) setAssetId(camp.assets[0].id)
+        setCampaign(camp)
       }
     }
     load()
