@@ -57,6 +57,14 @@ function PiecesContent() {
   return (
     <PageShell>
       <div className="p-8">
+        {campaignId && (
+          <button
+            onClick={() => router.push(`/campaigns/${campaignId}`)}
+            className="text-xs text-[#888888] hover:text-[#111] mb-3 bg-transparent border-0 cursor-pointer p-0"
+          >
+            ← Voltar para a campanha
+          </button>
+        )}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Peças <span className="text-[#888888] font-normal text-lg">({pieces.length})</span></h1>
