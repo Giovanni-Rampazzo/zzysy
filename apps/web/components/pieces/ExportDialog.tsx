@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { exportPiece, ExportFormat } from "@/lib/exportPiece"
+import { exportPieces, ExportFormat } from "@/lib/exportPiece"
 
 interface PieceLite {
   id: string
@@ -34,14 +34,10 @@ export function ExportDialog({ pieces, onClose }: Props) {
   async function doExport() {
     if (!selectedFormats.length) return
     setExporting(true)
-    let i = 0
-    for (const piece of pieces) {
-      i++
-      for (const fmt of selectedFormats) {
-        setProgress(`${i}/${pieces.length} — ${piece.name} (${fmt})`)
-        try { await exportPiece(piece, fmt) }
-        catch (e) { console.error("Falha ao exportar", piece.name, fmt, e) }
-      }
+    try {
+      await exportPieces(pieces, selectedFormats, setProgress)
+    } catch (e) {
+      console.error("Falha geral na exportacao", e)
     }
     setExporting(false)
     setProgress("")
