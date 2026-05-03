@@ -278,12 +278,15 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
 
   // Inicializar Fabric
   useEffect(() => {
+    console.log("[ZZOSY] useEffect canvas: campaign?", !!campaign, "canvasRef?", !!canvasRef.current, "fabricRef?", !!fabricRef.current, "initialized?", canvasInitialized.current)
     if (!campaign || !canvasRef.current || fabricRef.current) return
     let alive = true
     const cleanupFns: Array<() => void> = []
 
     const init = async () => {
+      console.log("[ZZOSY] init() iniciando...")
       const { Canvas, Rect, Textbox, FabricImage } = await import("fabric")
+      console.log("[ZZOSY] fabric importado, canvasRef:", !!canvasRef.current, "alive:", alive)
       if (!alive || !canvasRef.current) return
 
       const cw = canvasWRef.current
@@ -295,6 +298,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       zoomRef.current = z
       setZoom(z)
 
+      console.log("[ZZOSY] criando Canvas com w=" + Math.round(cw*z) + " h=" + Math.round(ch*z) + " z=" + z)
       const fc = new Canvas(canvasRef.current, {
         width: Math.round(cw * z),
         height: Math.round(ch * z),
@@ -303,6 +307,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       })
       fc.setZoom(z)
       fabricRef.current = fc
+      console.log("[ZZOSY] Canvas criado OK, getElement:", fc.getElement()?.tagName, "getElement w:", fc.getElement()?.width)
 
       const bg = new Rect({
         left: 0, top: 0, width: cw, height: ch,
@@ -486,6 +491,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       }
 
       fc.renderAll()
+      console.log("[ZZOSY] init() FIM - canvas tem " + fc.getObjects().length + " objetos, w=" + fc.getWidth() + " h=" + fc.getHeight())
       if (alive) refreshLayers(fc)
       // Snapshot inicial (estado limpo, sem dirty)
       try {
