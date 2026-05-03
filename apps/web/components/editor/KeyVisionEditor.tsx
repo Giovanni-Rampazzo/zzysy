@@ -140,6 +140,12 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
   const isPieceMode = !!pieceId
   const [selected, setSelected] = useState<any>(null)
   const [hexInput, setHexInput] = useState<string>("#111111")
+  const undoStack = useRef<string[]>([])
+  const redoStack = useRef<string[]>([])
+  const isDirtyRef = useRef(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const isApplyingHistory = useRef(false)
+  const [confirmExit, setConfirmExit] = useState<null | (() => void)>(null)
   const [layers, setLayers] = useState<any[]>([])
   const [zoom, setZoom] = useState(0.5)
   const zoomRef = useRef(0.5)
@@ -233,6 +239,38 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
     return () => window.removeEventListener("focus", onFocus)
   }, [campaignId, pieceId])
 
+  // Atalhos Cmd/Ctrl+Z (undo) e Cmd/Ctrl+Shift+Z (redo)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const fc = fabricRef.current
+      const active = fc?.getActiveObject() as any
+      if (active?.isEditing) return // nao interfere com edicao de texto
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault()
+        redo()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
+
+  // beforeunload: avisa se ha mudancas nao salvas
+  useEffect(() => {
+    function onBefore(e: BeforeUnloadEvent) {
+      if (isDirtyRef.current) {
+        e.preventDefault()
+        e.returnValue = ""
+      }
+    }
+    window.addEventListener("beforeunload", onBefore)
+    return () => window.removeEventListener("beforeunload", onBefore)
+  }, [])
+
   // Inicializar Fabric
   useEffect(() => {
     if (!campaign || !canvasRef.current || fabricRef.current) return
@@ -277,6 +315,12 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       fc.on("text:changed", (e: any) => { if (alive && e?.target) setSelected((s: any) => s === e.target ? Object.assign(Object.create(Object.getPrototypeOf(e.target)), e.target) : s) })
       fc.on("object:added", () => { if (alive) refreshLayers(fc) })
       fc.on("object:removed", () => { if (alive) refreshLayers(fc) })
+      // Captura mudancas para historico de undo/redo
+      fc.on("object:modified", () => pushHistory())
+      fc.on("object:added", () => { if (!isApplyingHistory.current) pushHistory() })
+      fc.on("object:removed", () => { if (!isApplyingHistory.current) pushHistory() })
+      fc.on("text:changed", () => pushHistory())
+
       fc.on("text:editing:exited", async (e: any) => {
         if (!alive) return
         const obj = e.target
@@ -438,6 +482,12 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
 
       fc.renderAll()
       if (alive) refreshLayers(fc)
+      // Snapshot inicial (estado limpo, sem dirty)
+      try {
+        const snap = JSON.stringify(fc.toJSON(["__assetId", "__assetLabel", "__isBg", "__isImage"]))
+        undoStack.current = [snap]
+        redoStack.current = []
+      } catch (e) {}
     }
 
     init()
@@ -467,6 +517,59 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       fontWeight: first.fontWeight ?? "normal",
       fill: first.color ?? "#111111",
     }
+  }
+
+  function pushHistory() {
+    if (isApplyingHistory.current) return
+    const fc = fabricRef.current
+    if (!fc) return
+    try {
+      const snap = JSON.stringify(fc.toJSON(["__assetId", "__assetLabel", "__isBg", "__isImage"]))
+      // Evita push duplicado quando snap eh igual ao topo
+      const top = undoStack.current[undoStack.current.length - 1]
+      if (top === snap) return
+      undoStack.current.push(snap)
+      if (undoStack.current.length > 16) undoStack.current.shift() // mantem 15 + estado atual
+      redoStack.current = []
+      isDirtyRef.current = true
+      setIsDirty(true)
+    } catch (e) { /* ignora */ }
+  }
+
+  async function applySnapshot(snap: string) {
+    const fc = fabricRef.current
+    if (!fc) return
+    isApplyingHistory.current = true
+    try {
+      await new Promise<void>((resolve) => {
+        const r = fc.loadFromJSON(JSON.parse(snap), () => resolve())
+        if (r && typeof r.then === "function") r.then(() => resolve())
+      })
+      await new Promise(r => setTimeout(r, 80))
+      fc.renderAll()
+    } finally {
+      isApplyingHistory.current = false
+    }
+  }
+
+  async function undo() {
+    if (undoStack.current.length < 2) return
+    const fc = fabricRef.current
+    if (!fc) return
+    // Topo da pilha eh o estado atual; guarda no redo e aplica o anterior
+    const current = undoStack.current.pop()!
+    redoStack.current.push(current)
+    const previous = undoStack.current[undoStack.current.length - 1]
+    if (previous) await applySnapshot(previous)
+    setSelected(null)
+  }
+
+  async function redo() {
+    if (redoStack.current.length === 0) return
+    const next = redoStack.current.pop()!
+    undoStack.current.push(next)
+    await applySnapshot(next)
+    setSelected(null)
   }
 
   function applyZoom(fc: any, z: number) {
@@ -605,6 +708,8 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       const newData = { ...oldData, version: 2, width: canvasWRef.current, height: canvasHRef.current, bgColor: bgColorRef.current, layers: newLayers }
       await fetch(`/api/pieces/${pieceId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: JSON.stringify(newData) }) })
       await uploadPieceThumb(fc, pieceId)
+      isDirtyRef.current = false
+      setIsDirty(false)
     } else {
       const layersToSave: Layer[] = fc.getObjects()
         .filter((o: any) => !o.__isBg)
@@ -626,6 +731,8 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
         await fetch(`/api/campaigns/${campaignId}/key-vision/thumbnail`, { method: "POST", body: fd })
       } catch (e) { console.warn("KV thumb upload failed:", e) }
     }
+    isDirtyRef.current = false
+    setIsDirty(false)
     setSaving(false)
   }
 
@@ -683,6 +790,8 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
           body: JSON.stringify({ data: JSON.stringify(newData) })
         })
         await uploadPieceThumb(fc, pieceId)
+        isDirtyRef.current = false
+        setIsDirty(false)
       } else {
         // MODO MATRIZ
         const layersToSave: Layer[] = fc.getObjects()
@@ -712,6 +821,8 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
           fd.append("thumbnail", blob, "kv-thumb.jpg")
           await fetch(`/api/campaigns/${campaignId}/key-vision/thumbnail`, { method: "POST", body: fd })
         } catch (e) { console.warn("KV thumb upload failed:", e) }
+        isDirtyRef.current = false
+        setIsDirty(false)
       }
       setSaving(false)
     }, 800)
@@ -812,10 +923,26 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       </div>
 
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: TH, background: "rgba(17,17,17,0.98)", borderBottom: "1px solid #2a2a2a", display: "flex", alignItems: "center", padding: "0 16px", gap: 12, zIndex: 200 }}>
-        <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{ ...bS, fontSize: 13 }}>← {isPieceMode && piece ? `${piece.name}` : campaign.name}</button>
+        <button onClick={() => {
+          const go = () => router.push(`/campaigns/${campaignId}`)
+          if (isDirtyRef.current) setConfirmExit(() => go)
+          else go()
+        }} style={{ ...bS, fontSize: 13 }}>← {isPieceMode && piece ? `${piece.name}` : campaign.name}</button>
         <div style={{ flex: 1 }} />
         {saving && <span style={{ fontSize: 11, color: "#555" }}>Salvando...</span>}
         <span style={{ fontSize: 11, color: "#555" }}>{canvasW} × {canvasH}</span>
+        <button
+          onClick={undo}
+          title="Desfazer (Cmd+Z)"
+          disabled={undoStack.current.length < 2}
+          style={{ background: "transparent", border: "1px solid #333", borderRadius: 6, padding: "6px 10px", fontSize: 13, cursor: undoStack.current.length < 2 ? "not-allowed" : "pointer", color: undoStack.current.length < 2 ? "#444" : "#aaa", opacity: undoStack.current.length < 2 ? 0.5 : 1 }}
+        >↶</button>
+        <button
+          onClick={redo}
+          title="Refazer (Cmd+Shift+Z)"
+          disabled={redoStack.current.length === 0}
+          style={{ background: "transparent", border: "1px solid #333", borderRadius: 6, padding: "6px 10px", fontSize: 13, cursor: redoStack.current.length === 0 ? "not-allowed" : "pointer", color: redoStack.current.length === 0 ? "#444" : "#aaa", opacity: redoStack.current.length === 0 ? 0.5 : 1 }}
+        >↷</button>
         <button
           onClick={saveNow}
           disabled={saving}
@@ -955,6 +1082,23 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
           </div>
         )}
       </div>
+
+      {confirmExit && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 24, width: 420, border: "1px solid #333" }}>
+            <div style={{ color: "white", fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Salvar alterações?</div>
+            <div style={{ color: "#888", fontSize: 13, marginBottom: 18 }}>Você tem mudanças não salvas. O que deseja fazer?</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setConfirmExit(null)}
+                style={{ background: "transparent", border: "1px solid #333", borderRadius: 6, padding: "8px 14px", color: "#888", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={() => { const go = confirmExit; setConfirmExit(null); if (go) go() }}
+                style={{ background: "transparent", border: "1px solid #d33", borderRadius: 6, padding: "8px 14px", color: "#d33", fontSize: 13, cursor: "pointer" }}>Descartar</button>
+              <button onClick={async () => { const go = confirmExit; setConfirmExit(null); await saveNow(); if (go) go() }}
+                style={{ background: "#F5C400", border: "none", borderRadius: 6, padding: "8px 14px", color: "#111", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Salvar e sair</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal && <GeneratePiecesModal campaignId={campaignId} fabricRef={fabricRef} onClose={() => setModal(false)} onGenerated={() => { setModal(false); router.push(`/pieces?campaignId=${campaignId}`) }} />}
     </div>
