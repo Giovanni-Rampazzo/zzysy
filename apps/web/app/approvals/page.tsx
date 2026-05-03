@@ -9,6 +9,7 @@ interface Piece {
   width: number
   height: number
   status: string
+  imageUrl?: string | null
   campaign?: { name: string; client?: { name: string } }
 }
 
@@ -85,9 +86,15 @@ export default function ApprovalsPage() {
             {filtered.map(piece => (
               <div key={piece.id} style={{background:"white",borderRadius:10,border:"1px solid #E0E0E0",overflow:"hidden"}}>
                 {/* Preview */}
-                <div style={{height:160,background:"#F5F5F0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",borderBottom:"1px solid #E0E0E0",padding:16}}>
-                  <div style={{fontSize:13,fontWeight:600,color:"#888",marginBottom:4}}>{piece.format}</div>
-                  <div style={{fontSize:11,color:"#aaa"}}>{piece.width} × {piece.height} px</div>
+                <div style={{height:160,background:"#F5F5F0",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",borderBottom:"1px solid #E0E0E0",padding:0,overflow:"hidden"}}>
+                  {piece.imageUrl ? (
+                    <img src={piece.imageUrl} alt={piece.name} style={{width:"100%",height:"100%",objectFit:"contain"}} />
+                  ) : (
+                    <div style={{padding:16,textAlign:"center"}}>
+                      <div style={{fontSize:13,fontWeight:600,color:"#888",marginBottom:4}}>{piece.format}</div>
+                      <div style={{fontSize:11,color:"#aaa"}}>{piece.width} × {piece.height} px</div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Info */}
