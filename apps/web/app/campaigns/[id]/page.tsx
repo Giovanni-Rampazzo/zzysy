@@ -10,7 +10,7 @@ interface Campaign {
   client: { id: string; name: string }
   psdName?: string | null
   assets: Asset[]
-  keyVision?: { width?: number; height?: number; bgColor?: string; thumbnailUrl?: string | null } | null
+  keyVision?: { width?: number; height?: number; bgColor?: string; thumbnailUrl?: string | null; updatedAt?: string } | null
 }
 interface Piece {
   id: string
@@ -108,7 +108,7 @@ export default function CampaignOverviewPage() {
               color: "#aaa", fontSize: 13, position: "relative", overflow: "hidden"
             }}>
               {campaign.keyVision?.thumbnailUrl ? (
-                <img src={campaign.keyVision.thumbnailUrl} alt="KV preview"
+                <img src={`${campaign.keyVision.thumbnailUrl}?v=${encodeURIComponent(campaign.keyVision.updatedAt ?? "")}`} alt="KV preview"
                   style={{ width: "100%", height: "100%", objectFit: "contain" }} />
               ) : (
                 <span>{kvW} × {kvH}</span>
