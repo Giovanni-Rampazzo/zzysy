@@ -499,21 +499,25 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       canvasInitialized.current = true
       init()
     }
+    // IMPORTANTE: nao colocar cleanup que destrua o canvas aqui.
+    // Como esse useEffect depende de [campaign], cleanup roda toda vez que campaign muda
+    // - destruiria o canvas logo apos a inicializacao. Cleanup real fica no useEffect [] abaixo.
+    return () => { alive = false }
+  }, [campaign])
+
+  // Cleanup do canvas SO no unmount real do componente
+  useEffect(() => {
     return () => {
-      alive = false
       const fcc: any = fabricRef.current
       if (fcc) {
         if (fcc.__blockKeyHandler) document.removeEventListener("keydown", fcc.__blockKeyHandler, true)
         if (fcc.__blockPasteHandler) document.removeEventListener("paste", fcc.__blockPasteHandler, true)
-      }
-      cleanupFns.forEach(fn => { try { fn() } catch {} })
-      if (fabricRef.current) {
-        try { fabricRef.current.dispose() } catch {}
-        ;(fabricRef.current as any).disposed = true
+        try { fcc.dispose() } catch {}
+        ;(fcc as any).disposed = true
         fabricRef.current = null
       }
     }
-  }, [campaign])
+  }, [])
 
   function spansToFabricProps(spans: TextSpan[]) {
     const first = spans[0]?.style ?? {}
