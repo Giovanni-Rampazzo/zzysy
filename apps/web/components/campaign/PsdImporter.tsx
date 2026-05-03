@@ -69,22 +69,47 @@ export function PsdImporter({ campaignId, onImported }: Props) {
 
         if (layer.text) {
           const td = layer.text
-          const styleRun = td.styleRuns?.[0]?.style ?? {}
-          const fontSize = styleRun.fontSize ?? td.style?.fontSize ?? 48
-          const fillColor = styleRun.fillColor ?? td.style?.fillColor
-          const color = fillColor ? colorToHex(fillColor) : "#000000"
-          const fontName = styleRun.font?.name ?? td.style?.font?.name ?? "Arial"
-          const fontWeight = (styleRun.fauxBold || td.style?.fauxBold || fontName.toLowerCase().includes("bold")) ? "bold" : "normal"
           const rawText = String(td.text ?? name).split("\r\n").join("\n").split("\r").join("\n")
 
-          // boundingBox do texto se disponivel
+          // Preserva styleRuns do PSD original (cor/fonte/tamanho por trecho)
+          const defStyle = td.style ?? {}
+          const defFontName = defStyle.font?.name ?? "Arial"
+          const defFontSize = defStyle.fontSize ?? 48
+          const defColor = defStyle.fillColor ? colorToHex(defStyle.fillColor) : "#000000"
+          const defWeight = (defStyle.fauxBold || defFontName.toLowerCase().includes("bold")) ? "bold" : "normal"
+
+          let spans: any[] = []
+          const runs = td.styleRuns ?? []
+          if (runs.length > 0) {
+            // Fragmenta o texto em spans seguindo os styleRuns
+            let cursor = 0
+            for (const run of runs) {
+              const len = run.length ?? 0
+              const segment = rawText.substring(cursor, cursor + len)
+              if (!segment) { cursor += len; continue }
+              const rs = run.style ?? {}
+              const fontName = rs.font?.name ?? defFontName
+              const fontSize = rs.fontSize ?? defFontSize
+              const color = rs.fillColor ? colorToHex(rs.fillColor) : defColor
+              const fontWeight = (rs.fauxBold || fontName.toLowerCase().includes("bold")) ? "bold" : defWeight
+              spans.push({ text: segment, style: { color, fontSize: Math.round(fontSize), fontWeight, fontFamily: fontName } })
+              cursor += len
+            }
+            // Restante (se houver) com style padrao
+            if (cursor < rawText.length) {
+              spans.push({ text: rawText.substring(cursor), style: { color: defColor, fontSize: Math.round(defFontSize), fontWeight: defWeight, fontFamily: defFontName } })
+            }
+          } else {
+            spans = [{ text: rawText, style: { color: defColor, fontSize: Math.round(defFontSize), fontWeight: defWeight, fontFamily: defFontName } }]
+          }
+
           const bbox = td.boundingBox
           const textWidth = bbox ? Math.round(bbox.right - bbox.left) : Math.max(width, 200)
           const textHeight = bbox ? Math.round(bbox.bottom - bbox.top) : height
 
           assets.push({
             label: name, type: "TEXT",
-            content: [{ text: rawText, style: { color, fontSize: Math.round(fontSize), fontWeight, fontFamily: fontName } }],
+            content: spans,
             posX: left, posY: top, width: textWidth, height: textHeight, zIndex,
           })
         } else if (layer.canvas) {
