@@ -108,7 +108,7 @@ export default function CampaignOverviewPage() {
               color: "#aaa", fontSize: 13, position: "relative", overflow: "hidden"
             }}>
               {campaign.keyVision?.thumbnailUrl ? (
-                <img src={`${campaign.keyVision.thumbnailUrl}?v=${(campaign as any).updatedAt ?? Date.now()}`} alt="KV preview"
+                <img src={campaign.keyVision.thumbnailUrl} alt="KV preview"
                   style={{ width: "100%", height: "100%", objectFit: "contain" }} />
               ) : (
                 <span>{kvW} × {kvH}</span>
@@ -153,7 +153,7 @@ export default function CampaignOverviewPage() {
                 <div key={p.id} style={{ background: "white", borderRadius: 10, border: "1px solid #E0E0E0", overflow: "hidden", display: "flex", flexDirection: "column" }}>
                   <div style={{ height: 130, background: "#F5F5F0", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                     {p.imageUrl ? (
-                      <img src={`${p.imageUrl}?v=${(p as any).updatedAt ?? Date.now()}`} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                      <img src={p.imageUrl} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                     ) : (
                       <div style={{ textAlign: "center", color: "#aaa", fontSize: 11 }}>
                         <div style={{ fontWeight: 600 }}>{p.format}</div>
