@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
       campaign: { client: { tenantId } },
       ...(campaignId ? { campaignId } : {}),
     },
+    include: { campaign: { include: { client: true } } },
     orderBy: { createdAt: "desc" },
   })
   // Enrich with format/width/height/dpi from data field
