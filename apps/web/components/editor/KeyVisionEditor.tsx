@@ -215,8 +215,9 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
             const spans = getSpans(a)
             const data = spansToTextboxData(spans)
             if (pieceId) {
-              // PECA: so atualiza o texto puro, mantem overrides visuais ja salvos no objeto
-              if (obj.text !== data.text) obj.set({ text: data.text })
+              // PECA: nao mexer em texto/estilos durante o uso normal -- isso resetaria
+              // os styles per-character e os overrides locais que ainda nao foram salvos.
+              // O sync com asset acontece so ao recarregar a pagina (mount inicial).
             } else {
               // MATRIZ: atualiza texto + estilo default + styles per-char do asset
               const def = data.defaultStyle
@@ -224,8 +225,8 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
               obj.set({ fill: def.color, fontSize: def.fontSize, fontFamily: def.fontFamily, fontWeight: def.fontWeight, styles: data.styles })
             }
           }
-          if (obj.type === "image" && a.type === "IMAGE" && a.imageUrl) {
-            // Trocar imagem se mudou
+          if (!pieceId && obj.type === "image" && a.type === "IMAGE" && a.imageUrl) {
+            // Apenas em modo MATRIZ: trocar imagem se mudou
             const img = obj as any
             if (img.getSrc && img.getSrc() !== a.imageUrl) {
               const el = new window.Image()
@@ -966,7 +967,11 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
         >↷</button>
         {isPieceMode && (
           <button
-            onClick={() => setExportOpen(true)}
+            onClick={async () => {
+              // Salvar antes de exportar para garantir que servidor tem versao atual
+              await saveNow()
+              setExportOpen(true)
+            }}
             style={{ background: "transparent", border: "1px solid #333", borderRadius: 6, padding: "6px 14px", fontWeight: 600, fontSize: 13, cursor: "pointer", color: "#aaa" }}
             title="Exportar esta peça"
           >
