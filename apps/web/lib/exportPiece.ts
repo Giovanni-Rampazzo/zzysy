@@ -161,8 +161,16 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
     }
   }
 
-  const psd: any = { width: piece.width, height: piece.height, children: psdLayers }
-  const buffer = agpsd.writePsd(psd)
+  // Composite final: renderiza a peca inteira num canvas para servir de preview
+  const compositeCanvas = await renderToCanvas(piece)
+
+  const psd: any = {
+    width: piece.width,
+    height: piece.height,
+    canvas: compositeCanvas,  // imagem achatada (preview)
+    children: psdLayers,
+  }
+  const buffer = agpsd.writePsd(psd, { generateThumbnail: true, psb: false })
   const blob = new Blob([buffer], { type: "image/vnd.adobe.photoshop" })
   downloadBlob(blob, safeName(piece.name) + ".psd")
   fc.dispose()
