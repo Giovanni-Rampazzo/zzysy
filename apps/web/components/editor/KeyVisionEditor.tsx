@@ -147,7 +147,6 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
   const isDirtyRef = useRef(false)
   const [isDirty, setIsDirty] = useState(false)
   const isApplyingHistory = useRef(false)
-  const canvasInitialized = useRef(false)
   const [confirmExit, setConfirmExit] = useState<null | (() => void)>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [layers, setLayers] = useState<any[]>([])
@@ -278,15 +277,12 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
 
   // Inicializar Fabric
   useEffect(() => {
-    console.log("[ZZOSY] useEffect canvas: campaign?", !!campaign, "canvasRef?", !!canvasRef.current, "fabricRef?", !!fabricRef.current, "initialized?", canvasInitialized.current)
     if (!campaign || !canvasRef.current || fabricRef.current) return
     let alive = true
     const cleanupFns: Array<() => void> = []
 
     const init = async () => {
-      console.log("[ZZOSY] init() iniciando...")
       const { Canvas, Rect, Textbox, FabricImage } = await import("fabric")
-      console.log("[ZZOSY] fabric importado, canvasRef:", !!canvasRef.current, "alive:", alive)
       if (!alive || !canvasRef.current) return
 
       const cw = canvasWRef.current
@@ -298,7 +294,6 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       zoomRef.current = z
       setZoom(z)
 
-      console.log("[ZZOSY] criando Canvas com w=" + Math.round(cw*z) + " h=" + Math.round(ch*z) + " z=" + z)
       const fc = new Canvas(canvasRef.current, {
         width: Math.round(cw * z),
         height: Math.round(ch * z),
@@ -307,7 +302,6 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       })
       fc.setZoom(z)
       fabricRef.current = fc
-      console.log("[ZZOSY] Canvas criado OK, getElement:", fc.getElement()?.tagName, "getElement w:", fc.getElement()?.width)
 
       const bg = new Rect({
         left: 0, top: 0, width: cw, height: ch,
@@ -491,7 +485,6 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       }
 
       fc.renderAll()
-      console.log("[ZZOSY] init() FIM - canvas tem " + fc.getObjects().length + " objetos, w=" + fc.getWidth() + " h=" + fc.getHeight())
       if (alive) refreshLayers(fc)
       // Snapshot inicial (estado limpo, sem dirty)
       try {
@@ -501,29 +494,21 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       } catch (e) {}
     }
 
-    if (campaign && !canvasInitialized.current) {
-      canvasInitialized.current = true
-      init()
-    }
-    // IMPORTANTE: nao colocar cleanup que destrua o canvas aqui.
-    // Como esse useEffect depende de [campaign], cleanup roda toda vez que campaign muda
-    // - destruiria o canvas logo apos a inicializacao. Cleanup real fica no useEffect [] abaixo.
-    return () => { alive = false }
-  }, [campaign])
-
-  // Cleanup do canvas SO no unmount real do componente
-  useEffect(() => {
+    init()
     return () => {
+      alive = false
       const fcc: any = fabricRef.current
       if (fcc) {
         if (fcc.__blockKeyHandler) document.removeEventListener("keydown", fcc.__blockKeyHandler, true)
         if (fcc.__blockPasteHandler) document.removeEventListener("paste", fcc.__blockPasteHandler, true)
-        try { fcc.dispose() } catch {}
-        ;(fcc as any).disposed = true
-        fabricRef.current = null
       }
+      cleanupFns.forEach(fn => { try { fn() } catch {} })
+      // NÃO disposo o canvas aqui: guarda no topo (`fabricRef.current` truthy) impede re-init,
+      // então mesmo que esse cleanup rode em re-renders intermediários, o canvas continua vivo.
+      // O canvas só seria realmente destruído se o componente desmontar de fato — nesse caso
+      // o React desmonta o <canvas> do DOM e o Fabric perde a referência ao DOM, sem leak grave.
     }
-  }, [])
+  }, [campaign])
 
   function spansToFabricProps(spans: TextSpan[]) {
     const first = spans[0]?.style ?? {}
