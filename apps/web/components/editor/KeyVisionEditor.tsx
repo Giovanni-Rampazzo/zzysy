@@ -139,6 +139,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
   const pieceRef = useRef<any>(null)
   const isPieceMode = !!pieceId
   const [selected, setSelected] = useState<any>(null)
+  const [hexInput, setHexInput] = useState<string>("#111111")
   const [layers, setLayers] = useState<any[]>([])
   const [zoom, setZoom] = useState(0.5)
   const zoomRef = useRef(0.5)
@@ -734,44 +735,49 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
     bg.set("fill", c); fc.renderAll(); setBgColor(c); bgColorRef.current = c; doSave()
   }
 
+  // Sincroniza hexInput com a cor do objeto selecionado
+  useEffect(() => {
+    if (selected?.fill) setHexInput(selected.fill)
+  }, [selected?.fill, selected?.id])
+
   function applyStyle(key: string, val: any) {
     const fc = fabricRef.current; const obj = selected
     if (!fc || !obj) return
     const value = key === "fontSize" ? Number(val) : val
-
-    // Mapeamento Fabric: fill (cor), fontSize, fontFamily, fontWeight, fontStyle, underline
     const styleKey = key === "fill" ? "fill" : key
 
     const isText = obj.type === "textbox" || obj.type === "i-text"
     const isEditing = (obj as any).isEditing
-    const hasSelection = isEditing && (obj.selectionStart ?? 0) !== (obj.selectionEnd ?? 0)
+    const selStart = obj.selectionStart ?? 0
+    const selEnd = obj.selectionEnd ?? 0
+    const hasSelection = isEditing && selStart !== selEnd
 
     if (isText && hasSelection) {
-      // Aplicar so na selecao - estilo Photoshop
-      obj.setSelectionStyles({ [styleKey]: value }, obj.selectionStart, obj.selectionEnd)
-    } else if (isText && !isEditing) {
-      // Sem selecao e nao em modo de edicao: aplica em tudo (limpa styles per-char) e atualiza padrao
+      // Photoshop: aplica so nos caracteres selecionados
+      obj.setSelectionStyles({ [styleKey]: value }, selStart, selEnd)
+    } else if (isText) {
+      // Aplica no textbox inteiro (sem selecao) -- limpa styles per-char e seta default
       obj.set(styleKey, value)
-      // Limpa styles per-character para que o novo padrao tenha efeito visual em todo texto
-      const lines = (obj.styles ?? {}) as any
-      for (const lineNum in lines) {
-        for (const charIdx in lines[lineNum]) {
-          if (styleKey in lines[lineNum][charIdx]) {
-            delete lines[lineNum][charIdx][styleKey]
-            if (Object.keys(lines[lineNum][charIdx]).length === 0) delete lines[lineNum][charIdx]
+      const stylesObj = (obj.styles ?? {}) as any
+      for (const lineNum in stylesObj) {
+        for (const charIdx in stylesObj[lineNum]) {
+          if (styleKey in stylesObj[lineNum][charIdx]) {
+            delete stylesObj[lineNum][charIdx][styleKey]
+            if (Object.keys(stylesObj[lineNum][charIdx]).length === 0) delete stylesObj[lineNum][charIdx]
           }
         }
-        if (Object.keys(lines[lineNum]).length === 0) delete lines[lineNum]
+        if (Object.keys(stylesObj[lineNum]).length === 0) delete stylesObj[lineNum]
       }
-    } else if (isText && isEditing) {
-      // Em edicao mas sem selecao: define como padrao para os proximos caracteres digitados
-      obj.set(styleKey, value)
+      // Forca o textbox a re-medir e re-renderizar com fonte/tamanho novo
+      if ((obj as any).initDimensions) (obj as any).initDimensions()
     } else {
-      // Nao-texto
       obj.set(styleKey, value)
     }
 
+    obj.setCoords()
     fc.renderAll()
+    // CRUCIAL: forca o React a re-renderizar o painel com o novo valor (input nao volta sozinho)
+    setSelected({ ...obj, _ts: Date.now() })
     doSave()
   }
 
@@ -910,11 +916,27 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
             <div>
               <div style={secS}>Cor</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 6, background: selected.fill ?? "#111111", border: "1px solid #333", flexShrink: 0 }} />
+                <label style={{ width: 36, height: 36, borderRadius: 6, background: selected.fill ?? "#111111", border: "1px solid #333", flexShrink: 0, cursor: "pointer", position: "relative", overflow: "hidden" }}>
+                  <input
+                    type="color"
+                    value={(selected.fill ?? "#111111").length === 7 ? selected.fill : "#111111"}
+                    onChange={e => applyStyle("fill", e.target.value)}
+                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", border: 0 }}
+                  />
+                </label>
                 <input
                   type="text"
-                  value={selected.fill ?? "#111111"}
-                  onChange={e => applyStyle("fill", e.target.value)}
+                  value={hexInput}
+                  onChange={e => {
+                    const v = e.target.value
+                    setHexInput(v)
+                    // So aplica quando o hex for valido (#RRGGBB)
+                    if (/^#[0-9a-fA-F]{6}$/.test(v)) applyStyle("fill", v)
+                  }}
+                  onBlur={() => {
+                    if (!/^#[0-9a-fA-F]{6}$/.test(hexInput)) setHexInput(selected.fill ?? "#111111")
+                  }}
+                  placeholder="#RRGGBB"
                   style={{ ...inpS, fontFamily: "monospace", fontSize: 13, textTransform: "uppercase" }}
                 />
               </div>
