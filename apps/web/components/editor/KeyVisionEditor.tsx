@@ -140,6 +140,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
   const isPieceMode = !!pieceId
   const [selected, setSelected] = useState<any>(null)
   const [hexInput, setHexInput] = useState<string>("#111111")
+  const [fontSizeInput, setFontSizeInput] = useState<string>("80")
   const undoStack = useRef<string[]>([])
   const redoStack = useRef<string[]>([])
   const isDirtyRef = useRef(false)
@@ -851,6 +852,11 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
     if (selected?.fill) setHexInput(selected.fill)
   }, [selected?.fill, selected?.id])
 
+  // Sincroniza fontSizeInput com o tamanho do objeto selecionado (quando muda objeto, não a cada keystroke)
+  useEffect(() => {
+    if (selected?.fontSize !== undefined) setFontSizeInput(String(Math.round(selected.fontSize)))
+  }, [selected?.id])
+
   function applyStyle(key: string, val: any) {
     const fc = fabricRef.current; const obj = selected
     if (!fc || !obj) return
@@ -887,8 +893,21 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
 
     obj.setCoords()
     fc.renderAll()
-    // CRUCIAL: forca o React a re-renderizar o painel com o novo valor (input nao volta sozinho)
-    setSelected({ ...obj, _ts: Date.now() })
+    // Força React a re-renderizar o painel com os novos valores
+    // (criamos um proxy leve com os campos que o painel le, preservando referencia metodica do Fabric)
+    setSelected(Object.assign(Object.create(Object.getPrototypeOf(obj)), obj, {
+      fontSize: obj.fontSize,
+      fontFamily: obj.fontFamily,
+      fontWeight: obj.fontWeight,
+      fill: obj.fill,
+      type: obj.type,
+      __assetId: obj.__assetId,
+      __assetLabel: obj.__assetLabel,
+      isEditing: obj.isEditing,
+      selectionStart: obj.selectionStart,
+      selectionEnd: obj.selectionEnd,
+      _ts: Date.now(),
+    }))
     doSave()
   }
 
@@ -1030,7 +1049,18 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div>
                 <div style={secS}>Tamanho</div>
-                <input type="number" value={Math.round(selected.fontSize ?? 80)} onChange={e => applyStyle("fontSize", e.target.value)} style={inpS} />
+                <input
+                  type="number"
+                  value={fontSizeInput}
+                  onChange={e => setFontSizeInput(e.target.value)}
+                  onBlur={() => {
+                    const n = Number(fontSizeInput)
+                    if (Number.isFinite(n) && n > 0) applyStyle("fontSize", n)
+                    else setFontSizeInput(String(Math.round(selected?.fontSize ?? 80)))
+                  }}
+                  onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
+                  style={inpS}
+                />
               </div>
               <div>
                 <div style={secS}>Peso</div>
