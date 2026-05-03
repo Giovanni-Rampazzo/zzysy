@@ -126,7 +126,7 @@ function spansToTextboxData(spans: TextSpan[]) {
 }
 
 
-export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
+export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; pieceId?: string }) {
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -135,6 +135,9 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const campaignRef = useRef<Campaign | null>(null)
   const saveTimer = useRef<any>()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [piece, setPiece] = useState<any>(null)
+  const pieceRef = useRef<any>(null)
+  const isPieceMode = !!pieceId
   const [selected, setSelected] = useState<any>(null)
   const [layers, setLayers] = useState<any[]>([])
   const [zoom, setZoom] = useState(0.5)
@@ -150,23 +153,43 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const canvasWRef = useRef(DEFAULT_W)
   const canvasHRef = useRef(DEFAULT_H)
 
-  // Carregar campanha
+  // Carregar campanha + peça (se for modo peça)
   useEffect(() => {
-    fetch(`/api/campaigns/${campaignId}`).then(r => r.json()).then((d: Campaign) => {
-      campaignRef.current = d
-      setCampaign(d)
-      const bg = d.keyVision?.bgColor ?? "#ffffff"
-      setBgColor(bg); bgColorRef.current = bg
-      if (d.assets?.length) { setAssetId(d.assets[0].id); assetIdRef.current = d.assets[0].id }
-      const cw = d.keyVision?.width ?? DEFAULT_W
-      const ch = d.keyVision?.height ?? DEFAULT_H
-      setCanvasW(cw); setCanvasH(ch)
-      canvasWRef.current = cw; canvasHRef.current = ch
-    })
-  }, [campaignId])
+    async function load() {
+      const campRes = await fetch(`/api/campaigns/${campaignId}`)
+      const camp: Campaign = await campRes.json()
+      campaignRef.current = camp
+      setCampaign(camp)
+      if (camp.assets?.length) { setAssetId(camp.assets[0].id); assetIdRef.current = camp.assets[0].id }
 
-  // Sempre que voltar para o editor, recarregar para pegar mudancas dos assets
+      if (pieceId) {
+        // MODO PEÇA: dimensões vêm da peça, não da matriz
+        const pieceRes = await fetch(`/api/pieces/${pieceId}`)
+        const p = await pieceRes.json()
+        const pdata = typeof p.data === "string" ? JSON.parse(p.data) : p.data
+        const pw = pdata?.width ?? DEFAULT_W
+        const ph = pdata?.height ?? DEFAULT_H
+        setPiece(p); pieceRef.current = p
+        setCanvasW(pw); setCanvasH(ph)
+        canvasWRef.current = pw; canvasHRef.current = ph
+        const bg = pdata?.bgColor ?? camp.keyVision?.bgColor ?? "#ffffff"
+        setBgColor(bg); bgColorRef.current = bg
+      } else {
+        // MODO MATRIZ
+        const bg = camp.keyVision?.bgColor ?? "#ffffff"
+        setBgColor(bg); bgColorRef.current = bg
+        const cw = camp.keyVision?.width ?? DEFAULT_W
+        const ch = camp.keyVision?.height ?? DEFAULT_H
+        setCanvasW(cw); setCanvasH(ch)
+        canvasWRef.current = cw; canvasHRef.current = ch
+      }
+    }
+    load()
+  }, [campaignId, pieceId])
+
+  // Sempre que voltar para o editor, recarregar para pegar mudancas dos assets (só em modo matriz)
   useEffect(() => {
+    if (pieceId) return
     function onFocus() {
       fetch(`/api/campaigns/${campaignId}`).then(r => r.json()).then((d: Campaign) => {
         campaignRef.current = d
@@ -192,7 +215,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     }
     window.addEventListener("focus", onFocus)
     return () => window.removeEventListener("focus", onFocus)
-  }, [campaignId])
+  }, [campaignId, pieceId])
 
   // Inicializar Fabric
   useEffect(() => {
@@ -279,14 +302,56 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
       // Restaurar layers
       const c = campaignRef.current!
-      const savedLayers = c.keyVision?.layers
-      if (savedLayers && Array.isArray(savedLayers) && savedLayers.length > 0) {
-        const assetMap = Object.fromEntries(c.assets.map((a: Asset) => [a.id, a]))
-        const sorted = [...savedLayers].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
-        for (const layer of sorted) {
-          const asset = assetMap[layer.assetId] as Asset
-          if (!asset) continue
-          await addAssetToCanvas(fc, asset, layer)
+      if (pieceId && pieceRef.current) {
+        // MODO PEÇA: carrega via fabric.loadFromJSON do canvasData salvo + escala proporcional
+        const p = pieceRef.current
+        const pdata = typeof p.data === "string" ? JSON.parse(p.data) : p.data
+        const canvasData = pdata?.canvasData
+        const sourceW = pdata?.sourceWidth ?? canvasWRef.current
+        const sourceH = pdata?.sourceHeight ?? canvasHRef.current
+        const targetW = canvasWRef.current
+        const targetH = canvasHRef.current
+        if (canvasData) {
+          await new Promise<void>((resolve) => {
+            const r = fc.loadFromJSON(canvasData, () => { resolve() })
+            if (r && typeof r.then === "function") r.then(() => resolve())
+          })
+          await new Promise(r => setTimeout(r, 250))
+          // Escala proporcional centralizada (igual ao export)
+          const scale = Math.min(targetW / sourceW, targetH / sourceH)
+          const offsetX = (targetW - sourceW * scale) / 2
+          const offsetY = (targetH - sourceH * scale) / 2
+          for (const obj of fc.getObjects()) {
+            if ((obj as any).__isBg) {
+              // Background da matriz vira o background da peça
+              obj.set({ left: 0, top: 0, width: targetW, height: targetH, scaleX: 1, scaleY: 1 })
+              continue
+            }
+            const newLeft = (obj.left ?? 0) * scale + offsetX
+            const newTop = (obj.top ?? 0) * scale + offsetY
+            obj.set({
+              left: newLeft,
+              top: newTop,
+              scaleX: (obj.scaleX ?? 1) * scale,
+              scaleY: (obj.scaleY ?? 1) * scale,
+            })
+            obj.setCoords()
+          }
+          // Re-ordenar bg pra trás
+          const bgObj = fc.getObjects().find((o: any) => o.__isBg)
+          if (bgObj) fc.sendObjectToBack(bgObj)
+        }
+      } else {
+        // MODO MATRIZ
+        const savedLayers = c.keyVision?.layers
+        if (savedLayers && Array.isArray(savedLayers) && savedLayers.length > 0) {
+          const assetMap = Object.fromEntries(c.assets.map((a: Asset) => [a.id, a]))
+          const sorted = [...savedLayers].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+          for (const layer of sorted) {
+            const asset = assetMap[layer.assetId] as Asset
+            if (!asset) continue
+            await addAssetToCanvas(fc, asset, layer)
+          }
         }
       }
 
@@ -407,23 +472,45 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       const fc = fabricRef.current
       if (!fc) return
       setSaving(true)
-      const layersToSave: Layer[] = fc.getObjects()
-        .filter((o: any) => !o.__isBg)
-        .map((o: any, i: number) => ({
-          assetId: o.__assetId ?? "",
-          posX: Math.round(o.left ?? 0),
-          posY: Math.round(o.top ?? 0),
-          scaleX: o.scaleX ?? 1,
-          scaleY: o.scaleY ?? 1,
-          rotation: o.angle ?? 0,
-          zIndex: i,
-          width: Math.round(o.width ?? 400),
-          height: Math.round((o.height ?? 300) * (o.scaleY ?? 1)),
-        }))
-      await fetch(`/api/campaigns/${campaignId}/key-vision`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bgColor: bgColorRef.current, layers: layersToSave, width: canvasWRef.current, height: canvasHRef.current })
-      })
+
+      if (pieceId && pieceRef.current) {
+        // MODO PEÇA: salva canvasData + dimensões na própria peça (independente da matriz)
+        const canvasData = fc.toJSON(["__assetId", "__assetLabel", "__isBg", "__isImage"])
+        const p = pieceRef.current
+        const oldData = typeof p.data === "string" ? JSON.parse(p.data) : (p.data ?? {})
+        const newData = {
+          ...oldData,
+          canvasData,
+          sourceWidth: canvasWRef.current,
+          sourceHeight: canvasHRef.current,
+          width: canvasWRef.current,
+          height: canvasHRef.current,
+          bgColor: bgColorRef.current,
+        }
+        await fetch(`/api/pieces/${pieceId}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: JSON.stringify(newData) })
+        })
+      } else {
+        // MODO MATRIZ
+        const layersToSave: Layer[] = fc.getObjects()
+          .filter((o: any) => !o.__isBg)
+          .map((o: any, i: number) => ({
+            assetId: o.__assetId ?? "",
+            posX: Math.round(o.left ?? 0),
+            posY: Math.round(o.top ?? 0),
+            scaleX: o.scaleX ?? 1,
+            scaleY: o.scaleY ?? 1,
+            rotation: o.angle ?? 0,
+            zIndex: i,
+            width: Math.round(o.width ?? 400),
+            height: Math.round((o.height ?? 300) * (o.scaleY ?? 1)),
+          }))
+        await fetch(`/api/campaigns/${campaignId}/key-vision`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bgColor: bgColorRef.current, layers: layersToSave, width: canvasWRef.current, height: canvasHRef.current })
+        })
+      }
       setSaving(false)
     }, 800)
   }
@@ -518,11 +605,13 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       </div>
 
       <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: TH, background: "rgba(17,17,17,0.98)", borderBottom: "1px solid #2a2a2a", display: "flex", alignItems: "center", padding: "0 16px", gap: 12, zIndex: 200 }}>
-        <button onClick={() => router.push(`/campaigns/${campaignId}`)} style={{ ...bS, fontSize: 13 }}>← {campaign.name}</button>
+        <button onClick={() => router.push(isPieceMode ? `/pieces?campaignId=${campaignId}` : `/campaigns/${campaignId}`)} style={{ ...bS, fontSize: 13 }}>← {isPieceMode && piece ? `${piece.name}` : campaign.name}</button>
         <div style={{ flex: 1 }} />
         {saving && <span style={{ fontSize: 11, color: "#555" }}>Salvando...</span>}
         <span style={{ fontSize: 11, color: "#555" }}>{canvasW} × {canvasH}</span>
-        <button onClick={() => setModal(true)} style={{ background: "#F5C400", border: "none", borderRadius: 6, padding: "6px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#111" }}>▶ Gerar Peças</button>
+        {!isPieceMode && (
+          <button onClick={() => setModal(true)} style={{ background: "#F5C400", border: "none", borderRadius: 6, padding: "6px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", color: "#111" }}>▶ Gerar Peças</button>
+        )}
       </div>
 
       <div style={{ position: "fixed", top: TH, left: LW, right: PW, height: BH, background: "rgba(26,26,26,0.98)", borderBottom: "1px solid #2a2a2a", display: "flex", alignItems: "center", padding: "0 16px", gap: 8, zIndex: 200, overflowX: "auto" }}>
