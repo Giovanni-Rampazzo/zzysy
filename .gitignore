@@ -10,3 +10,6 @@ build
 .DS_Store
 .vercel
 apps/web/env
+
+# User uploads (PSD files, layer images)
+apps/web/public/uploads/campaigns/
