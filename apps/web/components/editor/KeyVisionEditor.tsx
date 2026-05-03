@@ -40,6 +40,92 @@ function getSpans(asset: Asset): TextSpan[] {
   return [{ text, style: { color: "#111111", fontSize: 80, fontWeight: "normal", fontFamily: "Arial" } }]
 }
 
+
+// Le os styles per-caractere de um Textbox e gera TextSpan[] fragmentado
+function textboxToSpans(obj: any): TextSpan[] {
+  const fullText: string = obj.text ?? ""
+  const styles = obj.styles ?? {}
+  const defaultStyle = {
+    color: obj.fill ?? "#111111",
+    fontSize: obj.fontSize ?? 80,
+    fontWeight: obj.fontWeight ?? "normal",
+    fontFamily: obj.fontFamily ?? "Arial",
+  }
+
+  if (!fullText) return [{ text: "", style: defaultStyle }]
+
+  const lines = fullText.split("\n")
+  const spans: TextSpan[] = []
+  let buf = ""
+  let bufStyle: any = null
+
+  for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+    const line = lines[lineNum]
+    const lineStyles = styles[lineNum] ?? {}
+    for (let col = 0; col < line.length; col++) {
+      const cs = lineStyles[col] ?? {}
+      const charStyle = {
+        color: cs.fill ?? defaultStyle.color,
+        fontSize: cs.fontSize ?? defaultStyle.fontSize,
+        fontWeight: cs.fontWeight ?? defaultStyle.fontWeight,
+        fontFamily: cs.fontFamily ?? defaultStyle.fontFamily,
+      }
+      const key = JSON.stringify(charStyle)
+      if (bufStyle === null || JSON.stringify(bufStyle) === key) {
+        buf += line[col]
+        if (bufStyle === null) bufStyle = charStyle
+      } else {
+        spans.push({ text: buf, style: bufStyle })
+        buf = line[col]
+        bufStyle = charStyle
+      }
+    }
+    if (lineNum < lines.length - 1) {
+      buf += "\n"
+    }
+  }
+  if (buf) spans.push({ text: buf, style: bufStyle ?? defaultStyle })
+  return spans
+}
+
+// Inverso: converte TextSpan[] em props para criar Textbox + styles per-char
+function spansToTextboxData(spans: TextSpan[]) {
+  if (!spans.length) return { text: "", styles: {}, defaultStyle: {} }
+  const fullText = spans.map(s => s.text).join("")
+  const defaultStyle = spans[0].style ?? {}
+  const styles: Record<number, Record<number, any>> = {}
+
+  let charIdx = 0
+  let lineNum = 0
+  let col = 0
+  for (const span of spans) {
+    const sStyle = span.style ?? {}
+    for (const ch of span.text) {
+      if (ch === "\n") {
+        lineNum++
+        col = 0
+        charIdx++
+        continue
+      }
+      const styleKey = JSON.stringify(sStyle)
+      const defaultKey = JSON.stringify(defaultStyle)
+      if (styleKey !== defaultKey) {
+        if (!styles[lineNum]) styles[lineNum] = {}
+        styles[lineNum][col] = {
+          fill: sStyle.color,
+          fontSize: sStyle.fontSize,
+          fontWeight: sStyle.fontWeight,
+          fontFamily: sStyle.fontFamily,
+        }
+      }
+      col++
+      charIdx++
+    }
+  }
+  return { text: fullText, styles, defaultStyle }
+}
+
+
 export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -94,11 +180,11 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
           const a = assetMap[obj.__assetId]
           if (!a) continue
           if (obj.type === "textbox" && a.type === "TEXT") {
-            const props = spansToFabricProps(getSpans(a))
-            if (obj.text !== props.text) obj.set({ text: props.text })
-            if (obj.fill !== props.fill) obj.set({ fill: props.fill })
-            if (obj.fontSize !== props.fontSize) obj.set({ fontSize: props.fontSize })
-            if (obj.fontFamily !== props.fontFamily) obj.set({ fontFamily: props.fontFamily })
+            const spans = getSpans(a)
+            const data = spansToTextboxData(spans)
+            const def = data.defaultStyle
+            if (obj.text !== data.text) obj.set({ text: data.text })
+            obj.set({ fill: def.color, fontSize: def.fontSize, fontFamily: def.fontFamily, fontWeight: def.fontWeight, styles: data.styles })
           }
         }
         fc.renderAll()
@@ -156,10 +242,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         if (!alive) return
         const obj = e.target
         if (!obj?.__assetId) return
-        const spans: TextSpan[] = [{
-          text: obj.text ?? "",
-          style: { color: obj.fill, fontSize: obj.fontSize, fontWeight: obj.fontWeight, fontFamily: obj.fontFamily }
-        }]
+        const spans = textboxToSpans(obj)
         await fetch(`/api/campaigns/${campaignId}/assets/${obj.__assetId}`, {
           method: "PUT", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: spans, value: obj.text })
@@ -279,16 +362,19 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       ;(r as any).__assetLabel = asset.label
       fc.add(r)
     } else {
-      const props = spansToFabricProps(getSpans(asset))
-      const t = new Textbox(props.text, {
+      const spans = getSpans(asset)
+      const data = spansToTextboxData(spans)
+      const def = data.defaultStyle
+      const t = new Textbox(data.text, {
         left: posX, top: posY,
         width: Math.max(width, 200),
-        fontSize: props.fontSize,
-        fontFamily: props.fontFamily,
-        fontWeight: props.fontWeight,
-        fill: props.fill,
+        fontSize: def.fontSize ?? 80,
+        fontFamily: def.fontFamily ?? "Arial",
+        fontWeight: def.fontWeight ?? "normal",
+        fill: def.color ?? "#111111",
         editable: true,
         scaleX, scaleY, angle,
+        styles: data.styles,
       })
       ;(t as any).__assetId = asset.id
       ;(t as any).__assetLabel = asset.label
@@ -363,7 +449,40 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   function applyStyle(key: string, val: any) {
     const fc = fabricRef.current; const obj = selected
     if (!fc || !obj) return
-    obj.set(key, key === "fontSize" ? Number(val) : val)
+    const value = key === "fontSize" ? Number(val) : val
+
+    // Mapeamento Fabric: fill (cor), fontSize, fontFamily, fontWeight, fontStyle, underline
+    const styleKey = key === "fill" ? "fill" : key
+
+    const isText = obj.type === "textbox" || obj.type === "i-text"
+    const isEditing = (obj as any).isEditing
+    const hasSelection = isEditing && (obj.selectionStart ?? 0) !== (obj.selectionEnd ?? 0)
+
+    if (isText && hasSelection) {
+      // Aplicar so na selecao - estilo Photoshop
+      obj.setSelectionStyles({ [styleKey]: value }, obj.selectionStart, obj.selectionEnd)
+    } else if (isText && !isEditing) {
+      // Sem selecao e nao em modo de edicao: aplica em tudo (limpa styles per-char) e atualiza padrao
+      obj.set(styleKey, value)
+      // Limpa styles per-character para que o novo padrao tenha efeito visual em todo texto
+      const lines = (obj.styles ?? {}) as any
+      for (const lineNum in lines) {
+        for (const charIdx in lines[lineNum]) {
+          if (styleKey in lines[lineNum][charIdx]) {
+            delete lines[lineNum][charIdx][styleKey]
+            if (Object.keys(lines[lineNum][charIdx]).length === 0) delete lines[lineNum][charIdx]
+          }
+        }
+        if (Object.keys(lines[lineNum]).length === 0) delete lines[lineNum]
+      }
+    } else if (isText && isEditing) {
+      // Em edicao mas sem selecao: define como padrao para os proximos caracteres digitados
+      obj.set(styleKey, value)
+    } else {
+      // Nao-texto
+      obj.set(styleKey, value)
+    }
+
     fc.renderAll()
     doSave()
   }
