@@ -27,9 +27,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   await writeFile(path.join(dir, fname), buf)
 
   const publicUrl = `/uploads/campaigns/${id}/${fname}`
-  await prisma.keyVision.update({
+  // Upsert para criar KV se ainda nao existir (evita 500 silencioso quando matriz nunca foi salva)
+  await prisma.keyVision.upsert({
     where: { campaignId: id },
-    data: { thumbnailUrl: publicUrl },
+    create: { campaignId: id, thumbnailUrl: publicUrl, data: "{}" },
+    update: { thumbnailUrl: publicUrl },
   })
   return NextResponse.json({ thumbnailUrl: publicUrl })
 }
