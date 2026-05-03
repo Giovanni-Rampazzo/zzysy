@@ -147,6 +147,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
   const isDirtyRef = useRef(false)
   const [isDirty, setIsDirty] = useState(false)
   const isApplyingHistory = useRef(false)
+  const canvasInitialized = useRef(false)
   const [confirmExit, setConfirmExit] = useState<null | (() => void)>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [layers, setLayers] = useState<any[]>([])
@@ -197,13 +198,13 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
     load()
   }, [campaignId, pieceId])
 
-  // Sempre que voltar para o editor, recarregar para pegar mudancas dos assets
-  // (na MATRIZ: substitui texto + estilo padrao do asset; na PECA: so substitui o texto literal, mantendo overrides visuais)
+  // Sempre que voltar para o editor (foco), atualiza dados em memoria.
+  // IMPORTANTE: nao chamamos setCampaign aqui porque isso forçaria re-mount do canvas
+  // e perderia overrides de estilo aplicados localmente (cor por letra etc).
   useEffect(() => {
     function onFocus() {
       fetch(`/api/campaigns/${campaignId}`).then(r => r.json()).then((d: Campaign) => {
         campaignRef.current = d
-        setCampaign(c => c ? { ...c, assets: d.assets } : c)
         const fc = fabricRef.current
         if (!fc) return
         const assetMap = Object.fromEntries(d.assets.map(a => [a.id, a]))
@@ -494,7 +495,10 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       } catch (e) {}
     }
 
-    init()
+    if (campaign && !canvasInitialized.current) {
+      canvasInitialized.current = true
+      init()
+    }
     return () => {
       alive = false
       const fcc: any = fabricRef.current
