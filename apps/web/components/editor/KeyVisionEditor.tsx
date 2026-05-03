@@ -149,6 +149,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
       fc.on("selection:updated", (e: any) => setSelected(e.selected?.[0] ?? null))
       fc.on("selection:cleared", () => setSelected(null))
       fc.on("object:modified", () => { if (alive) doSave() })
+      fc.on("text:changed", (e: any) => { if (alive && e?.target) setSelected((s: any) => s === e.target ? Object.assign(Object.create(Object.getPrototypeOf(e.target)), e.target) : s) })
       fc.on("object:added", () => { if (alive) refreshLayers(fc) })
       fc.on("object:removed", () => { if (alive) refreshLayers(fc) })
       fc.on("text:editing:exited", async (e: any) => {
@@ -365,7 +366,6 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     obj.set(key, key === "fontSize" ? Number(val) : val)
     fc.renderAll()
     doSave()
-    setSelected((p: any) => p ? { ...p, _ts: Date.now() } : p)
   }
 
   function changeZoom(delta: number) {
@@ -447,27 +447,38 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
         {!selected ? (
           <div style={{ padding: 16 }}>
             <div style={{ ...secS, color: "#F5C400", marginBottom: 12 }}>Background</div>
-            <input type="color" value={bgColor} onChange={e => changeBg(e.target.value)} style={{ width: "100%", height: 52, cursor: "pointer", border: "none", borderRadius: 8, padding: 0 }} />
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
-              {SWATCHES.map(c => <div key={c} onClick={() => changeBg(c)} style={{ width: 26, height: 26, borderRadius: 5, background: c, cursor: "pointer", border: bgColor === c ? "2px solid #F5C400" : "2px solid #2a2a2a" }} />)}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 6, background: bgColor, border: "1px solid #333", flexShrink: 0 }} />
+              <input
+                type="text"
+                value={bgColor}
+                onChange={e => changeBg(e.target.value)}
+                style={{ ...inpS, fontFamily: "monospace", fontSize: 13, textTransform: "uppercase" }}
+              />
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {SWATCHES.map(c => (
+                <div key={c} onClick={() => changeBg(c)}
+                  style={{ width: 26, height: 26, borderRadius: 5, background: c, cursor: "pointer", border: bgColor.toLowerCase() === c.toLowerCase() ? "2px solid #F5C400" : "2px solid #2a2a2a" }} />
+              ))}
             </div>
           </div>
         ) : isText ? (
           <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <div style={secS}>Fonte</div>
-              <select key={selected.fontFamily} defaultValue={selected.fontFamily ?? "Arial"} onChange={e => applyStyle("fontFamily", e.target.value)} style={inpS}>
+              <select value={selected.fontFamily ?? "Arial"} onChange={e => applyStyle("fontFamily", e.target.value)} style={inpS}>
                 {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div>
                 <div style={secS}>Tamanho</div>
-                <input type="number" key={selected.fontSize} defaultValue={selected.fontSize ?? 80} onChange={e => applyStyle("fontSize", e.target.value)} style={inpS} />
+                <input type="number" value={Math.round(selected.fontSize ?? 80)} onChange={e => applyStyle("fontSize", e.target.value)} style={inpS} />
               </div>
               <div>
                 <div style={secS}>Peso</div>
-                <select key={selected.fontWeight} defaultValue={selected.fontWeight ?? "normal"} onChange={e => applyStyle("fontWeight", e.target.value)} style={inpS}>
+                <select value={selected.fontWeight ?? "normal"} onChange={e => applyStyle("fontWeight", e.target.value)} style={inpS}>
                   <option value="normal">Regular</option>
                   <option value="bold">Bold</option>
                 </select>
@@ -475,7 +486,21 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             </div>
             <div>
               <div style={secS}>Cor</div>
-              <input type="color" key={selected.fill} defaultValue={selected.fill ?? "#111111"} onChange={e => applyStyle("fill", e.target.value)} style={{ width: "100%", height: 44, cursor: "pointer", border: "none", borderRadius: 6, padding: 0 }} />
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 6, background: selected.fill ?? "#111111", border: "1px solid #333", flexShrink: 0 }} />
+                <input
+                  type="text"
+                  value={selected.fill ?? "#111111"}
+                  onChange={e => applyStyle("fill", e.target.value)}
+                  style={{ ...inpS, fontFamily: "monospace", fontSize: 13, textTransform: "uppercase" }}
+                />
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {SWATCHES.map(c => (
+                  <div key={c} onClick={() => applyStyle("fill", c)}
+                    style={{ width: 24, height: 24, borderRadius: 4, background: c, cursor: "pointer", border: (selected.fill ?? "").toLowerCase() === c.toLowerCase() ? "2px solid #F5C400" : "2px solid #2a2a2a" }} />
+                ))}
+              </div>
             </div>
           </div>
         ) : (
