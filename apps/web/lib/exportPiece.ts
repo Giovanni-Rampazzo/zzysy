@@ -250,8 +250,10 @@ function buildStyleRuns(textbox: any, fullText: string): any[] {
       }
       if (styleKey !== prevStyleKey) {
         runStyle = {
-          fontName: fontFamily, fontSize: Math.round(fontSize),
-          fillColor: parseColor(fill), fauxBold: (fontWeight === "bold" || fontWeight === 700),
+          font: { name: fontFamily },
+          fontSize: Math.round(fontSize),
+          fillColor: parseColor(fill),
+          fauxBold: (fontWeight === "bold" || fontWeight === 700),
         }
         prevStyleKey = styleKey
       }
@@ -308,7 +310,7 @@ export async function exportPSDBlob(pieceLite: { id?: string; name: string; data
           text: fullText,
           transform: [1, 0, 0, 1, left, top + fontSize],
           style: {
-            fontName: obj.fontFamily ?? "Arial",
+            font: { name: obj.fontFamily ?? "Arial" },
             fontSize,
             fillColor: parseColor(obj.fill ?? "#000000"),
             fauxBold: (obj.fontWeight === "bold" || obj.fontWeight === 700),
