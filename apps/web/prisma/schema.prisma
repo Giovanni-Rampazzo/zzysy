@@ -117,15 +117,16 @@ model CampaignAsset {
 }
 
 model KeyVision {
-  id         String   @id @default(cuid())
-  campaignId String   @unique
-  data       String?  @db.LongText
-  bgColor    String   @default("#ffffff")
-  layers     String?  @db.LongText
-  width      Int      @default(1920)
-  height     Int      @default(1080)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String   @id @default(cuid())
+  campaignId   String   @unique
+  data         String?  @db.LongText
+  bgColor      String   @default("#ffffff")
+  layers       String?  @db.LongText
+  width        Int      @default(1920)
+  height       Int      @default(1080)
+  thumbnailUrl String?  @db.LongText
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 }
 
