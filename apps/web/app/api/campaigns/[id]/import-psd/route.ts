@@ -10,7 +10,6 @@ import { randomUUID } from "crypto"
 type Ctx = { params: Promise<{ id: string }> }
 
 export const maxDuration = 60
-export const config = { api: { bodyParser: false } }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
