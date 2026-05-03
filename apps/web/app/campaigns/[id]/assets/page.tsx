@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { regeneratePieceThumbsForAsset } from "@/lib/regenerateThumbs"
 import TopNav from "@/components/TopNav"
 import dynamic from "next/dynamic"
 
@@ -84,6 +85,8 @@ export default function CampaignAssetsPage() {
         body: JSON.stringify({ content: newSpans, value: newText })
       })
       setSavingMap(m => ({ ...m, [assetId]: false }))
+      // Regerar thumbs das peças afetadas em segundo plano
+      regeneratePieceThumbsForAsset(id, assetId).catch(e => console.warn("regen thumbs:", e))
     }, 600)
   }
 
@@ -98,6 +101,8 @@ export default function CampaignAssetsPage() {
         ...c,
         assets: c.assets.map(a => a.id === assetId ? { ...a, imageUrl: data.imageUrl } : a)
       } : c)
+      // Regerar thumbs das peças afetadas em segundo plano
+      regeneratePieceThumbsForAsset(id, assetId).catch(e => console.warn("regen thumbs:", e))
     }
     setSavingMap(m => ({ ...m, [assetId]: false }))
   }
