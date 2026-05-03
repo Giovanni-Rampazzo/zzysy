@@ -317,8 +317,8 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
             if (r && typeof r.then === "function") r.then(() => resolve())
           })
           await new Promise(r => setTimeout(r, 250))
-          // Escala proporcional centralizada (igual ao export)
-          const scale = Math.min(targetW / sourceW, targetH / sourceH)
+          // Escala FILL: preenche todo o canvas (pode cortar elementos da matriz que ficam fora)
+          const scale = Math.max(targetW / sourceW, targetH / sourceH)
           const offsetX = (targetW - sourceW * scale) / 2
           const offsetY = (targetH - sourceH * scale) / 2
           for (const obj of fc.getObjects()) {
@@ -384,12 +384,17 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
   }
 
   function applyZoom(fc: any, z: number) {
-    if (!fc || fc.disposed || !fc.lower?.el) return
+    if (!fc || fc.disposed) return
+    // Fabric v7 expoe canvas DOM em diferentes propriedades dependendo do estado
+    const hasEl = (fc as any).lowerCanvasEl || (fc as any).lower?.el || (fc as any).elements?.lower
+    if (!hasEl) return
     zoomRef.current = z
     setZoom(z)
-    fc.setZoom(z)
-    fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(canvasHRef.current * z) })
-    fc.renderAll()
+    try {
+      fc.setZoom(z)
+      fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(canvasHRef.current * z) })
+      fc.renderAll()
+    } catch (e) { console.warn("applyZoom fail:", e) }
   }
 
   async function addAssetToCanvas(fc: any, asset: Asset, layer: any) {
