@@ -56,11 +56,13 @@ export function PsdImporter({ campaignId, onImported }: Props) {
       const allLayers = collectAllLayers(psd.children ?? [])
       const assets: any[] = []
       const imageBlobs: Blob[] = []
-      let zIndex = allLayers.length
+      // ag-psd retorna children na ordem do arquivo PSD: [0] = embaixo, [N] = topo
+      // zIndex 0 = embaixo, N = topo (mesmo sentido)
+      let zIndex = 0
 
       for (const layer of allLayers) {
         const name = (layer.name ?? "").trim()
-        if (!name || name === "Background") { zIndex--; continue }
+        if (!name || name === "Background") { zIndex++; continue }
 
         const left = layer.left ?? 0
         const top = layer.top ?? 0
@@ -122,7 +124,7 @@ export function PsdImporter({ campaignId, onImported }: Props) {
             console.warn("Falha ao extrair imagem do layer", name, e)
           }
         }
-        zIndex--
+        zIndex++
       }
 
       if (assets.length === 0) {
