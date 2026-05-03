@@ -15,6 +15,7 @@ interface Piece {
   status: string
   createdAt: string
   campaignId: string
+  imageUrl?: string | null
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -84,12 +85,18 @@ function PiecesContent() {
                 className={`bg-white rounded-lg border cursor-pointer transition-all ${isSelected(p.id) ? "border-[#F5C400] shadow-md" : "border-[#E0E0E0] hover:border-[#F5C400]"}`}
                 onClick={() => toggleSelect(p.id)}
               >
-                <div className="bg-[#F5F5F0] h-32 flex flex-col items-center justify-center relative">
+                <div className="bg-[#F5F5F0] h-32 flex flex-col items-center justify-center relative overflow-hidden">
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain" />
+                  ) : (
+                    <>
+                      <div className="text-xs font-semibold text-[#888888] mb-1">{p.format}</div>
+                      <div className="text-xs text-[#aaaaaa]">{p.width}×{p.height}</div>
+                    </>
+                  )}
                   <div className="absolute top-2 left-2 w-4 h-4 border-2 border-[#E0E0E0] rounded bg-white flex items-center justify-center">
                     {isSelected(p.id) && <div className="w-2 h-2 bg-[#F5C400] rounded-sm" />}
                   </div>
-                  <div className="text-xs font-semibold text-[#888888] mb-1">{p.format}</div>
-                  <div className="text-xs text-[#aaaaaa]">{p.width}×{p.height}</div>
                 </div>
                 <div className="p-3">
                   <div className="text-xs font-semibold truncate">{p.name}</div>
