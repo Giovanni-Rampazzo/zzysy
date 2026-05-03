@@ -226,11 +226,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   function applyZoom(fc: any, z: number) {
+    if (!fc || !fc.lower || !fc.lower.el) return
     zoomRef.current = z
     setZoom(z)
-    fc.setZoom(z)
-    fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(canvasHRef.current * z) })
-    fc.renderAll()
+    try {
+      fc.setZoom(z)
+      fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(canvasHRef.current * z) })
+      fc.renderAll()
+    } catch (e) {
+      console.warn("applyZoom failed:", e)
+    }
   }
 
   async function addAssetToCanvas(fc: any, asset: Asset, layer: any) {
