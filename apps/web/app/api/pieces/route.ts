@@ -16,7 +16,16 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { createdAt: "desc" },
   })
-  return NextResponse.json(pieces)
+  // Enrich with format/width/height/dpi from data field
+  const enriched = pieces.map(p => {
+    let width = 0, height = 0, format = "", dpi = 72
+    try {
+      const d = p.data ? JSON.parse(p.data) : null
+      if (d) { width = d.width ?? 0; height = d.height ?? 0; format = d.format ?? ""; dpi = d.dpi ?? 72 }
+    } catch {}
+    return { ...p, width, height, format, dpi }
+  })
+  return NextResponse.json(enriched)
 }
 
 export async function POST(req: NextRequest) {
