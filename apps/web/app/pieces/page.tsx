@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Suspense } from "react"
 import { PageShell } from "@/components/layout/PageShell"
 import { Button } from "@/components/ui/Button"
+import { ExportDialog } from "@/components/pieces/ExportDialog"
 
 interface Piece {
   id: string
@@ -16,6 +17,7 @@ interface Piece {
   createdAt: string
   campaignId: string
   imageUrl?: string | null
+  data?: any
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -33,6 +35,7 @@ function PiecesContent() {
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<"grid" | "list">("grid")
+  const [exportOpen, setExportOpen] = useState(false)
 
   useEffect(() => {
     const url = campaignId ? `/api/pieces?campaignId=${campaignId}` : "/api/pieces"
@@ -63,7 +66,7 @@ function PiecesContent() {
             {selected.length > 0 && (
               <>
                 <Button variant="danger" size="sm" onClick={deleteSelected}>🗑 Apagar ({selected.length})</Button>
-                <Button size="sm">↗ Exportar ({selected.length})</Button>
+                <Button size="sm" onClick={() => setExportOpen(true)}>↗ Exportar ({selected.length})</Button>
               </>
             )}
             <div className="flex border border-[#E0E0E0] rounded-md overflow-hidden">
@@ -147,6 +150,12 @@ function PiecesContent() {
           </div>
         )}
       </div>
+      {exportOpen && (
+        <ExportDialog
+          pieces={pieces.filter(p => selected.includes(p.id)).map(p => ({ id: p.id, name: p.name, data: p.data, width: p.width, height: p.height }))}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </PageShell>
   )
 }
