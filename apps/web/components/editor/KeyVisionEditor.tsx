@@ -556,6 +556,19 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
     doSave()
   }
 
+  async function uploadPieceThumb(fc: any, pId: string) {
+    try {
+      const w = canvasWRef.current
+      const h = canvasHRef.current
+      const thumbScale = Math.min(480 / w, 480 / h, 1) / (zoomRef.current || 1)
+      const dataUrl = fc.toDataURL({ format: "jpeg", quality: 0.85, multiplier: thumbScale })
+      const blob = await (await fetch(dataUrl)).blob()
+      const fd = new FormData()
+      fd.append("thumbnail", blob, "thumb.jpg")
+      await fetch(`/api/pieces/${pId}/thumbnail`, { method: "POST", body: fd })
+    } catch (e) { console.warn("piece thumb upload failed:", e) }
+  }
+
   async function saveNow() {
     clearTimeout(saveTimer.current)
     setSaving(true)
@@ -590,6 +603,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
         })
       const newData = { ...oldData, version: 2, width: canvasWRef.current, height: canvasHRef.current, bgColor: bgColorRef.current, layers: newLayers }
       await fetch(`/api/pieces/${pieceId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: JSON.stringify(newData) }) })
+      await uploadPieceThumb(fc, pieceId)
     } else {
       const layersToSave: Layer[] = fc.getObjects()
         .filter((o: any) => !o.__isBg)
@@ -667,6 +681,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
           method: "PATCH", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ data: JSON.stringify(newData) })
         })
+        await uploadPieceThumb(fc, pieceId)
       } else {
         // MODO MATRIZ
         const layersToSave: Layer[] = fc.getObjects()
