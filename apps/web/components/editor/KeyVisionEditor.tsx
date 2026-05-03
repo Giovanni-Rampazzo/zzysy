@@ -591,6 +591,16 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
           method: "PUT", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ bgColor: bgColorRef.current, layers: layersToSave, width: canvasWRef.current, height: canvasHRef.current })
         })
+
+        // Gerar e enviar thumbnail do KV (max 480px maior lado, JPEG 0.85)
+        try {
+          const thumbScale = Math.min(480 / canvasWRef.current, 480 / canvasHRef.current, 1)
+          const dataUrl = fc.toDataURL({ format: "jpeg", quality: 0.85, multiplier: thumbScale / (zoomRef.current || 1) })
+          const blob = await (await fetch(dataUrl)).blob()
+          const fd = new FormData()
+          fd.append("thumbnail", blob, "kv-thumb.jpg")
+          await fetch(`/api/campaigns/${campaignId}/key-vision/thumbnail`, { method: "POST", body: fd })
+        } catch (e) { console.warn("KV thumb upload failed:", e) }
       }
       setSaving(false)
     }, 800)
