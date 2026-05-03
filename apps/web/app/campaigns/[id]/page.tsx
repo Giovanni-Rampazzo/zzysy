@@ -10,7 +10,7 @@ interface Campaign {
   client: { id: string; name: string }
   psdName?: string | null
   assets: Asset[]
-  keyVision?: { width?: number; height?: number; bgColor?: string } | null
+  keyVision?: { width?: number; height?: number; bgColor?: string; thumbnailUrl?: string | null } | null
 }
 interface Piece {
   id: string
@@ -96,11 +96,16 @@ export default function CampaignOverviewPage() {
               background: kvBg,
               borderRadius: 6,
               border: "1px solid #E0E0E0",
-              maxHeight: 360,
+              maxHeight: 420,
               display: "flex", alignItems: "center", justifyContent: "center",
               color: "#aaa", fontSize: 13, position: "relative", overflow: "hidden"
             }}>
-              <span>{kvW} × {kvH}</span>
+              {campaign.keyVision?.thumbnailUrl ? (
+                <img src={campaign.keyVision.thumbnailUrl} alt="KV preview"
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              ) : (
+                <span>{kvW} × {kvH}</span>
+              )}
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
