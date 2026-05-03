@@ -20,6 +20,34 @@ interface Props {
   onGenerated: () => void
 }
 
+async function generateThumbnailFromCanvas(fc: any, maxW = 480, maxH = 360): Promise<Blob | null> {
+  if (!fc) return null
+  try {
+    // Salva zoom e dimensões atuais
+    const prevZoom = fc.getZoom()
+    const prevW = fc.getWidth()
+    const prevH = fc.getHeight()
+    const objects = fc.getObjects()
+    const bg = objects.find((o: any) => o.__isBg)
+    const sourceW = bg?.width ?? prevW / prevZoom
+    const sourceH = bg?.height ?? prevH / prevZoom
+
+    // Calcular escala para o thumbnail (proporcional)
+    const scale = Math.min(maxW / sourceW, maxH / sourceH)
+
+    const dataUrl = fc.toDataURL({
+      format: "jpeg",
+      quality: 0.85,
+      multiplier: scale / prevZoom,
+    })
+    const res = await fetch(dataUrl)
+    return await res.blob()
+  } catch (e) {
+    console.warn("Falha ao gerar thumbnail:", e)
+    return null
+  }
+}
+
 export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerated }: Props) {
   const [formats, setFormats] = useState<MediaFormat[]>([])
   const [selected, setSelected] = useState<string[]>([])
@@ -50,25 +78,35 @@ export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerate
     if (selected.length === 0) return
     setGenerating(true)
 
+    const fc = fabricRef.current
     const selectedFormats = formats.filter(f => selected.includes(f.id))
-    const canvasData = fabricRef.current?.toJSON(["layerId", "layerLabel", "locked"]) ?? {}
+    const canvasData = fc?.toJSON(["__assetId", "__assetLabel", "__isBg", "__isImage"]) ?? {}
 
-    await Promise.all(selectedFormats.map(f =>
-      fetch("/api/pieces", {
+    // Gera thumbnail UMA vez (matriz atual) e usa pra todas as peças
+    const thumbBlob = await generateThumbnailFromCanvas(fc)
+
+    for (const f of selectedFormats) {
+      // Cria a peça
+      const res = await fetch("/api/pieces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           campaignId,
           name: `${f.vehicle} — ${f.format}`,
-          format: `${f.vehicle} / ${f.media}`,
-          width: f.width,
-          height: f.height,
-          dpi: f.dpi,
-          data: { canvasData, sourceWidth: 1920, sourceHeight: 1080 },
+          mediaFormatId: f.id,
+          data: { canvasData, sourceWidth: fc?.getObjects().find((o: any) => o.__isBg)?.width ?? 1920, sourceHeight: fc?.getObjects().find((o: any) => o.__isBg)?.height ?? 1080, format: f.format, width: f.width, height: f.height, dpi: f.dpi },
           status: "DRAFT",
         }),
       })
-    ))
+      const piece = await res.json()
+
+      // Faz upload do thumbnail
+      if (thumbBlob && piece?.id) {
+        const fd = new FormData()
+        fd.append("thumbnail", thumbBlob, "thumb.jpg")
+        await fetch(`/api/pieces/${piece.id}/thumbnail`, { method: "POST", body: fd })
+      }
+    }
 
     setGenerating(false)
     onGenerated()
