@@ -112,6 +112,7 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   useEffect(() => {
     if (!campaign || !canvasRef.current || fabricRef.current) return
     let alive = true
+    const cleanupFns: Array<() => void> = []
 
     const init = async () => {
       const { Canvas, Rect, Textbox, FabricImage } = await import("fabric")
@@ -167,27 +168,30 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
 
       // Zoom Photoshop-style: Ctrl+Scroll
       const wrapper = wrapperRef.current
-      if (wrapper) {
-        wrapper.addEventListener("wheel", (e) => {
-          if (!e.ctrlKey && !e.metaKey) return
-          e.preventDefault()
-          const delta = e.deltaY > 0 ? -0.05 : 0.05
-          const newZ = Math.min(3, Math.max(0.05, zoomRef.current + delta))
-          applyZoom(fc, newZ)
-        }, { passive: false })
+      const onWheel = (e: WheelEvent) => {
+        if (!e.ctrlKey && !e.metaKey) return
+        if (!alive || !fabricRef.current) return
+        e.preventDefault()
+        const delta = e.deltaY > 0 ? -0.05 : 0.05
+        const newZ = Math.min(3, Math.max(0.05, zoomRef.current + delta))
+        applyZoom(fabricRef.current, newZ)
       }
+      if (wrapper) wrapper.addEventListener("wheel", onWheel, { passive: false })
+      cleanupFns.push(() => { if (wrapper) wrapper.removeEventListener("wheel", onWheel) })
 
       // Delete key remove selected
-      window.addEventListener("keydown", (e) => {
-        if (e.key === "Delete" || e.key === "Backspace") {
-          const obj = fc.getActiveObject()
-          if (obj && !(obj as any).__isBg && !(obj as any).isEditing) {
-            fc.remove(obj)
-            fc.renderAll()
-            doSave()
-          }
+      const onKey = (e: KeyboardEvent) => {
+        if (!alive || !fabricRef.current) return
+        if (e.key !== "Delete" && e.key !== "Backspace") return
+        const obj = fabricRef.current.getActiveObject()
+        if (obj && !(obj as any).__isBg && !(obj as any).isEditing) {
+          fabricRef.current.remove(obj)
+          fabricRef.current.renderAll()
+          doSave()
         }
-      })
+      }
+      window.addEventListener("keydown", onKey)
+      cleanupFns.push(() => window.removeEventListener("keydown", onKey))
 
       // Restaurar layers
       const c = campaignRef.current!
@@ -209,7 +213,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     init()
     return () => {
       alive = false
-      if (fabricRef.current) { fabricRef.current.dispose(); fabricRef.current = null }
+      cleanupFns.forEach(fn => { try { fn() } catch {} })
+      if (fabricRef.current) {
+        try { fabricRef.current.dispose() } catch {}
+        ;(fabricRef.current as any).disposed = true
+        fabricRef.current = null
+      }
     }
   }, [campaign])
 
@@ -226,16 +235,12 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
   }
 
   function applyZoom(fc: any, z: number) {
-    if (!fc || !fc.lower || !fc.lower.el) return
+    if (!fc || fc.disposed || !fc.lower?.el) return
     zoomRef.current = z
     setZoom(z)
-    try {
-      fc.setZoom(z)
-      fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(canvasHRef.current * z) })
-      fc.renderAll()
-    } catch (e) {
-      console.warn("applyZoom failed:", e)
-    }
+    fc.setZoom(z)
+    fc.setDimensions({ width: Math.round(canvasWRef.current * z), height: Math.round(canvasHRef.current * z) })
+    fc.renderAll()
   }
 
   async function addAssetToCanvas(fc: any, asset: Asset, layer: any) {
