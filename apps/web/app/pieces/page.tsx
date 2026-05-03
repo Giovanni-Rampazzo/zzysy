@@ -109,20 +109,12 @@ function PiecesContent() {
                       {STATUS_LABELS[p.status]?.label}
                     </span>
                   </div>
-                  <div className="flex gap-1 mt-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); router.push(`/editor?campaignId=${p.campaignId}&pieceId=${p.id}`) }}
-                      className="flex-1 text-xs py-1 border border-[#E0E0E0] rounded hover:bg-[#F5C400] hover:border-[#F5C400] hover:text-black transition-colors cursor-pointer bg-white text-[#888]"
-                    >
-                      ✏️ Editar
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setSelected([p.id]); setExportOpen(true) }}
-                      className="flex-1 text-xs py-1 border border-[#E0E0E0] rounded hover:bg-[#F5C400] hover:border-[#F5C400] hover:text-black transition-colors cursor-pointer bg-white text-[#888]"
-                    >
-                      ↗ Exportar
-                    </button>
-                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); router.push(`/editor?campaignId=${p.campaignId}&pieceId=${p.id}`) }}
+                    className="mt-2 w-full text-xs py-1 border border-[#E0E0E0] rounded hover:bg-[#F5C400] hover:border-[#F5C400] hover:text-black transition-colors cursor-pointer bg-white text-[#888]"
+                  >
+                    ✏️ Editar
+                  </button>
                 </div>
               </div>
             ))}
