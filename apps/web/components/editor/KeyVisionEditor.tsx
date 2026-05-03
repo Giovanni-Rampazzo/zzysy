@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { GeneratePiecesModal } from "./GeneratePiecesModal"
+import { ExportDialog } from "@/components/pieces/ExportDialog"
 
 interface TextSpan {
   text: string
@@ -147,6 +148,7 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
   const [isDirty, setIsDirty] = useState(false)
   const isApplyingHistory = useRef(false)
   const [confirmExit, setConfirmExit] = useState<null | (() => void)>(null)
+  const [exportOpen, setExportOpen] = useState(false)
   const [layers, setLayers] = useState<any[]>([])
   const [zoom, setZoom] = useState(0.5)
   const zoomRef = useRef(0.5)
@@ -962,6 +964,15 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
           disabled={redoStack.current.length === 0}
           style={{ background: "transparent", border: "1px solid #333", borderRadius: 6, padding: "6px 10px", fontSize: 13, cursor: redoStack.current.length === 0 ? "not-allowed" : "pointer", color: redoStack.current.length === 0 ? "#444" : "#aaa", opacity: redoStack.current.length === 0 ? 0.5 : 1 }}
         >↷</button>
+        {isPieceMode && (
+          <button
+            onClick={() => setExportOpen(true)}
+            style={{ background: "transparent", border: "1px solid #333", borderRadius: 6, padding: "6px 14px", fontWeight: 600, fontSize: 13, cursor: "pointer", color: "#aaa" }}
+            title="Exportar esta peça"
+          >
+            ↗ Exportar
+          </button>
+        )}
         <button
           onClick={saveNow}
           disabled={saving}
@@ -1128,6 +1139,19 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
             </div>
           </div>
         </div>
+      )}
+
+      {exportOpen && piece && (
+        <ExportDialog
+          pieces={[{
+            id: piece.id,
+            name: piece.name,
+            data: piece.data,
+            width: canvasWRef.current,
+            height: canvasHRef.current,
+          }]}
+          onClose={() => setExportOpen(false)}
+        />
       )}
 
       {modal && <GeneratePiecesModal campaignId={campaignId} fabricRef={fabricRef} onClose={() => setModal(false)} onGenerated={() => { setModal(false); router.push(`/pieces?campaignId=${campaignId}`) }} />}
