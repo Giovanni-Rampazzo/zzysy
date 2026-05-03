@@ -1,105 +1,51 @@
 "use client"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import TopNav from "@/components/TopNav"
-import dynamic from "next/dynamic"
 
-const PsdImporter = dynamic(
-  () => import("@/components/campaign/PsdImporter").then(m => ({ default: m.PsdImporter })),
-  { ssr: false }
-)
-
-interface Asset {
-  id: string
-  type: string
-  label: string
-  value: string | null
-  imageUrl: string | null
-  content: any
-  order: number
-}
+interface Asset { id: string; type: string; label: string }
 interface Campaign {
   id: string
   name: string
   client: { id: string; name: string }
-  psdUrl?: string | null
   psdName?: string | null
   assets: Asset[]
+  keyVision?: { width?: number; height?: number; bgColor?: string } | null
+}
+interface Piece {
+  id: string
+  name: string
+  format: string
+  width: number
+  height: number
+  status: string
+  imageUrl?: string | null
+  createdAt: string
 }
 
-function parseContent(raw: any): any[] {
-  if (!raw) return []
-  if (typeof raw === "string") { try { return JSON.parse(raw) } catch { return [] } }
-  if (Array.isArray(raw)) return raw
-  return []
-}
-
-function getText(asset: Asset): string {
-  const spans = parseContent(asset.content)
-  if (spans.length) return spans.map((s: any) => s.text).join("")
-  return asset.value ?? ""
-}
-
-export default function CampaignPage() {
+export default function CampaignOverviewPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
+  const [pieces, setPieces] = useState<Piece[]>([])
   const [loading, setLoading] = useState(true)
-  const [savingMap, setSavingMap] = useState<Record<string, boolean>>({})
-  const saveTimers = useRef<Record<string, any>>({})
 
-  async function load() {
-    const res = await fetch(`/api/campaigns/${id}`)
-    if (res.ok) setCampaign(await res.json())
+  async function loadAll() {
+    const [c, p] = await Promise.all([
+      fetch(`/api/campaigns/${id}`).then(r => r.json()),
+      fetch(`/api/pieces?campaignId=${id}`).then(r => r.json()),
+    ])
+    setCampaign(c)
+    setPieces(Array.isArray(p) ? p : [])
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => { loadAll() }, [id])
 
-  function updateAssetText(assetId: string, newText: string) {
-    if (!campaign) return
-    setCampaign({
-      ...campaign,
-      assets: campaign.assets.map(a => {
-        if (a.id !== assetId) return a
-        const spans = parseContent(a.content)
-        const newSpans = spans.length
-          ? [{ ...spans[0], text: newText }, ...spans.slice(1)]
-          : [{ text: newText, style: { color: "#111111", fontSize: 48, fontWeight: "normal", fontFamily: "Arial" } }]
-        return { ...a, content: newSpans, value: newText }
-      })
-    })
-
-    clearTimeout(saveTimers.current[assetId])
-    setSavingMap(m => ({ ...m, [assetId]: true }))
-    saveTimers.current[assetId] = setTimeout(async () => {
-      const asset = campaign.assets.find(a => a.id === assetId)
-      const spans = parseContent(asset?.content)
-      const newSpans = spans.length
-        ? [{ ...spans[0], text: newText }, ...spans.slice(1)]
-        : [{ text: newText, style: { color: "#111111", fontSize: 48, fontWeight: "normal", fontFamily: "Arial" } }]
-      await fetch(`/api/campaigns/${id}/assets/${assetId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newSpans, value: newText })
-      })
-      setSavingMap(m => ({ ...m, [assetId]: false }))
-    }, 600)
-  }
-
-  async function uploadAssetImage(assetId: string, file: File) {
-    setSavingMap(m => ({ ...m, [assetId]: true }))
-    const fd = new FormData()
-    fd.append("image", file)
-    const res = await fetch(`/api/campaigns/${id}/assets/${assetId}/image`, { method: "POST", body: fd })
-    if (res.ok) {
-      const data = await res.json()
-      setCampaign(c => c ? {
-        ...c,
-        assets: c.assets.map(a => a.id === assetId ? { ...a, imageUrl: data.imageUrl } : a)
-      } : c)
-    }
-    setSavingMap(m => ({ ...m, [assetId]: false }))
+  async function deletePiece(pieceId: string) {
+    if (!confirm("Apagar esta peça? Esta ação não pode ser desfeita.")) return
+    await fetch(`/api/pieces/${pieceId}`, { method: "DELETE" })
+    setPieces(p => p.filter(x => x.id !== pieceId))
   }
 
   if (loading) return (
@@ -112,103 +58,123 @@ export default function CampaignPage() {
   if (!campaign) return (
     <div style={{ minHeight: "100vh", background: "#F8F9FA" }}>
       <TopNav />
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "80vh", color: "#888" }}>Campanha nao encontrada.</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "80vh", color: "#888" }}>Campanha não encontrada.</div>
     </div>
   )
 
-  const sortedAssets = [...campaign.assets].sort((a, b) => a.order - b.order)
+  const kvW = campaign.keyVision?.width ?? 1920
+  const kvH = campaign.keyVision?.height ?? 1080
+  const kvBg = campaign.keyVision?.bgColor ?? "#ffffff"
 
   return (
     <div style={{ minHeight: "100vh", background: "#F8F9FA" }}>
       <TopNav />
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, gap: 16 }}>
-          <div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>
-              <span style={{ cursor: "pointer", color: "#888" }} onClick={() => router.push(`/clients/${campaign.client.id}`)}>
-                {campaign.client.name}
-              </span> /
-            </div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{campaign.name}</h1>
-            {campaign.psdName && (
-              <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
-                PSD: <strong>{campaign.psdName}</strong> · {campaign.assets.length} assets
-              </p>
-            )}
+        {/* Breadcrumb + título */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>
+            <span style={{ cursor: "pointer" }} onClick={() => router.push(`/clients/${campaign.client.id}`)}>
+              {campaign.client.name}
+            </span> /
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <PsdImporter campaignId={id} onImported={load} />
-            {campaign.assets.length > 0 && (
-              <button
-                onClick={() => router.push(`/editor?campaignId=${id}`)}
-                style={{ background: "#F5C400", border: "none", borderRadius: 6, padding: "10px 24px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
-              >
-                Abrir Matriz
-              </button>
-            )}
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{campaign.name}</h1>
+          {campaign.psdName && (
+            <p style={{ fontSize: 12, color: "#888", margin: "4px 0 0" }}>
+              PSD: <strong>{campaign.psdName}</strong> · {campaign.assets?.length ?? 0} assets · {pieces.length} peça{pieces.length !== 1 ? "s" : ""}
+            </p>
+          )}
+        </div>
+
+        {/* Preview KV + botões */}
+        <div style={{ background: "white", borderRadius: 10, border: "1px solid #E0E0E0", padding: 24, marginBottom: 28, display: "grid", gridTemplateColumns: "1fr 220px", gap: 24, alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700, marginBottom: 12 }}>Key Vision (Matriz)</div>
+            <div style={{
+              width: "100%",
+              aspectRatio: `${kvW} / ${kvH}`,
+              background: kvBg,
+              borderRadius: 6,
+              border: "1px solid #E0E0E0",
+              maxHeight: 360,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#aaa", fontSize: 13, position: "relative", overflow: "hidden"
+            }}>
+              <span>{kvW} × {kvH}</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={() => router.push(`/campaigns/${id}/assets`)}
+              style={{ background: "#F5C400", border: "none", borderRadius: 6, padding: "12px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+            >
+              Editar Assets
+            </button>
+            <button
+              onClick={() => router.push(`/editor?campaignId=${id}`)}
+              style={{ background: "white", border: "1px solid #E0E0E0", borderRadius: 6, padding: "12px 18px", fontWeight: 600, fontSize: 13, cursor: "pointer", color: "#333" }}
+            >
+              Abrir no Editor
+            </button>
           </div>
         </div>
 
-        {campaign.assets.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 0", color: "#888" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📂</div>
-            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: "#444" }}>Nenhum asset ainda</div>
-            <div style={{ fontSize: 14 }}>Importe um PSD para extrair os layers automaticamente</div>
+        {/* Lista de peças */}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>Peças geradas ({pieces.length})</div>
+            {pieces.length > 0 && (
+              <button onClick={() => router.push(`/pieces?campaignId=${id}`)}
+                style={{ background: "transparent", border: "none", color: "#F5C400", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                Ver todas →
+              </button>
+            )}
           </div>
-        ) : (
-          <div style={{ background: "white", borderRadius: 10, border: "1px solid #E0E0E0", padding: 24 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#888", marginBottom: 20, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Assets da campanha
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              {sortedAssets.map(asset => (
-                <div key={asset.id} style={{ display: "grid", gridTemplateColumns: "180px 1fr 80px", gap: 12, alignItems: "center", paddingBottom: 14, borderBottom: "1px solid #F0F0F0" }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#aaa", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>
-                      {asset.type === "TEXT" ? "Texto" : "Imagem"}
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {asset.label}
-                    </div>
-                  </div>
 
-                  <div>
-                    {asset.type === "TEXT" ? (
-                      <textarea
-                        defaultValue={getText(asset)}
-                        onChange={e => updateAssetText(asset.id, e.target.value)}
-                        rows={Math.min(4, Math.max(1, getText(asset).split("\n").length))}
-                        style={{
-                          width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #E0E0E0",
-                          fontSize: 13, color: "#111", fontFamily: "inherit", resize: "vertical", outline: "none"
-                        }}
-                      />
+          {pieces.length === 0 ? (
+            <div style={{ background: "white", border: "1px dashed #E0E0E0", borderRadius: 10, padding: 40, textAlign: "center", color: "#888", fontSize: 13 }}>
+              Nenhuma peça gerada ainda. Abra o editor e clique em "Gerar Peças".
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+              {pieces.map(p => (
+                <div key={p.id} style={{ background: "white", borderRadius: 10, border: "1px solid #E0E0E0", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <div style={{ height: 130, background: "#F5F5F0", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                     ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        {asset.imageUrl ? (
-                          <img src={asset.imageUrl} alt={asset.label}
-                            style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 4, border: "1px solid #E0E0E0" }} />
-                        ) : (
-                          <div style={{ width: 80, height: 60, background: "#F0F0F0", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc", fontSize: 18 }}>🖼</div>
-                        )}
-                        <label style={{ cursor: "pointer", fontSize: 12, color: "#666", border: "1px solid #E0E0E0", borderRadius: 4, padding: "6px 10px", background: "#F8F9FA" }}>
-                          Trocar imagem
-                          <input type="file" accept="image/*" style={{ display: "none" }}
-                            onChange={e => { const f = e.target.files?.[0]; if (f) uploadAssetImage(asset.id, f); e.target.value = "" }} />
-                        </label>
+                      <div style={{ textAlign: "center", color: "#aaa", fontSize: 11 }}>
+                        <div style={{ fontWeight: 600 }}>{p.format}</div>
+                        <div>{p.width} × {p.height}</div>
                       </div>
                     )}
                   </div>
-
-                  <div style={{ fontSize: 10, color: savingMap[asset.id] ? "#F5C400" : "#bbb", textAlign: "right" }}>
-                    {savingMap[asset.id] ? "Salvando..." : "Salvo"}
+                  <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                      <div style={{ fontSize: 11, color: "#888" }}>{p.width} × {p.height}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, marginTop: "auto" }}>
+                      <button
+                        onClick={() => router.push(`/editor?campaignId=${id}&pieceId=${p.id}`)}
+                        style={{ flex: 1, background: "white", border: "1px solid #E0E0E0", borderRadius: 5, padding: "6px 8px", fontSize: 11, color: "#444", cursor: "pointer" }}
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => deletePiece(p.id)}
+                        style={{ background: "white", border: "1px solid #E0E0E0", borderRadius: 5, padding: "6px 8px", fontSize: 11, color: "#dc2626", cursor: "pointer" }}
+                        title="Apagar"
+                      >
+                        🗑
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
