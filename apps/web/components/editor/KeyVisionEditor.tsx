@@ -318,6 +318,39 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       window.addEventListener("keydown", onKey)
       cleanupFns.push(() => window.removeEventListener("keydown", onKey))
 
+      // Em MODO PEÇA, bloquear digitacao mas permitir seleção de caracteres
+      // (necessario para mudar cor/tamanho de letras especificas, estilo Photoshop)
+      if (pieceId) {
+        const blockKey = (e: KeyboardEvent) => {
+          const fcc = fabricRef.current
+          if (!fcc) return
+          const active = fcc.getActiveObject() as any
+          if (!active || !active.isEditing) return
+          // Permitir teclas de navegacao/selecao
+          const allowed = new Set([
+            "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+            "Home", "End", "PageUp", "PageDown", "Tab", "Escape",
+            "Shift", "Control", "Alt", "Meta",
+          ])
+          if (allowed.has(e.key)) return
+          // Permitir Cmd/Ctrl+A, Cmd/Ctrl+C (selecionar/copiar)
+          if ((e.metaKey || e.ctrlKey) && (e.key === "a" || e.key === "c")) return
+          // Bloquear o resto (digitacao, paste, delete, backspace, enter)
+          e.preventDefault()
+          e.stopPropagation()
+        }
+        const onPaste = (e: ClipboardEvent) => {
+          const fcc = fabricRef.current
+          if (!fcc) return
+          const active = fcc.getActiveObject() as any
+          if (active?.isEditing) { e.preventDefault(); e.stopPropagation() }
+        }
+        document.addEventListener("keydown", blockKey, true)
+        document.addEventListener("paste", onPaste, true)
+        ;(fc as any).__blockKeyHandler = blockKey
+        ;(fc as any).__blockPasteHandler = onPaste
+      }
+
       // Restaurar layers
       const c = campaignRef.current!
       if (pieceId && pieceRef.current) {
@@ -351,8 +384,8 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
               if (layer.overrides.textAlign !== undefined) created.set("textAlign", layer.overrides.textAlign)
               if (layer.overrides.styles !== undefined) created.set("styles", layer.overrides.styles)
               ;(created as any).__pieceLayerIdx = sorted.indexOf(layer)
-              // Bloquear edicao de texto na peca: nao deixa entrar em modo edicao
-              created.editable = false
+              // Em modo peca, deixa editavel pra permitir seleção de caracteres,
+              // mas o key handler abaixo bloqueia digitacao real
             } else if (created) {
               ;(created as any).__pieceLayerIdx = sorted.indexOf(layer)
             }
@@ -383,7 +416,6 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
               scaleX: (obj.scaleX ?? 1) * scale,
               scaleY: (obj.scaleY ?? 1) * scale,
             })
-            ;(obj as any).editable = false
             obj.setCoords()
           }
           const bgObj = fc.getObjects().find((o: any) => o.__isBg)
@@ -410,6 +442,11 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
     init()
     return () => {
       alive = false
+      const fcc: any = fabricRef.current
+      if (fcc) {
+        if (fcc.__blockKeyHandler) document.removeEventListener("keydown", fcc.__blockKeyHandler, true)
+        if (fcc.__blockPasteHandler) document.removeEventListener("paste", fcc.__blockPasteHandler, true)
+      }
       cleanupFns.forEach(fn => { try { fn() } catch {} })
       if (fabricRef.current) {
         try { fabricRef.current.dispose() } catch {}
