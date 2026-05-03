@@ -28,8 +28,7 @@
     "zod": "^3.22.0",
     "zustand": "^4.5.0",
     "fabric": "^6.0.0",
-    "ag-psd": "^18.0.0",
-    "jspdf": "^2.5.2"
+    "ag-psd": "^18.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
