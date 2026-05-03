@@ -187,14 +187,13 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
     load()
   }, [campaignId, pieceId])
 
-  // Sempre que voltar para o editor, recarregar para pegar mudancas dos assets (só em modo matriz)
+  // Sempre que voltar para o editor, recarregar para pegar mudancas dos assets
+  // (na MATRIZ: substitui texto + estilo padrao do asset; na PECA: so substitui o texto literal, mantendo overrides visuais)
   useEffect(() => {
-    if (pieceId) return
     function onFocus() {
       fetch(`/api/campaigns/${campaignId}`).then(r => r.json()).then((d: Campaign) => {
         campaignRef.current = d
         setCampaign(c => c ? { ...c, assets: d.assets } : c)
-        // Atualizar textos no canvas com base nos assets atualizados
         const fc = fabricRef.current
         if (!fc) return
         const assetMap = Object.fromEntries(d.assets.map(a => [a.id, a]))
@@ -202,12 +201,28 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
           if (!obj.__assetId || obj.__isBg) continue
           const a = assetMap[obj.__assetId]
           if (!a) continue
-          if (obj.type === "textbox" && a.type === "TEXT") {
+          if ((obj.type === "textbox" || obj.type === "i-text") && a.type === "TEXT") {
             const spans = getSpans(a)
             const data = spansToTextboxData(spans)
-            const def = data.defaultStyle
-            if (obj.text !== data.text) obj.set({ text: data.text })
-            obj.set({ fill: def.color, fontSize: def.fontSize, fontFamily: def.fontFamily, fontWeight: def.fontWeight, styles: data.styles })
+            if (pieceId) {
+              // PECA: so atualiza o texto puro, mantem overrides visuais ja salvos no objeto
+              if (obj.text !== data.text) obj.set({ text: data.text })
+            } else {
+              // MATRIZ: atualiza texto + estilo default + styles per-char do asset
+              const def = data.defaultStyle
+              if (obj.text !== data.text) obj.set({ text: data.text })
+              obj.set({ fill: def.color, fontSize: def.fontSize, fontFamily: def.fontFamily, fontWeight: def.fontWeight, styles: data.styles })
+            }
+          }
+          if (obj.type === "image" && a.type === "IMAGE" && a.imageUrl) {
+            // Trocar imagem se mudou
+            const img = obj as any
+            if (img.getSrc && img.getSrc() !== a.imageUrl) {
+              const el = new window.Image()
+              el.crossOrigin = "anonymous"
+              el.onload = () => { img.setElement(el); fc.renderAll() }
+              el.src = a.imageUrl
+            }
           }
         }
         fc.renderAll()
@@ -265,11 +280,14 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
         if (!alive) return
         const obj = e.target
         if (!obj?.__assetId) return
-        const spans = textboxToSpans(obj)
-        await fetch(`/api/campaigns/${campaignId}/assets/${obj.__assetId}`, {
-          method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: spans, value: obj.text })
-        })
+        // So salva texto no asset quando esta editando a MATRIZ (peca eh visual override)
+        if (!pieceId) {
+          const spans = textboxToSpans(obj)
+          await fetch(`/api/campaigns/${campaignId}/assets/${obj.__assetId}`, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: spans, value: obj.text })
+          })
+        }
         doSave()
       })
 
@@ -303,41 +321,71 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       // Restaurar layers
       const c = campaignRef.current!
       if (pieceId && pieceRef.current) {
-        // MODO PEÇA: carrega via fabric.loadFromJSON do canvasData salvo + escala proporcional
+        // MODO PEÇA v2: layers + assets (sync automatico com asset)
         const p = pieceRef.current
         const pdata = typeof p.data === "string" ? JSON.parse(p.data) : p.data
-        const canvasData = pdata?.canvasData
-        const sourceW = pdata?.sourceWidth ?? canvasWRef.current
-        const sourceH = pdata?.sourceHeight ?? canvasHRef.current
-        const targetW = canvasWRef.current
-        const targetH = canvasHRef.current
-        if (canvasData) {
+        const assetMap = Object.fromEntries(c.assets.map((a: Asset) => [a.id, a]))
+
+        if (pdata?.version === 2 && Array.isArray(pdata?.layers)) {
+          // Renderiza cada layer da peca
+          const sorted = [...pdata.layers].sort((a: any, b: any) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+          for (const layer of sorted) {
+            const asset = assetMap[layer.assetId] as Asset
+            if (!asset) continue
+            // Aplica overrides ao layer base
+            const layerWithOverrides = {
+              ...layer,
+              ...(layer.overrides ?? {}),
+            }
+            await addAssetToCanvas(fc, asset, layerWithOverrides)
+            // Aplicar overrides especificos de TEXTO depois do textbox criado
+            const objs = fc.getObjects()
+            const created = objs[objs.length - 1] as any
+            if (created && (created.type === "textbox" || created.type === "i-text") && layer.overrides) {
+              if (layer.overrides.fill !== undefined) created.set("fill", layer.overrides.fill)
+              if (layer.overrides.fontSize !== undefined) created.set("fontSize", layer.overrides.fontSize)
+              if (layer.overrides.fontFamily !== undefined) created.set("fontFamily", layer.overrides.fontFamily)
+              if (layer.overrides.fontWeight !== undefined) created.set("fontWeight", layer.overrides.fontWeight)
+              if (layer.overrides.charSpacing !== undefined) created.set("charSpacing", layer.overrides.charSpacing)
+              if (layer.overrides.lineHeight !== undefined) created.set("lineHeight", layer.overrides.lineHeight)
+              if (layer.overrides.textAlign !== undefined) created.set("textAlign", layer.overrides.textAlign)
+              if (layer.overrides.styles !== undefined) created.set("styles", layer.overrides.styles)
+              ;(created as any).__pieceLayerIdx = sorted.indexOf(layer)
+              // Bloquear edicao de texto na peca: nao deixa entrar em modo edicao
+              created.editable = false
+            } else if (created) {
+              ;(created as any).__pieceLayerIdx = sorted.indexOf(layer)
+            }
+          }
+          fc.renderAll()
+        } else if (pdata?.canvasData) {
+          // LEGACY (v1): peca antiga com canvasData direto - mantem compatibilidade
+          const sourceW = pdata?.sourceWidth ?? canvasWRef.current
+          const sourceH = pdata?.sourceHeight ?? canvasHRef.current
+          const targetW = canvasWRef.current
+          const targetH = canvasHRef.current
           await new Promise<void>((resolve) => {
-            const r = fc.loadFromJSON(canvasData, () => { resolve() })
+            const r = fc.loadFromJSON(pdata.canvasData, () => { resolve() })
             if (r && typeof r.then === "function") r.then(() => resolve())
           })
           await new Promise(r => setTimeout(r, 250))
-          // Escala FILL: preenche todo o canvas (pode cortar elementos da matriz que ficam fora)
-          const scale = Math.max(targetW / sourceW, targetH / sourceH)
+          const scale = Math.min(targetW / sourceW, targetH / sourceH)
           const offsetX = (targetW - sourceW * scale) / 2
           const offsetY = (targetH - sourceH * scale) / 2
           for (const obj of fc.getObjects()) {
             if ((obj as any).__isBg) {
-              // Background da matriz vira o background da peça
               obj.set({ left: 0, top: 0, width: targetW, height: targetH, scaleX: 1, scaleY: 1 })
               continue
             }
-            const newLeft = (obj.left ?? 0) * scale + offsetX
-            const newTop = (obj.top ?? 0) * scale + offsetY
             obj.set({
-              left: newLeft,
-              top: newTop,
+              left: (obj.left ?? 0) * scale + offsetX,
+              top: (obj.top ?? 0) * scale + offsetY,
               scaleX: (obj.scaleX ?? 1) * scale,
               scaleY: (obj.scaleY ?? 1) * scale,
             })
+            ;(obj as any).editable = false
             obj.setCoords()
           }
-          // Re-ordenar bg pra trás
           const bgObj = fc.getObjects().find((o: any) => o.__isBg)
           if (bgObj) fc.sendObjectToBack(bgObj)
         }
@@ -479,18 +527,46 @@ export function KeyVisionEditor({ campaignId, pieceId }: { campaignId: string; p
       setSaving(true)
 
       if (pieceId && pieceRef.current) {
-        // MODO PEÇA: salva canvasData + dimensões na própria peça (independente da matriz)
-        const canvasData = fc.toJSON(["__assetId", "__assetLabel", "__isBg", "__isImage"])
+        // MODO PEÇA v2: salva layers[] com posicoes + overrides
         const p = pieceRef.current
         const oldData = typeof p.data === "string" ? JSON.parse(p.data) : (p.data ?? {})
+
+        const newLayers = fc.getObjects()
+          .filter((o: any) => !o.__isBg)
+          .map((o: any, i: number) => {
+            const layer: any = {
+              assetId: o.__assetId ?? null,
+              posX: Math.round(o.left ?? 0),
+              posY: Math.round(o.top ?? 0),
+              scaleX: o.scaleX ?? 1,
+              scaleY: o.scaleY ?? 1,
+              rotation: o.angle ?? 0,
+              zIndex: i,
+              width: Math.round(o.width ?? 400),
+              height: Math.round(o.height ?? 100),
+              overrides: {},
+            }
+            // Captura overrides para textos (cor, tamanho, fonte, peso, espacamento, entrelinha, alinhamento, styles per-char)
+            if (o.type === "textbox" || o.type === "i-text") {
+              layer.overrides.fill = o.fill
+              layer.overrides.fontSize = o.fontSize
+              layer.overrides.fontFamily = o.fontFamily
+              layer.overrides.fontWeight = o.fontWeight
+              if (o.charSpacing !== undefined) layer.overrides.charSpacing = o.charSpacing
+              if (o.lineHeight !== undefined) layer.overrides.lineHeight = o.lineHeight
+              if (o.textAlign !== undefined) layer.overrides.textAlign = o.textAlign
+              if (o.styles && Object.keys(o.styles).length > 0) layer.overrides.styles = o.styles
+            }
+            return layer
+          })
+
         const newData = {
           ...oldData,
-          canvasData,
-          sourceWidth: canvasWRef.current,
-          sourceHeight: canvasHRef.current,
+          version: 2,
           width: canvasWRef.current,
           height: canvasHRef.current,
           bgColor: bgColorRef.current,
+          layers: newLayers,
         }
         await fetch(`/api/pieces/${pieceId}`, {
           method: "PATCH", headers: { "Content-Type": "application/json" },
