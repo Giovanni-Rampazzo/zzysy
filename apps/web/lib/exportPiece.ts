@@ -1,6 +1,6 @@
 "use client"
 // Exportacao de pecas: PSD editavel + PNG + JPG + PDF
-// Tudo client-side, sem dependencias alem de ag-psd
+// Suporta agrupamento em ZIP quando ha mais de 1 arquivo
 
 export type ExportFormat = "PSD" | "PNG" | "JPG" | "PDF"
 
@@ -30,7 +30,8 @@ async function loadFabricFromJSON(canvasData: any, width: number, height: number
       if (r && typeof r.then === "function") r.then(() => { fc.renderAll(); resolve() })
     } catch (e) { console.error(e); resolve() }
   })
-  await new Promise(r => setTimeout(r, 250))
+  // Garantia extra: aguarda imagens HTML do canvas terminarem de carregar
+  await new Promise(r => setTimeout(r, 350))
   fc.renderAll()
   return fc
 }
@@ -43,10 +44,11 @@ async function renderToCanvas(piece: { data: any; width: number; height: number 
 
   const fc = await loadFabricFromJSON(canvasData, sourceW, sourceH)
 
+  // Canvas opaco (sem alpha) para evitar pre-multiplicacao
   const out = document.createElement("canvas")
   out.width = piece.width
   out.height = piece.height
-  const ctx = out.getContext("2d")!
+  const ctx = out.getContext("2d", { alpha: false } as any)!
 
   const scale = Math.min(piece.width / sourceW, piece.height / sourceH)
   const drawW = sourceW * scale
@@ -62,22 +64,21 @@ async function renderToCanvas(piece: { data: any; width: number; height: number 
   return out
 }
 
-export async function exportPNG(piece: { name: string; data: any; width: number; height: number }) {
+export async function exportPNGBlob(piece: { name: string; data: any; width: number; height: number }): Promise<Blob> {
   const c = await renderToCanvas(piece)
-  await new Promise<void>(resolve => {
-    c.toBlob(b => { if (b) downloadBlob(b, safeName(piece.name) + ".png"); resolve() }, "image/png")
+  return await new Promise<Blob>((resolve, reject) => {
+    c.toBlob(b => b ? resolve(b) : reject(new Error("toBlob PNG falhou")), "image/png")
   })
 }
 
-export async function exportJPG(piece: { name: string; data: any; width: number; height: number }) {
+export async function exportJPGBlob(piece: { name: string; data: any; width: number; height: number }): Promise<Blob> {
   const c = await renderToCanvas(piece)
-  await new Promise<void>(resolve => {
-    c.toBlob(b => { if (b) downloadBlob(b, safeName(piece.name) + ".jpg"); resolve() }, "image/jpeg", 0.92)
+  return await new Promise<Blob>((resolve, reject) => {
+    c.toBlob(b => b ? resolve(b) : reject(new Error("toBlob JPG falhou")), "image/jpeg", 0.92)
   })
 }
 
-// PDF: monta um arquivo PDF minimo embedando JPEG, sem dependencias e sem popup
-export async function exportPDF(piece: { name: string; data: any; width: number; height: number }) {
+export async function exportPDFBlob(piece: { name: string; data: any; width: number; height: number }): Promise<Blob> {
   const c = await renderToCanvas(piece)
   const jpegDataUrl = c.toDataURL("image/jpeg", 0.92)
   const jpegBase64 = jpegDataUrl.split(",")[1]
@@ -85,9 +86,7 @@ export async function exportPDF(piece: { name: string; data: any; width: number;
   const jpegBuf = new Uint8Array(jpegBytes.length)
   for (let i = 0; i < jpegBytes.length; i++) jpegBuf[i] = jpegBytes.charCodeAt(i)
 
-  // Constroi PDF estruturado manualmente (1 pagina com 1 imagem)
-  const W = piece.width
-  const H = piece.height
+  const W = piece.width, H = piece.height
   const enc = new TextEncoder()
   const parts: Array<Uint8Array> = []
   const offsets: number[] = []
@@ -100,38 +99,28 @@ export async function exportPDF(piece: { name: string; data: any; width: number;
   function endObj() { push("\nendobj\n") }
 
   push("%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
-
   startObj(1); push("<< /Type /Catalog /Pages 2 0 R >>"); endObj()
   startObj(2); push("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"); endObj()
   startObj(3); push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 4 0 R >> /ProcSet [/PDF /ImageC] >> /Contents 5 0 R >>`); endObj()
-
-  // Imagem (XObject)
   startObj(4)
   push(`<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBuf.length} >>\nstream\n`)
   push(jpegBuf)
   push("\nendstream")
   endObj()
-
-  // Stream de conteudo
   const content = `q\n${W} 0 0 ${H} 0 0 cm\n/Im0 Do\nQ\n`
   startObj(5)
   push(`<< /Length ${content.length} >>\nstream\n${content}endstream`)
   endObj()
-
-  // xref
   const xrefOffset = pos
   push(`xref\n0 6\n0000000000 65535 f \n`)
-  for (let i = 1; i <= 5; i++) {
-    push(offsets[i].toString().padStart(10, "0") + " 00000 n \n")
-  }
+  for (let i = 1; i <= 5; i++) push(offsets[i].toString().padStart(10, "0") + " 00000 n \n")
   push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`)
 
-  // Concatenar
   const total = parts.reduce((a, p) => a + p.length, 0)
   const buf = new Uint8Array(total)
   let off = 0
   for (const p of parts) { buf.set(p, off); off += p.length }
-  downloadBlob(new Blob([buf], { type: "application/pdf" }), safeName(piece.name) + ".pdf")
+  return new Blob([buf], { type: "application/pdf" })
 }
 
 function parseColor(c: string): { r: number; g: number; b: number } {
@@ -144,13 +133,67 @@ function parseColor(c: string): { r: number; g: number; b: number } {
   return { r: 0, g: 0, b: 0 }
 }
 
-// Helper: converte HTMLCanvasElement em ImageData (sem pre-multiplicacao de alfa)
+// Converte os styles per-character do Fabric Textbox em styleRuns do ag-psd
+function buildStyleRuns(textbox: any, fullText: string, scale: number): any[] {
+  const runs: any[] = []
+  const styles = textbox.styles ?? {}
+  const lines = fullText.split("\n")
+
+  let charIdx = 0
+  for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+    const line = lines[lineNum]
+    const lineStyles = styles[lineNum] ?? {}
+    let prevStyleKey = ""
+    let runStart = charIdx
+    let runStyle: any = null
+
+    for (let col = 0; col <= line.length; col++) {
+      const cs = col < line.length ? lineStyles[col] : null
+      const fill = cs?.fill ?? textbox.fill ?? "#000000"
+      const fontSize = cs?.fontSize ?? textbox.fontSize ?? 48
+      const fontFamily = cs?.fontFamily ?? textbox.fontFamily ?? "Arial"
+      const fontWeight = cs?.fontWeight ?? textbox.fontWeight ?? "normal"
+      const styleKey = `${fill}|${fontSize}|${fontFamily}|${fontWeight}`
+
+      if (styleKey !== prevStyleKey && col > 0) {
+        runs.push({
+          length: charIdx + col - 1 - runStart + 1,
+          style: runStyle
+        })
+        runStart = charIdx + col
+      }
+      if (styleKey !== prevStyleKey) {
+        runStyle = {
+          fontName: fontFamily,
+          fontSize: Math.round(fontSize * scale),
+          fillColor: parseColor(fill),
+          fauxBold: (fontWeight === "bold" || fontWeight === 700),
+        }
+        prevStyleKey = styleKey
+      }
+    }
+    // Fechar ultimo run da linha + quebra
+    runs.push({
+      length: charIdx + line.length - runStart,
+      style: runStyle
+    })
+    charIdx += line.length
+    if (lineNum < lines.length - 1) {
+      // adiciona o \n ao ultimo run
+      const last = runs[runs.length - 1]
+      if (last) last.length += 1
+      charIdx += 1
+    }
+  }
+  return runs.filter(r => r.length > 0)
+}
+
 function canvasToImageData(c: HTMLCanvasElement): ImageData {
-  const ctx = c.getContext("2d")!
+  const ctx = c.getContext("2d", { alpha: false } as any)!
   return ctx.getImageData(0, 0, c.width, c.height)
 }
 
-export async function exportPSD(piece: { name: string; data: any; width: number; height: number; sourceWidth?: number; sourceHeight?: number }) {
+export async function exportPSDBlob(piece: { name: string; data: any; width: number; height: number; sourceWidth?: number; sourceHeight?: number }): Promise<Blob> {
   const data = typeof piece.data === "string" ? JSON.parse(piece.data) : piece.data
   const canvasData = data?.canvasData ?? data
   const sourceW = data?.sourceWidth ?? piece.sourceWidth ?? piece.width
@@ -163,12 +206,7 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
   const offsetY = (piece.height - sourceH * scale) / 2
 
   const agpsd = await import("ag-psd") as any
-  if (agpsd.initializeCanvas) {
-    agpsd.initializeCanvas(
-      (w: number, h: number) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c },
-      (c: any) => (c as HTMLCanvasElement).getContext("2d")
-    )
-  }
+  // ag-psd no browser ja vem inicializado; nao precisa initializeCanvas manual
 
   const psdLayers: any[] = []
   for (const obj of objects) {
@@ -187,10 +225,13 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
 
     if (obj.type === "textbox" || obj.type === "i-text" || obj.type === "text") {
       const fontSize = Math.round((obj.fontSize ?? 48) * scale)
+      const fullText = obj.text ?? ""
+      const styleRuns = buildStyleRuns(obj, fullText, scale)
+
       psdLayers.push({
         name, top, left, bottom, right,
         text: {
-          text: obj.text ?? "",
+          text: fullText,
           transform: [1, 0, 0, 1, left, top + fontSize],
           style: {
             fontName: obj.fontFamily ?? "Arial",
@@ -198,19 +239,21 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
             fillColor: parseColor(obj.fill ?? "#000000"),
             fauxBold: (obj.fontWeight === "bold" || obj.fontWeight === 700),
           },
+          styleRuns,
           paragraphStyle: { justification: "left" },
         },
       })
     } else {
-      // Renderiza objeto isolado e usa imageData (sem pre-multiplicacao)
       const layerCanvas = document.createElement("canvas")
       layerCanvas.width = w
       layerCanvas.height = h
-      const lctx = layerCanvas.getContext("2d")!
+      const lctx = layerCanvas.getContext("2d", { alpha: false } as any)!
+      lctx.fillStyle = "#ffffff"
+      lctx.fillRect(0, 0, w, h)
       try {
         const img = obj.toCanvasElement({ multiplier: scale })
         lctx.drawImage(img, 0, 0, w, h)
-        psdLayers.push({ name, top, left, bottom, right, imageData: canvasToImageData(layerCanvas) })
+        psdLayers.push({ name, top, left, bottom, right, canvas: layerCanvas })
       } catch (e) {
         console.warn("falha rasterizar:", name, e)
       }
@@ -221,33 +264,98 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
   const compositeCanvas = document.createElement("canvas")
   compositeCanvas.width = piece.width
   compositeCanvas.height = piece.height
-  const cctx = compositeCanvas.getContext("2d")!
+  const cctx = compositeCanvas.getContext("2d", { alpha: false } as any)!
   cctx.fillStyle = "#ffffff"
   cctx.fillRect(0, 0, piece.width, piece.height)
   const drawW = sourceW * scale
   const drawH = sourceH * scale
   cctx.drawImage(fc.getElement(), offsetX, offsetY, drawW, drawH)
 
+  // Thumbnail menor para o Finder/Bridge mostrar preview correto
+  const thumbCanvas = document.createElement("canvas")
+  const thumbScale = Math.min(256 / piece.width, 256 / piece.height)
+  thumbCanvas.width = Math.round(piece.width * thumbScale)
+  thumbCanvas.height = Math.round(piece.height * thumbScale)
+  const tctx = thumbCanvas.getContext("2d", { alpha: false } as any)!
+  tctx.fillStyle = "#ffffff"
+  tctx.fillRect(0, 0, thumbCanvas.width, thumbCanvas.height)
+  tctx.drawImage(compositeCanvas, 0, 0, thumbCanvas.width, thumbCanvas.height)
+
   const psd: any = {
     width: piece.width,
     height: piece.height,
-    imageData: canvasToImageData(compositeCanvas),  // ImageData ao inves de canvas (evita pre-multiplicacao)
+    canvas: compositeCanvas,
     children: psdLayers,
+    imageResources: { thumbnail: thumbCanvas },
   }
-  const buffer = agpsd.writePsd(psd)
-  const blob = new Blob([buffer], { type: "image/vnd.adobe.photoshop" })
-  downloadBlob(blob, safeName(piece.name) + ".psd")
+  const buffer = agpsd.writePsd(psd, { generateThumbnail: false })
   fc.dispose()
+  return new Blob([buffer], { type: "image/vnd.adobe.photoshop" })
 }
 
+const EXT_MAP: Record<ExportFormat, string> = { PSD: "psd", PNG: "png", JPG: "jpg", PDF: "pdf" }
+
+async function buildBlob(piece: { name: string; data: any; width: number; height: number }, format: ExportFormat): Promise<Blob> {
+  switch (format) {
+    case "PNG": return exportPNGBlob(piece)
+    case "JPG": return exportJPGBlob(piece)
+    case "PDF": return exportPDFBlob(piece)
+    case "PSD": return exportPSDBlob(piece)
+  }
+}
+
+// Exporta uma ou mais pecas em um ou mais formatos.
+// Se total > 1 arquivo, agrupa tudo num zip e baixa uma vez so.
+export async function exportPieces(
+  pieces: Array<{ name: string; data: any; width: number; height: number }>,
+  formats: ExportFormat[],
+  onProgress?: (msg: string) => void
+): Promise<void> {
+  const total = pieces.length * formats.length
+  if (total === 0) return
+
+  // Caso simples: 1 arquivo so, baixa direto
+  if (total === 1) {
+    const piece = pieces[0]
+    const fmt = formats[0]
+    onProgress?.(`Gerando ${piece.name} (${fmt})`)
+    const blob = await buildBlob(piece, fmt)
+    downloadBlob(blob, `${safeName(piece.name)}.${EXT_MAP[fmt]}`)
+    return
+  }
+
+  // Caso multiplo: empacota em zip
+  const JSZip = (await import("jszip")).default
+  const zip = new JSZip()
+  let done = 0
+  for (const piece of pieces) {
+    // Se ha varias pecas, organiza em pastas por peca
+    const folder = pieces.length > 1 ? zip.folder(safeName(piece.name)) ?? zip : zip
+    for (const fmt of formats) {
+      done++
+      onProgress?.(`${done}/${total} — ${piece.name} (${fmt})`)
+      try {
+        const blob = await buildBlob(piece, fmt)
+        const buf = await blob.arrayBuffer()
+        folder.file(`${safeName(piece.name)}.${EXT_MAP[fmt]}`, buf)
+      } catch (e) {
+        console.error("Falha ao exportar", piece.name, fmt, e)
+      }
+    }
+  }
+
+  onProgress?.(`Empacotando zip...`)
+  const zipBlob = await zip.generateAsync({ type: "blob" })
+  const zipName = pieces.length === 1
+    ? `${safeName(pieces[0].name)}.zip`
+    : `pecas-${new Date().toISOString().slice(0, 10)}.zip`
+  downloadBlob(zipBlob, zipName)
+}
+
+// Compat antiga
 export async function exportPiece(
   piece: { name: string; data: any; width: number; height: number },
   format: ExportFormat
 ) {
-  switch (format) {
-    case "PNG": return exportPNG(piece)
-    case "JPG": return exportJPG(piece)
-    case "PDF": return exportPDF(piece)
-    case "PSD": return exportPSD(piece)
-  }
+  return exportPieces([piece], [format])
 }
