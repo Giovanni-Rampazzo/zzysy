@@ -144,6 +144,12 @@ function parseColor(c: string): { r: number; g: number; b: number } {
   return { r: 0, g: 0, b: 0 }
 }
 
+// Helper: converte HTMLCanvasElement em ImageData (sem pre-multiplicacao de alfa)
+function canvasToImageData(c: HTMLCanvasElement): ImageData {
+  const ctx = c.getContext("2d")!
+  return ctx.getImageData(0, 0, c.width, c.height)
+}
+
 export async function exportPSD(piece: { name: string; data: any; width: number; height: number; sourceWidth?: number; sourceHeight?: number }) {
   const data = typeof piece.data === "string" ? JSON.parse(piece.data) : piece.data
   const canvasData = data?.canvasData ?? data
@@ -196,6 +202,7 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
         },
       })
     } else {
+      // Renderiza objeto isolado e usa imageData (sem pre-multiplicacao)
       const layerCanvas = document.createElement("canvas")
       layerCanvas.width = w
       layerCanvas.height = h
@@ -203,12 +210,14 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
       try {
         const img = obj.toCanvasElement({ multiplier: scale })
         lctx.drawImage(img, 0, 0, w, h)
-      } catch (e) { console.warn("falha rasterizar:", name, e) }
-      psdLayers.push({ name, top, left, bottom, right, canvas: layerCanvas })
+        psdLayers.push({ name, top, left, bottom, right, imageData: canvasToImageData(layerCanvas) })
+      } catch (e) {
+        console.warn("falha rasterizar:", name, e)
+      }
     }
   }
 
-  // Composite final (preview) - obrigatorio para o Photoshop nao mostrar preto
+  // Composite final - usado pelo Photoshop como preview do documento
   const compositeCanvas = document.createElement("canvas")
   compositeCanvas.width = piece.width
   compositeCanvas.height = piece.height
@@ -222,7 +231,7 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
   const psd: any = {
     width: piece.width,
     height: piece.height,
-    canvas: compositeCanvas,
+    imageData: canvasToImageData(compositeCanvas),  // ImageData ao inves de canvas (evita pre-multiplicacao)
     children: psdLayers,
   }
   const buffer = agpsd.writePsd(psd)
