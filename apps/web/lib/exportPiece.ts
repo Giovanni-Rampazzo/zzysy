@@ -50,7 +50,8 @@ async function renderToCanvas(piece: { data: any; width: number; height: number 
   out.height = piece.height
   const ctx = out.getContext("2d", { alpha: false } as any)!
 
-  const scale = Math.min(piece.width / sourceW, piece.height / sourceH)
+  // FILL: preenche todo o canvas
+  const scale = Math.max(piece.width / sourceW, piece.height / sourceH)
   const drawW = sourceW * scale
   const drawH = sourceH * scale
   const dx = (piece.width - drawW) / 2
@@ -201,7 +202,7 @@ export async function exportPSDBlob(piece: { name: string; data: any; width: num
 
   const fc = await loadFabricFromJSON(canvasData, sourceW, sourceH)
   const objects = fc.getObjects()
-  const scale = Math.min(piece.width / sourceW, piece.height / sourceH)
+  const scale = Math.max(piece.width / sourceW, piece.height / sourceH)
   const offsetX = (piece.width - sourceW * scale) / 2
   const offsetY = (piece.height - sourceH * scale) / 2
 
