@@ -294,6 +294,16 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
     )
   }
 
+  function moveLayer(obj: any, direction: "up" | "down") {
+    const fc = fabricRef.current
+    if (!fc || !obj) return
+    if (direction === "up") fc.bringObjectForward(obj)
+    else fc.sendObjectBackwards(obj)
+    fc.renderAll()
+    refreshLayers(fc)
+    doSave()
+  }
+
   function doSave() {
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
@@ -407,11 +417,15 @@ export function KeyVisionEditor({ campaignId }: { campaignId: string }) {
             const isSel = selected === layer.obj
             return (
               <div key={i} onClick={() => { fabricRef.current?.setActiveObject(layer.obj); fabricRef.current?.renderAll(); setSelected(layer.obj) }}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", cursor: "pointer", borderLeft: isSel ? "2px solid #F5C400" : "2px solid transparent", background: isSel ? "rgba(245,196,0,0.08)" : "transparent" }}>
+                style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 8px 8px 12px", cursor: "pointer", borderLeft: isSel ? "2px solid #F5C400" : "2px solid transparent", background: isSel ? "rgba(245,196,0,0.08)" : "transparent" }}>
                 <div style={{ width: 7, height: 7, borderRadius: 2, background: layer.type === "textbox" ? "#F5C400" : "#86efac", flexShrink: 0 }} />
                 <span style={{ fontSize: 12, color: isSel ? "#fff" : "#888", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{layer.label}</span>
-                <button onClick={e => { e.stopPropagation(); fabricRef.current?.remove(layer.obj); fabricRef.current?.renderAll(); setSelected(null); doSave() }}
-                  style={{ color: "#555", background: "transparent", border: "none", cursor: "pointer", fontSize: 12 }}>✕</button>
+                <button title="Mover para cima" onClick={e => { e.stopPropagation(); moveLayer(layer.obj, "up") }}
+                  style={{ color: "#666", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, padding: "2px 4px", lineHeight: 1 }}>▲</button>
+                <button title="Mover para baixo" onClick={e => { e.stopPropagation(); moveLayer(layer.obj, "down") }}
+                  style={{ color: "#666", background: "transparent", border: "none", cursor: "pointer", fontSize: 11, padding: "2px 4px", lineHeight: 1 }}>▼</button>
+                <button title="Remover" onClick={e => { e.stopPropagation(); fabricRef.current?.remove(layer.obj); fabricRef.current?.renderAll(); setSelected(null); doSave() }}
+                  style={{ color: "#555", background: "transparent", border: "none", cursor: "pointer", fontSize: 12, padding: "2px 4px", lineHeight: 1 }}>✕</button>
               </div>
             )
           })}
