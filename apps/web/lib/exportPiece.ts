@@ -1,5 +1,6 @@
 "use client"
-// Exportacao de pecas: PSD editavel + PNG + JPG + PDF (sem dependencias externas alem de ag-psd)
+// Exportacao de pecas: PSD editavel + PNG + JPG + PDF
+// Tudo client-side, sem dependencias alem de ag-psd
 
 export type ExportFormat = "PSD" | "PNG" | "JPG" | "PDF"
 
@@ -75,16 +76,62 @@ export async function exportJPG(piece: { name: string; data: any; width: number;
   })
 }
 
-// PDF simples: usa janela de impressao do navegador com a imagem
+// PDF: monta um arquivo PDF minimo embedando JPEG, sem dependencias e sem popup
 export async function exportPDF(piece: { name: string; data: any; width: number; height: number }) {
   const c = await renderToCanvas(piece)
-  const dataUrl = c.toDataURL("image/jpeg", 0.92)
-  const w = window.open("", "_blank")
-  if (!w) { alert("Permita popups para exportar PDF"); return }
-  w.document.write(`<!doctype html><html><head><title>${safeName(piece.name)}</title>
-    <style>@page{size:${piece.width}px ${piece.height}px;margin:0}body{margin:0}img{display:block;width:${piece.width}px;height:${piece.height}px}</style></head>
-    <body><img src="${dataUrl}" onload="setTimeout(()=>window.print(),100)" /></body></html>`)
-  w.document.close()
+  const jpegDataUrl = c.toDataURL("image/jpeg", 0.92)
+  const jpegBase64 = jpegDataUrl.split(",")[1]
+  const jpegBytes = atob(jpegBase64)
+  const jpegBuf = new Uint8Array(jpegBytes.length)
+  for (let i = 0; i < jpegBytes.length; i++) jpegBuf[i] = jpegBytes.charCodeAt(i)
+
+  // Constroi PDF estruturado manualmente (1 pagina com 1 imagem)
+  const W = piece.width
+  const H = piece.height
+  const enc = new TextEncoder()
+  const parts: Array<Uint8Array> = []
+  const offsets: number[] = []
+  let pos = 0
+  function push(s: string | Uint8Array) {
+    const u = typeof s === "string" ? enc.encode(s) : s
+    parts.push(u); pos += u.length
+  }
+  function startObj(idx: number) { offsets[idx] = pos; push(`${idx} 0 obj\n`) }
+  function endObj() { push("\nendobj\n") }
+
+  push("%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+
+  startObj(1); push("<< /Type /Catalog /Pages 2 0 R >>"); endObj()
+  startObj(2); push("<< /Type /Pages /Kids [3 0 R] /Count 1 >>"); endObj()
+  startObj(3); push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 4 0 R >> /ProcSet [/PDF /ImageC] >> /Contents 5 0 R >>`); endObj()
+
+  // Imagem (XObject)
+  startObj(4)
+  push(`<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBuf.length} >>\nstream\n`)
+  push(jpegBuf)
+  push("\nendstream")
+  endObj()
+
+  // Stream de conteudo
+  const content = `q\n${W} 0 0 ${H} 0 0 cm\n/Im0 Do\nQ\n`
+  startObj(5)
+  push(`<< /Length ${content.length} >>\nstream\n${content}endstream`)
+  endObj()
+
+  // xref
+  const xrefOffset = pos
+  push(`xref\n0 6\n0000000000 65535 f \n`)
+  for (let i = 1; i <= 5; i++) {
+    push(offsets[i].toString().padStart(10, "0") + " 00000 n \n")
+  }
+  push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`)
+
+  // Concatenar
+  const total = parts.reduce((a, p) => a + p.length, 0)
+  const buf = new Uint8Array(total)
+  let off = 0
+  for (const p of parts) { buf.set(p, off); off += p.length }
+  downloadBlob(new Blob([buf], { type: "application/pdf" }), safeName(piece.name) + ".pdf")
 }
 
 function parseColor(c: string): { r: number; g: number; b: number } {
@@ -161,16 +208,24 @@ export async function exportPSD(piece: { name: string; data: any; width: number;
     }
   }
 
-  // Composite final: renderiza a peca inteira num canvas para servir de preview
-  const compositeCanvas = await renderToCanvas(piece)
+  // Composite final (preview) - obrigatorio para o Photoshop nao mostrar preto
+  const compositeCanvas = document.createElement("canvas")
+  compositeCanvas.width = piece.width
+  compositeCanvas.height = piece.height
+  const cctx = compositeCanvas.getContext("2d")!
+  cctx.fillStyle = "#ffffff"
+  cctx.fillRect(0, 0, piece.width, piece.height)
+  const drawW = sourceW * scale
+  const drawH = sourceH * scale
+  cctx.drawImage(fc.getElement(), offsetX, offsetY, drawW, drawH)
 
   const psd: any = {
     width: piece.width,
     height: piece.height,
-    canvas: compositeCanvas,  // imagem achatada (preview)
+    canvas: compositeCanvas,
     children: psdLayers,
   }
-  const buffer = agpsd.writePsd(psd, { generateThumbnail: true, psb: false })
+  const buffer = agpsd.writePsd(psd)
   const blob = new Blob([buffer], { type: "image/vnd.adobe.photoshop" })
   downloadBlob(blob, safeName(piece.name) + ".psd")
   fc.dispose()
