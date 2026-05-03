@@ -20,30 +20,62 @@ interface Props {
   onGenerated: () => void
 }
 
-async function generateThumbnailFromCanvas(fc: any, maxW = 480, maxH = 360): Promise<Blob | null> {
-  if (!fc) return null
+// Renderiza preview de UMA peca: cria canvas no tamanho da peca e desenha os
+// objetos da matriz com escala pelo MENOR LADO (preserva proporcao do layout)
+async function renderPieceThumb(
+  matrixCanvas: any,
+  pieceW: number,
+  pieceH: number,
+  matrixW: number,
+  matrixH: number
+): Promise<Blob | null> {
   try {
-    // Salva zoom e dimensões atuais
-    const prevZoom = fc.getZoom()
-    const prevW = fc.getWidth()
-    const prevH = fc.getHeight()
-    const objects = fc.getObjects()
-    const bg = objects.find((o: any) => o.__isBg)
-    const sourceW = bg?.width ?? prevW / prevZoom
-    const sourceH = bg?.height ?? prevH / prevZoom
+    const fabric = await import("fabric")
+    const StaticCanvas = (fabric as any).StaticCanvas
+    const el = document.createElement("canvas")
+    el.width = pieceW; el.height = pieceH
 
-    // Calcular escala para o thumbnail (proporcional)
-    const scale = Math.min(maxW / sourceW, maxH / sourceH)
+    const fc = new StaticCanvas(el, { width: pieceW, height: pieceH, enableRetinaScaling: false, backgroundColor: matrixCanvas.backgroundColor ?? "#fff" })
 
-    const dataUrl = fc.toDataURL({
-      format: "jpeg",
-      quality: 0.85,
-      multiplier: scale / prevZoom,
+    // Escala pelo MENOR lado (uma dimensao cabe, layout preservado)
+    const scale = Math.min(pieceW / matrixW, pieceH / matrixH)
+    const offsetX = (pieceW - matrixW * scale) / 2
+    const offsetY = (pieceH - matrixH * scale) / 2
+
+    // Serializa matriz e carrega no canvas da peca
+    const json = matrixCanvas.toJSON(["__assetId", "__assetLabel", "__isBg", "__isImage"])
+    await new Promise<void>((resolve) => {
+      const r = fc.loadFromJSON(json, () => resolve())
+      if (r && typeof r.then === "function") r.then(() => resolve())
     })
+    await new Promise(r => setTimeout(r, 200))
+
+    // Aplica escala em todos os objetos
+    for (const obj of fc.getObjects()) {
+      if ((obj as any).__isBg) {
+        obj.set({ left: 0, top: 0, width: pieceW, height: pieceH, scaleX: 1, scaleY: 1 })
+        continue
+      }
+      obj.set({
+        left: (obj.left ?? 0) * scale + offsetX,
+        top: (obj.top ?? 0) * scale + offsetY,
+        scaleX: (obj.scaleX ?? 1) * scale,
+        scaleY: (obj.scaleY ?? 1) * scale,
+      })
+      obj.setCoords()
+    }
+    const bgObj = fc.getObjects().find((o: any) => o.__isBg)
+    if (bgObj) fc.sendObjectToBack(bgObj)
+    fc.renderAll()
+
+    // Tamanho menor para thumbnail (max 480px no maior lado)
+    const thumbScale = Math.min(480 / pieceW, 480 / pieceH, 1)
+    const dataUrl = fc.toDataURL({ format: "jpeg", quality: 0.85, multiplier: thumbScale })
+    fc.dispose()
     const res = await fetch(dataUrl)
     return await res.blob()
   } catch (e) {
-    console.warn("Falha ao gerar thumbnail:", e)
+    console.warn("thumb fail:", e)
     return null
   }
 }
@@ -53,25 +85,21 @@ export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerate
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [progress, setProgress] = useState("")
 
   useEffect(() => {
     fetch("/api/medias").then(r => r.json()).then(d => { setFormats(d); setLoading(false) })
   }, [])
 
   function isSelected(id: string) { return selected.includes(id) }
-
   function toggle(id: string) {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
-
   function toggleAll(category: "DIGITAL" | "OFFLINE") {
     const ids = formats.filter(f => f.category === category).map(f => f.id)
     const allSelected = ids.every(id => selected.includes(id))
-    if (allSelected) {
-      setSelected(prev => prev.filter(id => !ids.includes(id)))
-    } else {
-      setSelected(prev => [...prev, ...ids.filter(id => !prev.includes(id))])
-    }
+    if (allSelected) setSelected(prev => prev.filter(id => !ids.includes(id)))
+    else setSelected(prev => [...prev, ...ids.filter(id => !prev.includes(id))])
   }
 
   async function generate() {
@@ -79,14 +107,58 @@ export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerate
     setGenerating(true)
 
     const fc = fabricRef.current
+    if (!fc) { setGenerating(false); return }
+
     const selectedFormats = formats.filter(f => selected.includes(f.id))
-    const canvasData = fc?.toJSON(["__assetId", "__assetLabel", "__isBg", "__isImage"]) ?? {}
 
-    // Gera thumbnail UMA vez (matriz atual) e usa pra todas as peças
-    const thumbBlob = await generateThumbnailFromCanvas(fc)
+    // Le matriz: dimensoes + layers (do bg + objetos) com posicoes
+    const bg = fc.getObjects().find((o: any) => o.__isBg)
+    const matrixW = bg?.width ?? fc.getWidth() / fc.getZoom()
+    const matrixH = bg?.height ?? fc.getHeight() / fc.getZoom()
+    const bgColor = bg?.fill ?? "#ffffff"
 
+    // Carregar key-vision atual do banco para pegar os layers (mais confiavel que ler do canvas)
+    const campRes = await fetch(`/api/campaigns/${campaignId}`)
+    const camp = await campRes.json()
+    const matrixLayers = (camp.keyVision?.layers ?? []) as any[]
+
+    let i = 0
     for (const f of selectedFormats) {
-      // Cria a peça
+      i++
+      setProgress(`${i}/${selectedFormats.length} — ${f.format}`)
+
+      // Calcula posicoes adaptadas (escala pelo menor lado)
+      const scale = Math.min(f.width / matrixW, f.height / matrixH)
+      const offsetX = (f.width - matrixW * scale) / 2
+      const offsetY = (f.height - matrixH * scale) / 2
+
+      const pieceLayers = matrixLayers.map((l: any) => ({
+        assetId: l.assetId,
+        posX: Math.round((l.posX ?? 0) * scale + offsetX),
+        posY: Math.round((l.posY ?? 0) * scale + offsetY),
+        scaleX: (l.scaleX ?? 1) * scale,
+        scaleY: (l.scaleY ?? 1) * scale,
+        rotation: l.rotation ?? 0,
+        zIndex: l.zIndex ?? 0,
+        width: l.width ?? 400,
+        height: l.height ?? 100,
+        // overrides vazios inicialmente
+        overrides: {},
+      }))
+
+      // Cria a peca com NOVO formato: layers + dimensoes + bgColor
+      const pieceData = {
+        version: 2,  // marca novo formato
+        width: f.width,
+        height: f.height,
+        bgColor,
+        layers: pieceLayers,
+        format: f.format,
+        dpi: f.dpi,
+        sourceWidth: matrixW,
+        sourceHeight: matrixH,
+      }
+
       const res = await fetch("/api/pieces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -94,21 +166,23 @@ export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerate
           campaignId,
           name: `${f.vehicle} — ${f.format}`,
           mediaFormatId: f.id,
-          data: { canvasData, sourceWidth: fc?.getObjects().find((o: any) => o.__isBg)?.width ?? 1920, sourceHeight: fc?.getObjects().find((o: any) => o.__isBg)?.height ?? 1080, format: f.format, width: f.width, height: f.height, dpi: f.dpi },
+          data: pieceData,
           status: "DRAFT",
         }),
       })
       const piece = await res.json()
 
-      // Faz upload do thumbnail
-      if (thumbBlob && piece?.id) {
+      // Gera thumbnail no tamanho/proporcao da peca
+      const thumb = await renderPieceThumb(fc, f.width, f.height, matrixW, matrixH)
+      if (thumb && piece?.id) {
         const fd = new FormData()
-        fd.append("thumbnail", thumbBlob, "thumb.jpg")
+        fd.append("thumbnail", thumb, "thumb.jpg")
         await fetch(`/api/pieces/${piece.id}/thumbnail`, { method: "POST", body: fd })
       }
     }
 
     setGenerating(false)
+    setProgress("")
     onGenerated()
   }
 
@@ -150,7 +224,7 @@ export function GeneratePiecesModal({ campaignId, fabricRef, onClose, onGenerate
         </div>
 
         <div className="px-6 py-4 border-t border-[#333333] flex justify-between items-center">
-          <span className="text-xs text-[#555555]">{selected.length} formato(s) selecionado(s)</span>
+          <span className="text-xs text-[#555555]">{generating ? progress : `${selected.length} formato(s) selecionado(s)`}</span>
           <div className="flex gap-3">
             <Button variant="ghost" onClick={onClose} className="text-[#888888]">Cancelar</Button>
             <Button onClick={generate} loading={generating} disabled={selected.length === 0}>
